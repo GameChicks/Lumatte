@@ -4,10 +4,10 @@
 
 ## 资源与内存
 
-- 仅使用目录中已有的 `CAM_LRGTN`，缺少时使用 `CAM_TN`。没有缩略图或请求失败显示占位，不下载原图、RAW 或原视频代替。
+- 仅使用目录中已有的 `CAM_LRGTN`，缺少或下载／解码失败时尝试 `CAM_TN`。每项最多两个不同地址，重复地址去重。两个资源均不可用时显示占位，不下载原图、RAW 或原视频代替；取消不会触发备用下载。
 - HTTP 沿用当前相机的所选 Wi-Fi、同主机地址校验、X-SESSION_ID 和禁止重定向策略。仅接受 HTTP 200 的完整非空响应；已声明尺寸和实际流式字节数分别限制为 4 MiB，已知 Content-Length 必须与收到的字节数一致。
-- 先读取 JPEG 尺寸和类型，再按 2 的幂采样到最长边不超过 384 像素；只接受 JPEG、单边不超过 16384、源像素数不超过 6400 万。解码在 IO 调度器上执行。
-- 单个加载通道串行下载和解码，下载含等待相机命令锁上限 6 秒。位图 LruCache 按 allocationByteCount 限制 8 MiB；已显示位图、下载缓冲区、解码临时分配不包含在这个缓存额度内。缩略图不落盘、不进入照片记录，不改变传输资源选择。
+- 先读取 JPEG 尺寸和类型，再按 2 的幂采样到最长边不超过 384 像素；只接受 JPEG、单边不超过 16384、源像素数不超过 6400 万。`core:media` 的 JpegThumbnailDecoder 读取缩略图自身的 EXIF 方向，八种旋转／镜像方向和本地预览／导出共用 BitmapOrientation；方向 5～8 交换输出宽高。无方向或 EXIF 读取失败时按正常方向显示，不借用原图方向，以免相机已旋正缩略图时二次旋转。解码请求 sRGB，并在 IO 调度器上执行。
+- 单个加载通道串行下载和解码，每个缩略图下载含等待相机命令锁设置 6 秒协程超时，备用资源有自己的超时；实际退出耗时仍取决于底层连接响应取消。位图 LruCache 按 allocationByteCount 限制 8 MiB；已显示位图、下载缓冲区、采样输入及旋正画布临时分配不包含在这个缓存额度内。缩略图不落盘、不进入照片记录，不改变传输资源选择。
 - 失败标记最多保留 128 项，减少来回滚动时反复请求失败资源；刷新目录或重新连接会允许重新加载。
 
 ## 会话与取消
@@ -21,5 +21,7 @@
 ## 证据与待办
 
 接口来源是现有目录解析中的资源 profile。位图采样和缓存采用 [Android 位图加载文档](https://developer.android.com/topic/performance/graphics/load-bitmap) 与 [LruCache 文档](https://developer.android.com/reference/android/util/LruCache)；前台状态使用 [Lifecycle 的 Compose 集成](https://developer.android.com/topic/libraries/architecture/lifecycle)。取消监视采用标准协程 [awaitCancellation](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/await-cancellation.html) 子任务，只释放当前连接。
+
+方向读取依据 [ExifInterface 的流构造器及方向常量](https://developer.android.com/reference/androidx/exifinterface/media/ExifInterface)；共用方向画布保留既有导出的三点映射，使用 [Matrix.setPolyToPoly](https://developer.android.com/reference/android/graphics/Matrix) 组合方向与尺寸。相机预览和本地导出各自保留原有尺寸策略，384 像素限制仅用于相机缩略图，不限制用户选择 100% 的导出。
 
 尚未编译、运行、测试或打包。真实相机的缩略图尺寸／类型、HTTP 取消响应、不同机型是否已旋正预览及 EXIF 方向差异、缓存与快速滚动表现仍待用户明确要求验证后确认。此入口仅用于最小照片浏览，不代表第四阶段的正式图库界面已完成。

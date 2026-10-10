@@ -4,10 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import android.graphics.ColorSpace
-import android.graphics.Matrix
-import android.graphics.Paint
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
@@ -89,26 +86,7 @@ class JpegOutputWriter(context: Context) {
             inPreferredColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)
         }) ?: error("无法解码内嵌 JPEG")
         try {
-            val output = Bitmap.createBitmap(size.width, size.height, Bitmap.Config.ARGB_8888)
-            try {
-                val width = size.width.toFloat(); val height = size.height.toFloat()
-                val destination = when (source.orientation) {
-                    2 -> floatArrayOf(width, 0f, 0f, 0f, width, height)
-                    3 -> floatArrayOf(width, height, 0f, height, width, 0f)
-                    4 -> floatArrayOf(0f, height, width, height, 0f, 0f)
-                    5 -> floatArrayOf(0f, 0f, 0f, height, width, 0f)
-                    6 -> floatArrayOf(width, 0f, width, height, 0f, 0f)
-                    7 -> floatArrayOf(width, height, width, 0f, 0f, height)
-                    8 -> floatArrayOf(0f, height, 0f, 0f, width, height)
-                    else -> floatArrayOf(0f, 0f, width, 0f, 0f, height)
-                }
-                val transform = Matrix().apply { setPolyToPoly(
-                    floatArrayOf(0f, 0f, input.width.toFloat(), 0f, 0f, input.height.toFloat()), 0,
-                    destination, 0, 3,
-                ) }
-                Canvas(output).drawBitmap(input, transform, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
-                return output
-            } catch (error: Throwable) { output.recycle(); throw error }
+            return BitmapOrientation.render(input, size, source.orientation)
         } finally { input.recycle() }
     }
 

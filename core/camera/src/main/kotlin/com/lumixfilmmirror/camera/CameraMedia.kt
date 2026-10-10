@@ -59,8 +59,11 @@ data class CameraMedia(
         resources.firstOrNull { it.kind == CameraResourceKind.ORIGINAL_JPEG }
             ?: resources.firstOrNull { it.kind == CameraResourceKind.RAW_PREVIEW_JPEG }
             ?: resources.firstOrNull { it.kind == CameraResourceKind.RAW }
-    val thumbnail: CameraResource? get() = resources.firstOrNull { it.profile == "CAM_LRGTN" }
-        ?: resources.firstOrNull { it.profile == "CAM_TN" }
+    val thumbnailResources: List<CameraResource> get() = listOfNotNull(
+        resources.firstOrNull { it.profile == "CAM_LRGTN" },
+        resources.firstOrNull { it.profile == "CAM_TN" },
+    ).distinctBy { it.uri }
+    val thumbnail: CameraResource? get() = thumbnailResources.firstOrNull()
     val videoResource: CameraResource? get() =
         resources.firstOrNull { it.videoContainer != null && it.profile?.endsWith("_ORG") == true }
             ?: resources.firstOrNull { it.videoContainer != null }

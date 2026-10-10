@@ -1,11 +1,11 @@
 package com.lumixfilmmirror.app
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.LruCache
 import com.lumixfilmmirror.camera.CameraResource
 import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.LumixCameraSession
+import com.lumixfilmmirror.media.JpegThumbnailDecoder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -25,7 +25,7 @@ internal class CameraThumbnailLoader {
     fun cancelRequests() { requests.toList().forEach { it.cancel() } }
     fun invalidate() { generation++; cancelRequests(); cache.evictAll(); failures.clear() }
 
-    suspend fun load(session: LumixCameraSession, resource: CameraResource, key: Key): Bitmap? = coroutineScope {
+    suspend fun load(session: LumixCameraSession, resources: List<CameraResource>, key: Key): Bitmap? = coroutineScope {
         val request = currentCoroutineContext().job
         val started = generation
         requests += request
@@ -34,38 +34,28 @@ internal class CameraThumbnailLoader {
                 currentCoroutineContext().ensureActive()
                 cache.get(key)?.let { return@withPermit it }
                 if (key in failures) return@withPermit null
-                try {
-                    val bytes = withTimeoutOrNull(6_000) { session.thumbnail(resource) }
-                        ?: error("缩略图请求超时")
-                    val bitmap = withContext(Dispatchers.IO) { decode(bytes) }
-                    currentCoroutineContext().ensureActive()
-                    if (generation != started) return@withPermit null
-                    cache.put(key, bitmap)
-                    bitmap
-                } catch (error: CancellationException) { throw error }
-                catch (_: Exception) {
-                    if (generation == started) {
-                        if (failures.size >= 128) failures.remove(failures.first())
-                        failures += key
+                for (resource in resources.take(2)) {
+                    try {
+                        val bytes = withTimeoutOrNull(6_000) { session.thumbnail(resource) }
+                            ?: error("缩略图请求超时")
+                        val bitmap = withContext(Dispatchers.IO) { JpegThumbnailDecoder.decode(bytes) }
+                        currentCoroutineContext().ensureActive()
+                        if (generation != started) return@withPermit null
+                        cache.put(key, bitmap)
+                        return@withPermit bitmap
+                    } catch (error: CancellationException) { throw error }
+                    catch (_: Exception) {
+                        // Try only the other advertised thumbnail, never an original resource.
+                        currentCoroutineContext().ensureActive()
                     }
-                    null
                 }
+                currentCoroutineContext().ensureActive()
+                if (generation == started) {
+                    if (failures.size >= 128) failures.remove(failures.first())
+                    failures += key
+                }
+                null
             }
         } finally { requests -= request }
-    }
-
-    private fun decode(bytes: ByteArray): Bitmap {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        require(bounds.outMimeType == "image/jpeg" && bounds.outWidth in 1..16384 && bounds.outHeight in 1..16384 &&
-            bounds.outWidth.toLong() * bounds.outHeight <= 64_000_000) { "无效的相机 JPEG 缩略图" }
-        var sample = 1
-        while ((maxOf(bounds.outWidth, bounds.outHeight) + sample - 1) / sample > 384) sample *= 2
-        val options = BitmapFactory.Options().apply {
-            inSampleSize = sample
-            inPreferredConfig = Bitmap.Config.ARGB_8888
-            inScaled = false
-        }
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: error("缩略图无法解码")
     }
 }

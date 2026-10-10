@@ -562,8 +562,9 @@ class CameraController(private val application: Application) {
         if (!snapshot.connected || snapshot.busy || snapshot.accessMode.incoming || visibleClients == 0 ||
             snapshot.thumbnailVersion != version || entry !in snapshot.entries)
             throw CancellationException("缩略图加载暂不可用")
-        val resource = entry.thumbnail ?: return null
-        val bitmap = thumbnails.load(session, resource, CameraThumbnailLoader.Key(version, entry))
+        val resources = entry.thumbnailResources
+        if (resources.isEmpty()) return null
+        val bitmap = thumbnails.load(session, resources, CameraThumbnailLoader.Key(version, entry))
         val current = cameraMutable.value
         if (cameraSession !== session || !current.connected || current.busy || visibleClients == 0 ||
             current.thumbnailVersion != version || entry !in current.entries)
