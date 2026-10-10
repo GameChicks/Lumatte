@@ -181,6 +181,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun loadMoreCameraPhotos() = withCamera(camera::loadMoreCameraPhotos)
     fun refreshCameraPhotos() = withCamera(camera::refreshCameraPhotos)
     fun selectCameraPhoto(id: String) = withCamera { camera.selectCameraPhoto(id) }
+    suspend fun cameraThumbnail(entry: CameraMedia, version: Long) = camera.cameraThumbnail(entry, version)
     fun importCameraPhotos() = withCamera(camera::importCameraPhotos)
     fun receiveIncomingPhotos(follow: Boolean = false) = withCamera { camera.receiveIncomingPhotos(follow) }
     fun resumeTransferBatch(id: String) = withCamera { camera.resumeTransferBatch(id) }

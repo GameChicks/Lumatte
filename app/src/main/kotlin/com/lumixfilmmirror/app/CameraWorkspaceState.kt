@@ -40,6 +40,8 @@ data class CameraWorkspaceState(
     val selectedIds: Set<String> = emptySet(),
     val nextOffset: Int? = null,
     val updateId: String? = null,
+    val thumbnailVersion: Long = 0,
+    val thumbnailLoadVersion: Long = 0,
     val total: Int = 0,
     val progress: DownloadProgress? = null,
     val transferred: Int = 0,

@@ -5,6 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.CoroutineStart
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URI
@@ -52,6 +56,38 @@ internal class CameraHttp(private val network: Network, val host: String) {
 
     fun interrupt() { active.toList().forEach(::release) }
     fun close() { closed = true; setSession(null); interrupt() }
+
+    /** A preview cancels its own socket, never the session's transfer/command sockets. */
+    suspend fun thumbnailBytes(uri: URI, limit: Int): ByteArray = withContext(Dispatchers.IO) {
+        coroutineScope {
+            val connection = open(uri)
+            val cancellation = launch(start = CoroutineStart.UNDISPATCHED) {
+                try { awaitCancellation() } finally { release(connection) }
+            }
+            try {
+                currentCoroutineContext().ensureActive()
+                require(connection.responseCode == 200) { "缩略图不可用" }
+                val expected = connection.contentLengthLong.takeIf { it >= 0 }
+                require(expected == null || expected in 1..limit.toLong()) { "缩略图响应过大或为空" }
+                val output = ByteArrayOutputStream()
+                connection.inputStream.use { input ->
+                    val buffer = ByteArray(16 * 1024)
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        require(output.size() + count <= limit) { "缩略图响应过大" }
+                        output.write(buffer, 0, count)
+                    }
+                }
+                currentCoroutineContext().ensureActive()
+                require(output.size() > 0 && (expected == null || output.size().toLong() == expected)) {
+                    "缩略图尚未完整"
+                }
+                output.toByteArray()
+            } finally { cancellation.cancel(); release(connection) }
+        }
+    }
 
     suspend fun text(uri: URI, body: String? = null, headers: Map<String, String> = emptyMap()): String =
         withContext(Dispatchers.IO) {

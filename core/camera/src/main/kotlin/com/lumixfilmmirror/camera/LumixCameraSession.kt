@@ -109,6 +109,14 @@ class LumixCameraSession private constructor(
         return CameraXml.browse(response, offset, device.contentDirectory)
     }
 
+    suspend fun thumbnail(resource: CameraResource): ByteArray = commands.withLock {
+        check(accessMode == CameraAccessMode.BROWSING) { "待发送模式不请求缩略图" }
+        require(resource.kind == CameraResourceKind.THUMBNAIL) { "此资源不是相机缩略图" }
+        val limit = 4 * 1024 * 1024
+        require(resource.bytes == null || resource.bytes in 1..limit.toLong()) { "缩略图尺寸超出限制" }
+        http.thumbnailBytes(resource.uri, limit)
+    }
+
     fun close() { http.close() }
     fun interrupt() { http.interrupt() }
 

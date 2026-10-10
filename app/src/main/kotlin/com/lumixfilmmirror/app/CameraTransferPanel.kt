@@ -3,8 +3,9 @@ package com.lumixfilmmirror.app
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lumixfilmmirror.camera.ConnectionStep
@@ -17,6 +18,10 @@ import com.lumixfilmmirror.design.PaperPanel
 @Composable
 fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy: Boolean,
     transferring: Boolean, onImport: () -> Unit, onFollow: () -> Unit, workspace: WorkspaceViewModel) {
+    val listState = rememberLazyListState()
+    val visibleIds by remember(listState) {
+        derivedStateOf { listState.layoutInfo.visibleItemsInfo.map { it.key }.toSet() }
+    }
     PaperPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("从相机传入", style = MaterialTheme.typography.titleMedium)
@@ -51,7 +56,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 }
                 Text(camera.folders.last().title, style = MaterialTheme.typography.titleSmall)
                 if (camera.folders.size > 1) TextButton(enabled = !busy, onClick = workspace::cameraFolderBack) { Text("返回上级") }
-                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp)) {
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp), state = listState) {
                     items(camera.entries, key = { it.id }) { entry ->
                         if (entry.isFolder) {
                             TextButton(enabled = !busy && !camera.accessMode.incoming,
@@ -61,6 +66,8 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                             Row {
                                 if (!camera.accessMode.incoming) Checkbox(checked = entry.id in camera.selectedIds,
                                     enabled = !busy && resource != null, onCheckedChange = { workspace.selectCameraPhoto(entry.id) })
+                                if (!camera.accessMode.incoming) CameraPhotoThumbnail(entry, camera.thumbnailVersion, camera.thumbnailLoadVersion,
+                                    enabled = !busy && entry.id in visibleIds, workspace = workspace)
                                 Column(Modifier.weight(1f).padding(top = 8.dp)) {
                                     Text(resource?.originalName ?: entry.title, style = MaterialTheme.typography.bodySmall)
                                     val label = when (resource?.kind) {

@@ -34,6 +34,8 @@ class CameraController(private val application: Application) {
     val cameraState = cameraMutable.asStateFlow()
     val isTransferring: Boolean get() = cameraMutable.value.activeTransferBatch != null
     private var cameraSession: LumixCameraSession? = null
+    private val thumbnails = CameraThumbnailLoader()
+    private var thumbnailVersion = 0L
     private var cameraJob: Job? = null
     private var transferJob: Job? = null
     private var pendingStop: TransferStop? = null
@@ -64,7 +66,11 @@ class CameraController(private val application: Application) {
     }
 
     fun attachUi() { idleRelease?.cancel(); visibleClients++ }
-    fun detachUi() { visibleClients = (visibleClients - 1).coerceAtLeast(0); releaseIfIdle() }
+    fun detachUi() {
+        visibleClients = (visibleClients - 1).coerceAtLeast(0)
+        if (visibleClients == 0) thumbnails.cancelRequests()
+        releaseIfIdle()
+    }
     private fun releaseIfIdle() {
         if (visibleClients == 0 && (!cameraMutable.value.busy ||
             ((cameraMutable.value.bluetoothStep != null || cameraMutable.value.wifiSelection != null) &&
@@ -535,12 +541,34 @@ class CameraController(private val application: Application) {
     }
 
     private fun clearCameraSession() {
+        invalidateThumbnails()
         watchedNetwork = null
         networkWatch?.close()
         networkWatch = null
         cameraSession?.close()
         cameraSession = null
         cameraMutable.update { it.copy(connected = false, bluetoothCanFollowIncoming = false) }
+    }
+
+    private fun invalidateThumbnails() {
+        thumbnails.invalidate()
+        thumbnailVersion++
+        cameraMutable.update { it.copy(thumbnailVersion = thumbnailVersion) }
+    }
+
+    suspend fun cameraThumbnail(entry: CameraMedia, version: Long): android.graphics.Bitmap? {
+        val snapshot = cameraMutable.value
+        val session = cameraSession ?: throw CancellationException("缩略图会话已结束")
+        if (!snapshot.connected || snapshot.busy || snapshot.accessMode.incoming || visibleClients == 0 ||
+            snapshot.thumbnailVersion != version || entry !in snapshot.entries)
+            throw CancellationException("缩略图加载暂不可用")
+        val resource = entry.thumbnail ?: return null
+        val bitmap = thumbnails.load(session, resource, CameraThumbnailLoader.Key(version, entry))
+        val current = cameraMutable.value
+        if (cameraSession !== session || !current.connected || current.busy || visibleClients == 0 ||
+            current.thumbnailVersion != version || entry !in current.entries)
+            throw CancellationException("缩略图所属目录已变化")
+        return bitmap
     }
 
     fun openCameraFolder(entry: CameraMedia) {
@@ -629,6 +657,7 @@ class CameraController(private val application: Application) {
         }
         pendingStop = null
         followBinding = binding
+        thumbnails.cancelRequests()
         cameraMutable.update { it.copy(activeTransferBatch = batchId, notice = null, transferCache = null,
             receiving = incoming != null, transferPhase = if (incoming != null) TransferPhase.RESOLVING else null,
             followingIncoming = follow, waitingForIncoming = false,
@@ -727,12 +756,14 @@ class CameraController(private val application: Application) {
             session.incomingContentCount()
         } else snapshot.incomingCount
         if (!append && incomingCount == 0 && session.accessMode.incoming) {
+            invalidateThumbnails()
             cameraMutable.update { it.copy(folders = folders, entries = emptyList(), selectedIds = emptySet(),
                 nextOffset = null, total = 0, updateId = null, incomingCount = 0) }
             return
         }
         val page = session.browse(folders.last().id, offset)
         if (append && snapshot.updateId != page.updateId) error("相机照片列表已更新，请刷新后重新选择")
+        if (!append) invalidateThumbnails()
         cameraMutable.update { it.copy(folders = folders,
             entries = (if (append) it.entries + page.entries else page.entries).distinctBy { entry -> entry.id },
             selectedIds = if (append) it.selectedIds else emptySet(), nextOffset = page.nextOffset,
@@ -741,6 +772,7 @@ class CameraController(private val application: Application) {
 
     private fun cameraOperation(cache: Boolean = false, block: suspend () -> Unit) {
         if (cameraMutable.value.busy) return
+        thumbnails.cancelRequests()
         cameraMutable.update { it.copy(operationRunning = true, cacheBusy = cache, bluetoothStep = null) }
         cameraMutable.update { it.copy(problem = null, notice = null, transferTotal = 0, transferred = 0, progress = null, transferPhase = null) }
         cameraJob = scope.launch {
@@ -751,7 +783,11 @@ class CameraController(private val application: Application) {
             } catch (error: Exception) {
                 cameraMutable.update { it.copy(problem = error.message ?: "相机连接或传输失败") }
                 if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
-            } finally { cameraMutable.update { it.copy(operationRunning = false, cacheBusy = false, bluetoothStep = null) }; releaseIfIdle() }
+            } finally {
+                cameraMutable.update { it.copy(operationRunning = false, cacheBusy = false, bluetoothStep = null,
+                    thumbnailLoadVersion = it.thumbnailLoadVersion + 1) }
+                releaseIfIdle()
+            }
         }
     }
 
