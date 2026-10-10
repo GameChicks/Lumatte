@@ -19,6 +19,16 @@ class CameraWifiConnection internal constructor(val network: Network, private va
 }
 
 object CameraWifiConnector {
+    /** Observes an existing network; never requests a replacement or changes system routing. */
+    fun useExisting(context: Context, network: Network, onLost: (Network) -> Unit): CameraWifiConnection {
+        val manager = requireNotNull(context.applicationContext.getSystemService(ConnectivityManager::class.java))
+        fun available() = manager.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        check(available()) { "所选 Wi-Fi 已断开，请先在系统设置中连接路由器" }
+        val watcher = watch(context, network) { onLost(network) }
+        if (!available()) { watcher.close(); error("所选 Wi-Fi 已断开，请重新连接") }
+        return CameraWifiConnection(network) { watcher.close() }
+    }
+
     suspend fun connect(context: Context, ssid: String, password: String,
         onLost: (Network) -> Unit): CameraWifiConnection {
         require(ssid.isNotBlank() && ssid.toByteArray(Charsets.UTF_8).size <= 32) { "请输入相机显示的 Wi-Fi 名称" }

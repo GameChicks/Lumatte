@@ -17,6 +17,7 @@ internal object LumixBleProtocol {
     val wifiService: UUID = UUID.fromString("5ae57260-3214-11e6-979e-0002a5d5c51b")
     val wifiConnectionType: UUID = UUID.fromString("0d6f1880-3217-11e6-a4cb-0002a5d5c51b")
     val wifiChoiceReply: UUID = UUID.fromString("18345be1-3217-11e6-b56c-0002a5d5c51b")
+    val routerSsid: UUID = UUID.fromString("18345be0-3217-11e6-b56c-0002a5d5c51b")
     val connectionMode: UUID = UUID.fromString("e182ec40-3213-11e6-ab07-0002a5d5c51b")
     val connectionStatus: UUID = UUID.fromString("e182ec41-3213-11e6-ab07-0002a5d5c51b")
     val sendingService: UUID = UUID.fromString("6b005f20-3214-11e6-a5ac-0002a5d5c51b")
@@ -67,5 +68,14 @@ internal object LumixBleProtocol {
         val end = bytes.indexOf(0.toByte()).let { if (it < 0) bytes.size else it }
         require(end in 1..32) { "相机返回的 Wi-Fi 名称格式暂不支持" }
         return bytes.copyOfRange(0, end).toString(Charsets.UTF_8)
+    }
+
+    // The recovered encoder pads 32 characters before getBytes(). Limit this first
+    // STA path to ASCII so character count and the characteristic byte count agree.
+    fun routerSsid(value: String): ByteArray {
+        require(value.isNotBlank() && value.length <= 32 && value.all { it.code in 32..126 }) {
+            "当前路由器连接入口支持 1–32 位英文、数字或符号的 Wi-Fi 名称；其他名称请在相机上手动连接后查找"
+        }
+        return value.toByteArray(Charsets.US_ASCII).copyOf(32)
     }
 }

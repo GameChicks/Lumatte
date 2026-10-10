@@ -23,7 +23,7 @@ enum class BluetoothConnectionStep { SCANNING, CONNECTING, READING_SERVICES, IDE
 
 /** Deliberately not a data class: generated toString must never reveal a Wi-Fi password. */
 class CameraWifiCredentials(val ssid: String, private var secret: String?, val canStartTransferWifi: Boolean,
-    val canObserveIncoming: Boolean) : Closeable {
+    val canObserveIncoming: Boolean, val canStartRouterWifi: Boolean) : Closeable {
     fun password(): String = secret ?: error("连接资料已释放，请重新从相机读取")
     override fun close() { secret = null }
     override fun toString(): String = "CameraWifiCredentials(redacted)"
@@ -89,6 +89,21 @@ class CameraBluetooth(private val context: Context) {
     suspend fun readWifi(camera: BluetoothCamera, clientId: String,
         onStep: (BluetoothConnectionStep) -> Unit): CameraWifiCredentials = withConnection(camera, onStep) { session ->
         identifyAndRead(session, clientId, onStep)
+    }
+
+    /** Existing router credentials belong to the camera. Only its SSID is sent. */
+    suspend fun <T> withRouterWifi(camera: BluetoothCamera, clientId: String, routerSsid: String,
+        onStep: (BluetoothConnectionStep) -> Unit, block: suspend () -> T): T {
+        val bytes = LumixBleProtocol.routerSsid(routerSsid)
+        try {
+            return withConnection(camera, onStep) { session ->
+                identifyAndRead(session, clientId, onStep).close()
+                check(session.canStartRouterWifi()) { "此相机缺少路由器连接能力，请在相机上手动连接后查找" }
+                onStep(BluetoothConnectionStep.STARTING_WIFI)
+                session.startRouterWifi(bytes)
+                session.handoff(block)
+            }
+        } finally { bytes.fill(0) }
     }
 
     /** An already established sending Wi-Fi session only. No mode or Wi-Fi startup writes. */
@@ -183,7 +198,7 @@ class CameraBluetooth(private val context: Context) {
         val ssid = protocol.decodeSsid(session.read(protocol.ssid))
         val passwordBytes = session.read(protocol.password)
         try { return CameraWifiCredentials(ssid, protocol.decodePassword(passwordBytes, challenge),
-            session.canStartTransferWifi(), session.canObserveIncoming()) }
+            session.canStartTransferWifi(), session.canObserveIncoming(), session.canStartRouterWifi()) }
         finally { passwordBytes.fill(0) }
     }
 }
@@ -191,14 +206,18 @@ class CameraBluetooth(private val context: Context) {
 /** One request at a time; connection/sending notifications and two fixed ordinary startup values. */
 @SuppressLint("MissingPermission")
 private class ConnectionGatt(private val context: Context, private val device: BluetoothDevice) : Closeable {
-    private enum class Kind { CONNECTED, SERVICES, READ, WRITE, DESCRIPTOR }
-    private class Event(val kind: Kind, val status: Int, val uuid: UUID? = null, val bytes: ByteArray = byteArrayOf())
+    private enum class Kind { CONNECTED, SERVICES, READ, WRITE, DESCRIPTOR, MTU }
+    private class Event(val kind: Kind, val status: Int, val uuid: UUID? = null, val bytes: ByteArray = byteArrayOf(),
+        val mtu: Int = 0)
     private val events = Channel<Event>(16, onUndeliveredElement = { it.bytes.fill(0) })
     private val mutex = Mutex()
     private val closed = AtomicBoolean(false)
     private val startupActive = AtomicBoolean(false)
     private val failure = AtomicReference<IllegalStateException?>(null)
     private val startupRejected = CompletableDeferred<IllegalStateException>()
+    private val routerStartup = AtomicBoolean(false)
+    private val routerChoicePending = AtomicBoolean(false)
+    private val routerAccepted = CompletableDeferred<Unit>()
     private val incomingMode = AtomicReference<CameraAccessMode?>(null)
     private val incomingEvents = IncomingCameraEvents()
     private val sendingStartupActive = AtomicBoolean(false)
@@ -209,6 +228,7 @@ private class ConnectionGatt(private val context: Context, private val device: B
         private fun fail(message: String) {
             val problem = IllegalStateException(message)
             failure.compareAndSet(null, problem)
+            if (routerStartup.get()) startupRejected.complete(problem)
             events.close(problem)
             incomingEvents.stop(problem)
         }
@@ -230,6 +250,7 @@ private class ConnectionGatt(private val context: Context, private val device: B
                 fail("蓝牙相机已断开（$status），请在相机上开启配对后重试")
         }
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) { send(Event(Kind.SERVICES, status)) }
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) { send(Event(Kind.MTU, status, mtu = mtu)) }
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             send(Event(Kind.WRITE, status, characteristic.uuid))
         }
@@ -290,8 +311,13 @@ private class ConnectionGatt(private val context: Context, private val device: B
             val state = value[0].toInt() and 255
             if (uuid == protocol.connectionStatus && state == 1)
                 rejectStartup("相机拒绝当前连接，请在相机上确认或使用 Wi-Fi 入口")
-            if (uuid == protocol.wifiChoiceReply && state == 0)
-                rejectStartup("相机选择了其他 Wi-Fi 网络，请在相机上切换为直连后重试")
+            if (uuid == protocol.wifiChoiceReply) {
+                if (routerStartup.get()) {
+                    if (state != 0) rejectStartup("相机未选择此路由器，请在相机上确认已保存该网络，再重新连接")
+                    else if (routerChoicePending.compareAndSet(true, false)) routerAccepted.complete(Unit)
+                } else if (state == 0)
+                    rejectStartup("相机选择了其他 Wi-Fi 网络，请在相机上切换为直连后重试")
+            }
         }
         override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray, status: Int) {
             send(Event(Kind.READ, status, characteristic.uuid, value.copyOf()))
@@ -346,6 +372,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
         return hasNotification(protocol.imageTransferEvent, protocol.sendingService) &&
             hasNotification(protocol.sendingModeEvent, protocol.service)
     }
+    fun canStartRouterWifi(): Boolean = canStartTransferWifi() &&
+        hasWritable(LumixBleProtocol.routerSsid, LumixBleProtocol.wifiService)
     private fun hasWritable(uuid: UUID, service: UUID): Boolean = has(uuid, service) &&
         characteristic(uuid, service).properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0
     private fun hasNotification(uuid: UUID, service: UUID): Boolean {
@@ -376,6 +404,34 @@ private class ConnectionGatt(private val context: Context, private val device: B
         startupActive.set(true)
         // SoftAP type 1, ordinary connection mode 3. Never expose a caller-supplied mode value.
         write(protocol.wifiConnectionType, byteArrayOf(1), protocol.wifiService)
+        write(protocol.connectionMode, byteArrayOf(3))
+    }
+    suspend fun startRouterWifi(ssid: ByteArray) {
+        check(canStartRouterWifi() && ssid.size == 32)
+        // Do not silently truncate the fixed 32-byte SSID on the default ATT MTU.
+        mutex.withLock {
+            check(requireGatt().requestMtu(64)) { "无法协商路由器连接资料长度，请使用手动连接入口" }
+            check(await(Kind.MTU).mtu >= 35) { "相机蓝牙资料长度不足，请在相机上手动连接路由器" }
+        }
+        val protocol = LumixBleProtocol
+        routerStartup.set(true)
+        startupActive.set(true)
+        subscribe(protocol.wifiChoiceReply, protocol.wifiService)
+        subscribe(protocol.connectionStatus, protocol.service)
+        routerChoicePending.set(true)
+        write(protocol.routerSsid, ssid, protocol.wifiService)
+        try {
+            withTimeout(20_000L) {
+                select<Unit> {
+                    startupRejected.onAwait { throw it }
+                    routerAccepted.onAwait { }
+                }
+            }
+        } catch (_: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            error("相机未确认路由器，请检查相机保存的网络名称和密码后重试")
+        }
+        write(protocol.wifiConnectionType, byteArrayOf(2), protocol.wifiService)
         write(protocol.connectionMode, byteArrayOf(3))
     }
     suspend fun startSendingWifi(onStep: (BluetoothConnectionStep) -> Unit,

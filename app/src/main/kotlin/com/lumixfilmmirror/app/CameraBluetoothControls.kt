@@ -22,13 +22,19 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
     else arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
     var pendingStartup by rememberSaveable { mutableStateOf(false) }
     var pendingSending by rememberSaveable { mutableStateOf(false) }
+    // Router SSID is an optional input, not a password or a value read from Android.
+    var routerSsid by remember { mutableStateOf("") }
+    var pendingRouter by remember { mutableStateOf(false) }
     val wifiPermissions = if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES)
     else arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
     val bluetoothLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         val required = if (Build.VERSION.SDK_INT >= 31) bluetoothPermissions.toList()
             else listOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        if (required.all { permission -> context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED })
-            workspace.scanBluetoothCameras()
+        val router = pendingRouter
+        pendingRouter = false
+        if (required.all { permission -> context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED }) {
+            if (router) workspace.connectBluetoothRouterWifi(routerSsid) else workspace.scanBluetoothCameras()
+        }
         else workspace.bluetoothPermissionDenied()
     }
     val wifiLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -89,6 +95,20 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             } else {
                 Text("在相机上开启 Wi-Fi 传输后连接，随后在系统弹窗确认。", style = MaterialTheme.typography.labelSmall)
                 Button(enabled = !busy, onClick = { connect(false) }) { Text("连接此相机 Wi-Fi") }
+            }
+            if (camera.bluetoothCanStartRouterWifi) {
+                HorizontalDivider()
+                Text("同一路由器连接", style = MaterialTheme.typography.titleSmall)
+                Text("先在手机系统设置连接路由器，并在相机上保存该网络。输入与手机当前 Wi-Fi 相同的名称；此入口用于浏览和下载。",
+                    style = MaterialTheme.typography.labelSmall)
+                OutlinedTextField(value = routerSsid, onValueChange = { routerSsid = it }, enabled = !busy,
+                    singleLine = true, label = { Text("路由器 Wi-Fi 名称") },
+                    supportingText = { Text("当前支持英文、数字和符号；密码在相机上设置。") })
+                TextButton(enabled = !busy && routerSsid.isNotBlank(), onClick = {
+                    if (bluetoothPermissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
+                        workspace.connectBluetoothRouterWifi(routerSsid)
+                    else { pendingRouter = true; bluetoothLauncher.launch(bluetoothPermissions) }
+                }) { Text("让相机连接此路由器") }
             }
         }
     }

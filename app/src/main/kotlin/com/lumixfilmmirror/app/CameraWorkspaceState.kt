@@ -25,6 +25,7 @@ data class CameraWorkspaceState(
     val bluetoothStep: BluetoothConnectionStep? = null,
     val bluetoothWifiSsid: String? = null,
     val bluetoothCanStartWifi: Boolean = false,
+    val bluetoothCanStartRouterWifi: Boolean = false,
     val bluetoothCanStartSendingWifi: Boolean = false,
     val bluetoothCanFollowIncoming: Boolean = false,
     val sendingReconnect: CameraSendingReconnectRequest? = null,

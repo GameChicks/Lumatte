@@ -115,6 +115,7 @@ class CameraController(private val application: Application) {
         bluetoothCredentials = credentials
         bluetoothTarget = candidate
         cameraMutable.update { it.copy(bluetoothWifiSsid = credentials.ssid, bluetoothCanStartWifi = credentials.canStartTransferWifi,
+            bluetoothCanStartRouterWifi = credentials.canStartRouterWifi,
             bluetoothCanStartSendingWifi = credentials.canStartTransferWifi && credentials.canObserveIncoming,
             notice = if (credentials.canStartTransferWifi) "已读取相机网络，可以启动传输 Wi-Fi 后连接。"
                 else "已读取相机网络。请在相机上开启 Wi-Fi 传输，然后点击连接。") }
@@ -126,6 +127,57 @@ class CameraController(private val application: Application) {
 
     fun connectBluetoothSendingWifi() = cameraOperation {
         connectBluetoothWifiInternal(startOnCamera = true, waitForSending = true)
+    }
+
+    fun connectBluetoothRouterWifi(routerSsid: String) = cameraOperation {
+        val target = bluetoothTarget ?: error("请重新查找蓝牙相机")
+        check(bluetoothCredentials?.canStartRouterWifi == true) { "请重新读取相机连接资料" }
+        // Validate before any network changes or BLE writes. Do not silently choose
+        // between concurrent Wi-Fi networks, or pretend this input is the OS SSID.
+        check(routerSsid.isNotBlank() && routerSsid.length <= 32 && routerSsid.all { it.code in 32..126 }) {
+            "当前入口支持 1–32 位英文、数字或符号的路由器 Wi-Fi 名称"
+        }
+        val networks = discovery.wifiNetworks()
+        check(networks.size == 1) { "请在系统设置连接一个路由器 Wi-Fi；多个 Wi-Fi 网络时请使用手动查找入口" }
+        val network = networks.single()
+        clearSendingReconnect()
+        bluetoothWifiBinding = null
+        clearCameraSession()
+        wifiConnection?.close()
+        wifiConnection = null
+        clearBluetoothCredentials()
+        wifiConnection = CameraWifiConnector.useExisting(application, network, ::cameraNetworkLost)
+        try {
+            bluetooth.withRouterWifi(target, ownClientId(), routerSsid,
+                onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) {
+                cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING) }
+                // Association takes time: retry discovery on this network only,
+                // with a bounded overall wait and explicit cancellation.
+                val candidates = try {
+                    withTimeout(45_000L) {
+                        var found = emptyList<DiscoveredCamera>()
+                        while (found.isEmpty()) {
+                            found = discovery.discover(listOf(network))
+                            if (found.isEmpty()) delay(1_000L)
+                        }
+                        found
+                    }
+                } catch (_: TimeoutCancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    error("未在当前路由器发现相机，请核对 Wi-Fi 名称、相机保存的密码，以及路由器是否允许设备互访")
+                }
+                cameraMutable.update { it.copy(discovered = candidates) }
+                bluetoothWifiBinding = BluetoothWifiBinding(network, target, routerSsid,
+                    canObserve = false, expectedMode = CameraAccessMode.BROWSING)
+                if (candidates.size == 1) connectTarget(candidates.single(), expectedMode = CameraAccessMode.BROWSING)
+            }
+        } catch (error: Exception) {
+            bluetoothWifiBinding = null
+            clearCameraSession()
+            wifiConnection?.close()
+            wifiConnection = null
+            throw error
+        }
     }
 
     fun reconnectSendingCamera() = cameraOperation {
@@ -208,6 +260,7 @@ class CameraController(private val application: Application) {
         bluetoothCredentials = null
         bluetoothTarget = null
         cameraMutable.update { it.copy(bluetoothWifiSsid = null, bluetoothCanStartWifi = false,
+            bluetoothCanStartRouterWifi = false,
             bluetoothCanStartSendingWifi = false) }
     }
 
