@@ -44,6 +44,7 @@ class WorkspaceStore(context: Context) {
     suspend fun reserveVideo(task: TransferTask, uri: String, bytes: Long) = dao.reserveVideo(task.id, uri, bytes)
     suspend fun finishVideo(task: TransferTask, uri: String, bytes: Long) = dao.finishVideo(task.id, uri, bytes)
     suspend fun batch(id: String): List<TransferTask> = dao.batch(id)
+    suspend fun transferSnapshot(): List<TransferTask> = dao.transferSnapshot()
     suspend fun checkpoint(task: TransferTask, state: TransferState, bytes: Long, error: String? = null) =
         dao.checkpoint(task.id, state.name, bytes, error)
     suspend fun stopBatch(id: String, cancel: Boolean, reason: String) =
@@ -80,7 +81,7 @@ class WorkspaceStore(context: Context) {
 
     fun taskDirectory(task: TransferTask): File {
         require(UUID.fromString(task.id).toString() == task.id)
-        return File(File(context.filesDir, "camera-transfers"), task.id)
+        return File(File(context.filesDir.canonicalFile, "camera-transfers"), task.id)
     }
 
     /** Runs file existence checks off the UI thread; retains database records for missing photos. */

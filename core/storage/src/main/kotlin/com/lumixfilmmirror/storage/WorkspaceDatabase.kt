@@ -64,6 +64,8 @@ internal abstract class WorkspaceDao {
 
     @Query("SELECT * FROM transfers ORDER BY createdAt, batchId, ordinal")
     abstract fun transfers(): Flow<List<TransferTask>>
+    @Query("SELECT * FROM transfers ORDER BY createdAt, batchId, ordinal")
+    abstract suspend fun transferSnapshot(): List<TransferTask>
     @Query("SELECT * FROM transfers WHERE batchId = :batchId ORDER BY ordinal")
     abstract suspend fun batch(batchId: String): List<TransferTask>
     @Insert

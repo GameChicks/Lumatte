@@ -73,6 +73,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
             }
             if (cameraBusy) {
                 val caption = when {
+                    camera.cacheBusy -> "正在整理传输缓存"
                     camera.transferTotal > 0 -> "${camera.transferPhase.caption()} · 完成 ${camera.transferred} / ${camera.transferTotal} 项"
                     camera.step == ConnectionStep.REQUESTING_WIFI -> "请在系统弹窗中确认连接"
                     camera.step == ConnectionStep.DISCOVERING -> "正在查找相机"

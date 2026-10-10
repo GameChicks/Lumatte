@@ -25,6 +25,29 @@ class VideoPublisher(context: Context) {
     private val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
     private val path = "${Environment.DIRECTORY_MOVIES}/LumixFilmMirror/"
     private data class Row(val uri: Uri, val pending: Boolean, val name: String, val path: String)
+    data class PendingVideo(val bytes: Long)
+
+    suspend fun pending(id: String, format: VideoContainer, knownUri: String?): PendingVideo? = withContext(Dispatchers.IO) {
+        val row = find(id, format, knownUri) ?: return@withContext null
+        if (!row.pending) return@withContext null
+        require(row.name == name(id, format) && row.path == path) { "未发布视频的位置已变化，缓存清理未修改该文件" }
+        PendingVideo(length(row.uri).also { require(it >= 0) { "无法读取未发布视频尺寸" } })
+    }
+
+    /** Only a terminal task may call this, while the process transfer controller is idle. */
+    suspend fun discardPending(id: String, format: VideoContainer, knownUri: String?): PendingVideo? = withContext(Dispatchers.IO) {
+        val row = find(id, format, knownUri) ?: return@withContext null
+        if (!row.pending) return@withContext null
+        require(row.name == name(id, format) && row.path == path) { "未发布视频的位置已变化，缓存清理未修改该文件" }
+        val bytes = length(row.uri).also { require(it >= 0) { "无法读取未发布视频尺寸" } }
+        coroutineContext.ensureActive()
+        // Recheck ownership, identity and pending state in the deletion itself. Never delete visible media.
+        val removed = resolver.delete(row.uri,
+            "${MediaStore.MediaColumns.IS_PENDING} = 1 AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME} = ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?",
+            arrayOf(context.packageName, name(id, format), path))
+        require(removed in 0..1) { "未发布视频清理结果异常" }
+        if (removed == 1) PendingVideo(bytes) else null
+    }
 
     suspend fun published(id: String, format: VideoContainer, knownUri: String?, bytes: Long): Uri? =
         withContext(Dispatchers.IO) {

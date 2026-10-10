@@ -153,9 +153,11 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun pauseTransfer() = camera.stopTransfer(false, "传输已暂停，可继续未完成的任务")
     fun cancelCameraOperation() = camera.cancelCameraOperation()
     fun disconnectCamera() = withCamera(camera::disconnectCamera)
+    fun inspectTransferCache() = withCamera(camera::inspectTransferCache)
+    fun clearTransferCache() = withCamera(camera::clearTransferCache)
 
     fun importImages(uris: List<Uri>) {
-        if (mutable.value.busy || uris.isEmpty()) return
+        if (mutable.value.busy || camera.cameraState.value.busy || uris.isEmpty()) return
         mutable.update { it.copy(importing = true, failures = emptyList(), notice = null) }
         viewModelScope.launch {
             try {
@@ -188,7 +190,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun export(retryOnly: Boolean = false) {
         val snapshot = mutable.value
-        if (snapshot.busy || snapshot.photos.isEmpty()) return
+        if (snapshot.busy || camera.cameraState.value.busy || snapshot.photos.isEmpty()) return
         val retryIds = snapshot.failures.mapNotNull { it.id }.toSet()
         val photos = if (retryOnly) snapshot.photos.filter { it.id in retryIds } else snapshot.photos
         if (photos.isEmpty()) return

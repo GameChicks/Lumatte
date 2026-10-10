@@ -6,6 +6,7 @@ import com.lumixfilmmirror.camera.ConnectionStep
 import com.lumixfilmmirror.camera.DownloadProgress
 import com.lumixfilmmirror.camera.DiscoveredCamera
 import com.lumixfilmmirror.transfer.TransferPhase
+import com.lumixfilmmirror.transfer.TransferCacheSnapshot
 
 data class CameraFolder(val id: String, val title: String)
 
@@ -27,6 +28,8 @@ data class CameraWorkspaceState(
     val transferPhase: TransferPhase? = null,
     val problem: String? = null,
     val operationRunning: Boolean = false,
+    val cacheBusy: Boolean = false,
+    val transferCache: TransferCacheSnapshot? = null,
     val activeTransferBatch: String? = null,
     val notice: String? = null,
 ) {

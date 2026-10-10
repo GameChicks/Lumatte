@@ -12,6 +12,7 @@ import com.lumixfilmmirror.storage.completed
 import com.lumixfilmmirror.storage.terminal
 import com.lumixfilmmirror.transfer.TransferRunner
 import com.lumixfilmmirror.transfer.TransferStop
+import com.lumixfilmmirror.transfer.TransferCacheManager
 import java.io.Closeable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -20,7 +21,9 @@ import kotlinx.coroutines.flow.*
 class CameraController(private val application: Application) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val store = WorkspaceStore(application)
-    private val transferRunner = TransferRunner(store, ImageImporter(application), VideoPublisher(application))
+    private val videoPublisher = VideoPublisher(application)
+    private val transferRunner = TransferRunner(store, ImageImporter(application), videoPublisher)
+    private val transferCache = TransferCacheManager(store, videoPublisher)
     private val cameraMutable = MutableStateFlow(CameraWorkspaceState())
     val cameraState = cameraMutable.asStateFlow()
     val isTransferring: Boolean get() = cameraMutable.value.activeTransferBatch != null
@@ -196,7 +199,22 @@ class CameraController(private val application: Application) {
 
     fun resumeTransferBatch(batchId: String) = cameraOperation { requestTransfer(batchId) }
     fun cancelTransferBatch(batchId: String) = cameraOperation {
-        store.stopBatch(batchId, cancel = true, reason = "已取消后续传输，已导入照片保留")
+        store.stopBatch(batchId, cancel = true, reason = "已取消后续传输，已导入照片和已保存视频保留")
+        cameraMutable.update { it.copy(transferCache = null) }
+    }
+
+    fun inspectTransferCache() = cameraOperation(cache = true) {
+        cameraMutable.update { it.copy(transferCache = null) }
+        val snapshot = transferCache.inspect()
+        cameraMutable.update { it.copy(transferCache = snapshot) }
+    }
+
+    fun clearTransferCache() = cameraOperation(cache = true) {
+        cameraMutable.update { it.copy(transferCache = null) }
+        val result = transferCache.clean()
+        cameraMutable.update { it.copy(transferCache = result.remaining.copy(
+            problems = (result.problems + result.remaining.problems).distinct()),
+            notice = "已清理 ${storageBytes(result.privateBytesReleased + result.pendingVideoBytesReleased)} 缓存：${result.filesRemoved} 个中间文件、${result.pendingVideosRemoved} 个未发布视频占位记录") }
     }
     fun stopTransfer(cancel: Boolean, message: String) {
         val stop = TransferStop(cancel, message)
@@ -213,7 +231,7 @@ class CameraController(private val application: Application) {
             return
         }
         pendingStop = null
-        cameraMutable.update { it.copy(activeTransferBatch = batchId, notice = null,
+        cameraMutable.update { it.copy(activeTransferBatch = batchId, notice = null, transferCache = null,
             transferTotal = tasks.size, transferred = tasks.count { task -> task.completed }) }
         try {
             application.startForegroundService(CameraTransferService.startIntent(application, batchId))
@@ -286,9 +304,9 @@ class CameraController(private val application: Application) {
             total = page.totalMatches, updateId = page.updateId) }
     }
 
-    private fun cameraOperation(block: suspend () -> Unit) {
+    private fun cameraOperation(cache: Boolean = false, block: suspend () -> Unit) {
         if (cameraMutable.value.busy) return
-        cameraMutable.update { it.copy(operationRunning = true) }
+        cameraMutable.update { it.copy(operationRunning = true, cacheBusy = cache) }
         cameraMutable.update { it.copy(problem = null, notice = null, transferTotal = 0, transferred = 0, progress = null, transferPhase = null) }
         cameraJob = scope.launch {
             try { block() }
@@ -298,7 +316,7 @@ class CameraController(private val application: Application) {
             } catch (error: Exception) {
                 cameraMutable.update { it.copy(problem = error.message ?: "相机连接或传输失败") }
                 if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
-            } finally { cameraMutable.update { it.copy(operationRunning = false) }; releaseIfIdle() }
+            } finally { cameraMutable.update { it.copy(operationRunning = false, cacheBusy = false) }; releaseIfIdle() }
         }
     }
 
