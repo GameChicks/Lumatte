@@ -19,10 +19,11 @@
 | MP4／MOV／AVCHD 资源可能使用 application/octet-stream；分别按 CAM_AVC_MP4_／CAM_AVC_MOV_／CAM_AVC_TS_HP_ 分类 | `p258m4/C4667e.java:84–123`；MP4 ORG 选择见 `p321v4/C5116a.java:170` | 尚未恢复第三方对应分类逻辑 |
 | `upload_bt`／`transfer` 对应两种待发送模式；allmenu 指定自动目录，选定发送使用 dir_id_mark_list | `ImageAppTotalService.java`，RunnableC3468f；`p321v4/C5116a.java`，m27945n | 尚未恢复第三方自动状态机 |
 | get_content_info 数量、4294967295 忙碌哨兵、transfer 模式目录级 notify | `ImageAppTotalService.java`，RunnableC3465c、C3464b；`p335x4/C5308o.java`，m28782a0 | 尚未恢复第三方确认逻辑 |
+| 发送连接状态 0 后读取发送服务 `e1392720...`，UTF-8 字段作为相机 HTTP 地址 | `p033E4/C0393g.java`，状态通知、读取类型 15、onCharacteristicRead；`ImageAppTotalService.m17289s0/m17253O` 与 `RunnableC3468f` | 尚未恢复第三方地址读取格式 |
 
 ## 当前源码实现范围
 
-`core:camera` 独立实现设备描述、正常相机确认握手、挑战编码、内存会话头、SOAP 分页和 DIDL 资源分类。公开 API 包含连接、普通／待发送目录初始化、数量读取、浏览、下载、接收保活、单次保存确认与已连接发送模式的 BLE 事件观察；没有遥控拍摄、实时取景、录像或参数控制接口。待发送模式已接入用户发起的前台接收、持久确认及后续照片事件触发、相机通知触发的固定 SoftAP 模式 1／6 初始化，以及模式／资料更新后的显式重新握手；STA 仍未实现，详见 [自动传输记录](../engineering/automatic-transfer.md)。
+`core:camera` 独立实现设备描述、正常相机确认握手、挑战编码、内存会话头、SOAP 分页和 DIDL 资源分类。公开 API 包含连接、普通／待发送目录初始化、数量读取、浏览、下载、接收保活、单次保存确认与已连接发送模式的 BLE 事件观察；没有遥控拍摄、实时取景、录像或参数控制接口。待发送模式已接入用户发起的前台接收、持久确认及后续照片事件触发、相机通知触发的固定 SoftAP／STA 模式 1／6 初始化，以及模式／资料更新后的显式重新握手，详见 [自动传输记录](../engineering/automatic-transfer.md)、[同路由器连接](../engineering/router-wifi.md)。发送就绪后的可读地址特征可提供本次定点发现地址，见 [连接地址](../engineering/camera-connection-address.md)。各项均为源码证据。
 
 `app` 提供系统 Wi-Fi 设置入口、已连接网络上的相机查找、输入相机 SSID／密码后发起系统确认的连接入口。另已接入蓝牙扫描、两种身份握手、Wi-Fi 资料读取和显式 SoftAP 传输网络启动源码，流程与证据限制见 [蓝牙连接资料](../engineering/bluetooth-connection.md)。SSDP 在各 Wi-Fi Network 上发送 MediaServer M-SEARCH（MX=2），读取回应的 LOCATION；设备描述需确认 Panasonic 制造商及相机字段。无组播回应时尝试该网络的本地网关，以及 192.168.54.x 网络的默认相机地址。发现一台时进入连接，多台时交给用户选择。
 
@@ -41,8 +42,8 @@ Wi-Fi 请求使用 [WifiNetworkSpecifier](https://developer.android.com/develop/
 ## 尚未证明或尚未实现
 
 - 没有编译、运行、测试或真机验证；上述是源码实现及参考分析证据。
-- BLE 扫描、旧／APS 身份分支、Wi-Fi 资料读取和普通 SoftAP 传输网络启动已接入源码，尚未验证配对；更多连接通知、STA、系统绑定及各机型差异仍需继续。系统 Wi-Fi 入口当前支持开放网络／WPA2，其他安全类型仍可使用系统设置入口。
-- 当前重连由用户操作，未实现后台自动重连；用户开启的已连接发送模式后续接收使用 BLE 图片通知继续同一批次。前台服务、Room 持久队列、独立相机确认、暂停与启动恢复已经有源码，尚未验证。相机发送通知的 SoftAP 初始化及模式更新入口已接入；STA、扩展事件和更多机型差异仍需继续。
+- BLE 扫描、旧／APS 身份分支、Wi-Fi 资料读取和普通 SoftAP 传输网络启动已接入源码，尚未验证配对；更多连接通知、STA 交接差异、系统绑定及各机型差异仍需继续。系统 Wi-Fi 入口当前支持开放网络／WPA2，其他安全类型仍可使用系统设置入口。
+- 当前重连由用户操作，未实现后台自动重连；用户开启的已连接发送模式后续接收使用 BLE 图片通知继续同一批次。前台服务、Room 持久队列、独立相机确认、暂停与启动恢复已经有源码，尚未验证。相机发送通知的 SoftAP／STA 初始化及模式更新入口已接入；STA 更多通知、扩展事件和更多机型差异仍需继续。
 - SOAP 当前接收官方样本的转义 DIDL Result；其他结构、固件差异需后续适配。原图资源缺失时不会自动把缩略图当作原图导出。
 - RAW 提取已接入 TIFF／RW2 标签快速路径和 LibRaw JPEG-only 补充源码，仍需逐机型真实文件验证。只使用内嵌 JPEG，不进行传感器解码，见 [RAW 预览记录](../engineering/raw-preview.md)。
 - 视频保存代码已接入。各机型是否广告这些格式、特殊视频资源、完整视频语义与手机播放器兼容性仍未验证；不声称所有视频都可播放。

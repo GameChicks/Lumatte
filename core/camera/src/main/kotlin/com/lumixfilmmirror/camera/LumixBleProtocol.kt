@@ -21,6 +21,7 @@ internal object LumixBleProtocol {
     val connectionMode: UUID = UUID.fromString("e182ec40-3213-11e6-ab07-0002a5d5c51b")
     val connectionStatus: UUID = UUID.fromString("e182ec41-3213-11e6-ab07-0002a5d5c51b")
     val sendingService: UUID = UUID.fromString("6b005f20-3214-11e6-a5ac-0002a5d5c51b")
+    val connectionAddress: UUID = UUID.fromString("e1392720-3215-11e6-a035-0002a5d5c51b")
     val imageTransferEvent: UUID = UUID.fromString("48669da0-3217-11e6-b08d-0002a5d5c51b")
     val sendingModeEvent: UUID = UUID.fromString("e182ec43-3213-11e6-ab07-0002a5d5c51b")
     val cccd: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
@@ -77,5 +78,13 @@ internal object LumixBleProtocol {
             "当前路由器连接入口支持 1–32 位英文、数字或符号的 Wi-Fi 名称；其他名称请在相机上手动连接后查找"
         }
         return value.toByteArray(Charsets.US_ASCII).copyOf(32)
+    }
+
+    fun decodeConnectionAddress(bytes: ByteArray): CameraConnectionAddress {
+        require(bytes.isNotEmpty() && bytes.size <= 64 && bytes.all { (it.toInt() and 255) <= 127 }) {
+            "相机返回的连接地址格式暂不支持"
+        }
+        // Reference stores UTF-8 text and passes Java-trimmed text to its HTTP client.
+        return CameraConnectionAddress(bytes.toString(Charsets.UTF_8).trim { it <= ' ' })
     }
 }

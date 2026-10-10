@@ -46,6 +46,21 @@ class CameraDiscovery(context: Context) {
         found
     }
 
+    /** Direct description read on the selected network. No multicast, subnet scan or gateway guess. */
+    suspend fun discoverAt(network: Network, address: CameraConnectionAddress): DiscoveredCamera? =
+        withContext(Dispatchers.IO) { readDescription(network, address.descriptionUri) }
+
+    private suspend fun readDescription(network: Network, uri: URI): DiscoveredCamera? {
+        val http = CameraHttp(network, uri.host)
+        try {
+            val device = CameraXml.device(http.text(uri), uri)
+            http.validate(device.contentDirectory)
+            return DiscoveredCamera(network, device)
+        } catch (error: CancellationException) { throw error }
+        catch (_: Exception) { return null }
+        finally { http.close() }
+    }
+
     private suspend fun search(network: Network): List<DiscoveredCamera> = withContext(Dispatchers.IO) {
         val descriptions = linkedSetOf<URI>()
         val wifi = requireNotNull(context.getSystemService(WifiManager::class.java)) { "设备没有可用的 Wi-Fi 服务" }
@@ -89,13 +104,7 @@ class CameraDiscovery(context: Context) {
             } == true) descriptions += URI("http://192.168.54.1:60606/Lumix/Server0/ddd")
         descriptions.mapNotNull { uri ->
             currentCoroutineContext().ensureActive()
-            try {
-                val http = CameraHttp(network, uri.host)
-                val device = CameraXml.device(http.text(uri), uri)
-                http.validate(device.contentDirectory)
-                DiscoveredCamera(network, device)
-            } catch (error: CancellationException) { throw error }
-            catch (_: Exception) { null }
+            readDescription(network, uri)
         }
     }
 

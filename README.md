@@ -28,6 +28,8 @@ RAW 导入先尝试 TIFF／RW2 JPEG 标签，再使用固定 LibRaw 的 JPEG 预
 
 同路由器 STA 入口支持普通浏览／下载，以及等待相机请求后初始化拍后／选定发送的源码。输入路由器名称，让已保存该网络的相机加入，随后在手机当前 Wi-Fi 上发现相机；后续接收和显式更新发送连接保留此路径。不配置路由器密码；当前仅支持 ASCII 名称与一个已有 Wi-Fi Network，见 [同路由器连接](docs/engineering/router-wifi.md)。
 
+发送连接另可从 BLE 就绪后的可读特征获取本次相机 IP，绑定所选 Wi-Fi 定点读取设备描述；保留正常 HTTP／模式／UDN 核对。缺少该能力或就绪时走原发现方式，实际地址格式与逐型号时序尚未验证，见 [连接地址记录](docs/engineering/camera-connection-address.md)。
+
 待发送会话区分拍后发送与相机选定发送；蓝牙资料页提供等待相机发送请求后启动直连的入口，并核对 HTTP 模式。用户可发起单轮接收，由前台服务逐项保存并独立记录相机确认。已关联的蓝牙发送会话还可开启后续接收：目录清空后等待 BLE 事件，收到新事件继续同一批次，通知栏可暂停或停止。模式切换或资料更新会暂停旧记录，并提供重新读取网络及握手的入口；另一模式可保留独立暂停记录，同相机只允许一条活跃接收。STA 和更多机型差异仍在接入，尚未编译或验证，见 [自动传输记录](docs/engineering/automatic-transfer.md)。
 
 新应用代码采用 [GNU GPLv3](LICENSE)，许可正文来自 [GNU gnulib 的 COPYINGv3](https://github.com/coreutils/gnulib/blob/master/doc/COPYINGv3)。第三方依赖和恢复素材按各自的来源、COPYRIGHT 与许可清单管理，不由应用许可替代。

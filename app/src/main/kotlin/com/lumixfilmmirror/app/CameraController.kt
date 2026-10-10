@@ -157,8 +157,9 @@ class CameraController(private val application: Application) {
         prepareRouterNetwork(network)
         try {
             bluetooth.withRouterSendingWifi(target, ownClientId(), routerSsid,
-                onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh, mode ->
-                discoverRouterCamera(network, target, routerSsid, fresh.ssid, fresh.canObserveIncoming, mode)
+                onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh, mode, address ->
+                discoverRouterCamera(network, target, routerSsid, fresh.ssid, fresh.canObserveIncoming, mode,
+                    address = address)
             }
         } catch (error: Exception) {
             if (error is CameraSendingReconnectionRequired)
@@ -189,11 +190,12 @@ class CameraController(private val application: Application) {
     }
 
     private suspend fun discoverRouterCamera(network: Network, target: BluetoothCamera, routerSsid: String,
-        bleSsid: String, canObserve: Boolean, expectedMode: CameraAccessMode, expectedDevice: CameraDevice? = null) {
+        bleSsid: String, canObserve: Boolean, expectedMode: CameraAccessMode, expectedDevice: CameraDevice? = null,
+        address: CameraConnectionAddress? = null) {
         cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING) }
         // Association takes time. Keep discovery on this network and preserve the
         // original camera identity when this is a sending reconnect.
-        val candidates = try {
+        val candidates = if (address != null) discoverCameraAddress(network, address, expectedDevice) else try {
             withTimeout(45_000L) {
                 var found = emptyList<DiscoveredCamera>()
                 while (found.isEmpty()) {
@@ -218,6 +220,26 @@ class CameraController(private val application: Application) {
         if (candidates.size == 1) connectTarget(candidates.single(), expectedMode = expectedMode, expectedDevice = expectedDevice)
     }
 
+    private suspend fun discoverCameraAddress(network: Network, address: CameraConnectionAddress,
+        expectedDevice: CameraDevice?): List<DiscoveredCamera> {
+        try {
+            return withTimeout(45_000L) {
+                var found = emptyList<DiscoveredCamera>()
+                while (found.isEmpty()) {
+                    found = listOfNotNull(discovery.discoverAt(network, address)).filter {
+                        expectedDevice == null || matchesExpected(it.device, expectedDevice)
+                    }
+                    if (found.isEmpty()) delay(1_000L)
+                }
+                found
+            }
+        } catch (_: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            error(if (expectedDevice == null) "相机返回的地址未响应，请检查相机连接和路由器互访设置后重试"
+                else "相机返回的地址未找到原相机，旧接收记录保留，请重新更新连接")
+        }
+    }
+
     fun reconnectSendingCamera() = cameraOperation {
         val pending = requireNotNull(pendingSendingReconnect) { "发送更新请求已释放，请重新连接相机" }
         try {
@@ -227,13 +249,14 @@ class CameraController(private val application: Application) {
                 prepareRouterNetwork(network)
                 bluetooth.withRouterSendingWifi(pending.camera, ownClientId(), routerSsid,
                     onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } },
-                    reconnect = pending.request) { fresh, mode ->
+                    reconnect = pending.request) { fresh, mode, address ->
                     discoverRouterCamera(network, pending.camera, routerSsid, fresh.ssid, fresh.canObserveIncoming,
-                        mode, pending.device)
+                        mode, pending.device, address)
                 }
             } else bluetooth.withSendingReconnectWifi(pending.camera, ownClientId(), pending.request,
-                onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh, mode ->
-                connectWifi(fresh.ssid, fresh.password(), expectedMode = mode, expectedDevice = pending.device)
+                onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh, mode, address ->
+                connectWifi(fresh.ssid, fresh.password(), expectedMode = mode, expectedDevice = pending.device,
+                    address = address)
                 bindBluetoothWifi(pending.camera, fresh, expectedMode = mode, expectedDevice = pending.device)
             }
             clearSendingReconnect()
@@ -273,8 +296,8 @@ class CameraController(private val application: Application) {
         try {
             if (waitForSending) {
                 bluetooth.withSendingWifi(target, ownClientId(), credentials.ssid,
-                    onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh, mode ->
-                    connectWifi(fresh.ssid, fresh.password(), expectedMode = mode)
+                    onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh, mode, address ->
+                    connectWifi(fresh.ssid, fresh.password(), expectedMode = mode, address = address)
                     bindBluetoothWifi(target, fresh, expectedMode = mode)
                 }
             } else if (startOnCamera) {
@@ -321,7 +344,7 @@ class CameraController(private val application: Application) {
     }
 
     private suspend fun connectWifi(ssid: String, password: String, expectedMode: CameraAccessMode? = null,
-        expectedDevice: CameraDevice? = null) {
+        expectedDevice: CameraDevice? = null, address: CameraConnectionAddress? = null) {
         bluetoothWifiBinding = null
         clearCameraSession()
         wifiConnection?.close()
@@ -334,7 +357,7 @@ class CameraController(private val application: Application) {
         }
         wifiConnection = CameraWifiConnector.connect(application, ssid, password, ::cameraNetworkLost)
         cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING) }
-        findCamera(expectedMode, expectedDevice)
+        findCamera(expectedMode, expectedDevice, address)
     }
 
     private fun bindBluetoothWifi(target: BluetoothCamera, credentials: CameraWifiCredentials,
@@ -371,8 +394,11 @@ class CameraController(private val application: Application) {
         if (expected.udn.isNotBlank()) device.udn == expected.udn
         else device.model == expected.model && device.descriptionUri == expected.descriptionUri
 
-    private suspend fun findCamera(expectedMode: CameraAccessMode? = null, expectedDevice: CameraDevice? = null) {
-        val candidates = discovery.discover(wifiConnection?.let { listOf(it.network) } ?: discovery.wifiNetworks())
+    private suspend fun findCamera(expectedMode: CameraAccessMode? = null, expectedDevice: CameraDevice? = null,
+        address: CameraConnectionAddress? = null) {
+        val candidates = if (address != null) discoverCameraAddress(
+            requireNotNull(wifiConnection?.network) { "相机网络已断开，请重新连接" }, address, expectedDevice)
+        else discovery.discover(wifiConnection?.let { listOf(it.network) } ?: discovery.wifiNetworks())
             .filter { expectedDevice == null || matchesExpected(it.device, expectedDevice) }
         cameraMutable.update { it.copy(discovered = candidates) }
         if (candidates.isEmpty()) error(if (expectedDevice == null) "未发现相机，请开启相机的 Wi-Fi 传输功能并确认连接"

@@ -109,7 +109,7 @@ class CameraBluetooth(private val context: Context) {
     /** Sending mode is obtained from a current camera event or its captured reconnect request. */
     suspend fun <T> withRouterSendingWifi(camera: BluetoothCamera, clientId: String, routerSsid: String,
         onStep: (BluetoothConnectionStep) -> Unit, reconnect: CameraSendingReconnectRequest? = null,
-        block: suspend (CameraWifiCredentials, CameraAccessMode) -> T): T {
+        block: suspend (CameraWifiCredentials, CameraAccessMode, CameraConnectionAddress?) -> T): T {
         val bytes = LumixBleProtocol.routerSsid(routerSsid)
         try {
             return withConnection(camera, onStep) { session ->
@@ -120,7 +120,8 @@ class CameraBluetooth(private val context: Context) {
                     }
                     credentials.close() // STA uses no camera access-point password.
                     val mode = session.startSendingWifi(onStep, reconnect, bytes)
-                    session.sendingHandoff { block(credentials, mode) }
+                    val address = session.readSendingAddress()
+                    session.sendingHandoff { block(credentials, mode, address) }
                 } finally { credentials.close() }
             }
         } finally { bytes.fill(0) }
@@ -156,7 +157,7 @@ class CameraBluetooth(private val context: Context) {
     /** The camera requests its sending mode. The caller cannot select an arbitrary mode byte. */
     suspend fun <T> withSendingWifi(camera: BluetoothCamera, clientId: String, expectedSsid: String,
         onStep: (BluetoothConnectionStep) -> Unit,
-        block: suspend (CameraWifiCredentials, CameraAccessMode) -> T): T = withConnection(camera, onStep) { session ->
+        block: suspend (CameraWifiCredentials, CameraAccessMode, CameraConnectionAddress?) -> T): T = withConnection(camera, onStep) { session ->
         val credentials = identifyAndRead(session, clientId, onStep)
         try {
             check(credentials.ssid == expectedSsid) { "相机网络名称已变化，请重新读取连接资料" }
@@ -164,21 +165,23 @@ class CameraBluetooth(private val context: Context) {
                 "此相机缺少已识别的发送启动能力，请在相机上开启 Wi-Fi 后连接"
             }
             val mode = session.startSendingWifi(onStep)
-            session.sendingHandoff { block(credentials, mode) }
+            val address = session.readSendingAddress()
+            session.sendingHandoff { block(credentials, mode, address) }
         } finally { credentials.close() }
     }
 
     /** Explicit rehandshake after a recognized event. Re-read credentials; never reuse a password. */
     suspend fun <T> withSendingReconnectWifi(camera: BluetoothCamera, clientId: String,
         request: CameraSendingReconnectRequest, onStep: (BluetoothConnectionStep) -> Unit,
-        block: suspend (CameraWifiCredentials, CameraAccessMode) -> T): T = withConnection(camera, onStep) { session ->
+        block: suspend (CameraWifiCredentials, CameraAccessMode, CameraConnectionAddress?) -> T): T = withConnection(camera, onStep) { session ->
         val credentials = identifyAndRead(session, clientId, onStep)
         try {
             check(credentials.canStartTransferWifi && credentials.canObserveIncoming) {
                 "此相机缺少发送启动能力，请使用手动 Wi-Fi 入口"
             }
             val mode = session.startSendingWifi(onStep, request)
-            session.sendingHandoff { block(credentials, mode) }
+            val address = session.readSendingAddress()
+            session.sendingHandoff { block(credentials, mode, address) }
         } finally { credentials.close() }
     }
 
@@ -243,6 +246,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
     private val sendingStartupActive = AtomicBoolean(false)
     private val sendingStartupMode = AtomicReference<CameraAccessMode?>(null)
     private val sendingRequested = CompletableDeferred<CameraAccessMode>()
+    private val sendingModeWriteStarted = AtomicBoolean(false)
+    private val sendingNetworkReady = CompletableDeferred<Unit>()
     private var gatt: BluetoothGatt? = null
     private val callback = object : BluetoothGattCallback() {
         private fun fail(message: String) {
@@ -331,6 +336,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
             val state = value[0].toInt() and 255
             if (uuid == protocol.connectionStatus && state == 1)
                 rejectStartup("相机拒绝当前连接，请在相机上确认或使用 Wi-Fi 入口")
+            if (uuid == protocol.connectionStatus && state == 0 && sendingStartupActive.get() && sendingModeWriteStarted.get())
+                sendingNetworkReady.complete(Unit)
             if (uuid == protocol.wifiChoiceReply) {
                 if (routerStartup.get()) {
                     if (state != 0) rejectStartup("相机未选择此路由器，请在相机上确认已保存该网络，再重新连接")
@@ -363,8 +370,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
     private fun characteristic(uuid: UUID, service: UUID = LumixBleProtocol.service): BluetoothGattCharacteristic = requireGatt()
         .getService(service)?.getCharacteristic(uuid)
         ?: error("此相机缺少已识别的蓝牙连接资料，请使用 Wi-Fi 入口")
-    suspend fun read(uuid: UUID): ByteArray = mutex.withLock {
-        check(requireGatt().readCharacteristic(characteristic(uuid))) { "蓝牙读取未被系统接受，请重试" }
+    suspend fun read(uuid: UUID, service: UUID = LumixBleProtocol.service): ByteArray = mutex.withLock {
+        check(requireGatt().readCharacteristic(characteristic(uuid, service))) { "蓝牙读取未被系统接受，请重试" }
         await(Kind.READ, uuid).bytes
     }
     @Suppress("DEPRECATION")
@@ -506,9 +513,30 @@ private class ConnectionGatt(private val context: Context, private val device: B
             CameraAccessMode.MARKED_TRANSFER -> byteArrayOf(6)
             CameraAccessMode.BROWSING -> error("相机没有请求发送模式")
         }
+        sendingModeWriteStarted.set(true)
         write(protocol.connectionMode, command)
         ensureSendingActive()
         return mode
+    }
+    /** Optional enhancement: absent characteristics or absent positive state keep SSDP available. */
+    suspend fun readSendingAddress(): CameraConnectionAddress? {
+        val protocol = LumixBleProtocol
+        ensureSendingActive()
+        if (!has(protocol.connectionAddress, protocol.sendingService) ||
+            characteristic(protocol.connectionAddress, protocol.sendingService).properties and BluetoothGattCharacteristic.PROPERTY_READ == 0)
+            return null
+        val ready = withTimeoutOrNull(8_000L) {
+            select<Boolean> {
+                incomingEvents.ended.onAwait { throw it }
+                startupRejected.onAwait { throw it }
+                sendingNetworkReady.onAwait { true }
+            }
+        }
+        ensureSendingActive()
+        if (ready != true) return null
+        val bytes = read(protocol.connectionAddress, protocol.sendingService)
+        try { return protocol.decodeConnectionAddress(bytes) }
+        finally { bytes.fill(0) }
     }
     private suspend fun ensureSendingActive() {
         currentCoroutineContext().ensureActive()
