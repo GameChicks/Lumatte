@@ -14,7 +14,7 @@ import com.lumixfilmmirror.design.PaperPanel
 
 @Composable
 fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy: Boolean,
-    workspace: WorkspaceViewModel) {
+    transferring: Boolean, workspace: WorkspaceViewModel) {
     PaperPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("从相机传入", style = MaterialTheme.typography.titleMedium)
@@ -85,7 +85,10 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                     Text("${progress.bytes / 1024} KB${total?.let { " / ${it / 1024} KB" }.orEmpty()}",
                         style = MaterialTheme.typography.labelSmall)
                 }
-                TextButton(onClick = workspace::cancelCameraOperation) { Text("取消操作") }
+                Row {
+                    if (transferring) TextButton(onClick = workspace::pauseTransfer) { Text("暂停传输") }
+                    TextButton(onClick = workspace::cancelCameraOperation) { Text(if (transferring) "取消后续传输" else "取消操作") }
+                }
             }
             camera.problem?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }

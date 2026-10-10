@@ -25,6 +25,8 @@ dependencies {
     implementation(project(":core:design"))
     implementation(project(":core:media"))
     implementation(project(":core:camera"))
+    implementation(project(":core:storage"))
+    implementation(project(":core:transfer"))
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")

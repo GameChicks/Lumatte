@@ -13,7 +13,6 @@ import com.lumixfilmmirror.media.JpegOutputWriter
 import com.lumixfilmmirror.media.SourceImage
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.PhotoId
-import com.lumixfilmmirror.camera.CameraResourceKind
 import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.ConnectionStep
 import com.lumixfilmmirror.camera.LumixCameraSession
@@ -21,13 +20,20 @@ import com.lumixfilmmirror.camera.CameraDiscovery
 import com.lumixfilmmirror.camera.CameraWifiConnector
 import com.lumixfilmmirror.camera.CameraWifiConnection
 import com.lumixfilmmirror.camera.DiscoveredCamera
-import java.io.File
+import com.lumixfilmmirror.storage.WorkspaceStore
+import com.lumixfilmmirror.storage.WorkspacePreferences
+import com.lumixfilmmirror.storage.TransferTask
+import com.lumixfilmmirror.transfer.TransferRunner
+import com.lumixfilmmirror.transfer.TransferStop
 import java.io.Closeable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.coroutines.coroutineContext
@@ -43,6 +49,9 @@ data class WorkspaceState(
     val importing: Boolean = false,
     val exporting: Boolean = false,
     val cameraBusy: Boolean = false,
+    val recovering: Boolean = true,
+    val storageFailure: String? = null,
+    val activeTransferBatch: String? = null,
     val completed: Int = 0,
     val total: Int = 0,
     val exported: List<ExportedPhoto> = emptyList(),
@@ -50,14 +59,21 @@ data class WorkspaceState(
     val notice: String? = null,
 ) {
     val current: SourceImage? get() = photos.firstOrNull { it.id == selected }
-    val busy: Boolean get() = importing || exporting || cameraBusy
+    val busy: Boolean get() = importing || exporting || cameraBusy || recovering || storageFailure != null
 }
 
 class WorkspaceViewModel(application: Application) : AndroidViewModel(application) {
     val writer = JpegOutputWriter(application)
     private val importer = ImageImporter(application)
+    private val store = WorkspaceStore(application)
+    private val transferRunner = TransferRunner(store, importer)
     private val mutable = MutableStateFlow(WorkspaceState())
     val state = mutable.asStateFlow()
+    private val tasksMutable = MutableStateFlow<List<TransferTask>>(emptyList())
+    val transferTasks = tasksMutable.asStateFlow()
+    private var restoreJob: Job? = null
+    private var observingStorage = false
+    private val storageObservers = mutableListOf<Job>()
     private var exportJob: Job? = null
     private val cameraMutable = MutableStateFlow(CameraWorkspaceState())
     val cameraState = cameraMutable.asStateFlow()
@@ -67,6 +83,76 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private var wifiConnection: CameraWifiConnection? = null
     private var networkWatch: Closeable? = null
     private var watchedNetwork: Network? = null
+
+    init { restoreWorkspace() }
+
+    fun restoreWorkspace() {
+        if (observingStorage || restoreJob?.isActive == true) return
+        mutable.update { it.copy(recovering = true, storageFailure = null) }
+        restoreJob = viewModelScope.launch {
+            try {
+                val problems = store.initialize(importer)
+                val settings = store.readPreferences()
+                mutable.update { it.copy(output = settings.output, selected = settings.selectedId?.let(::PhotoId),
+                    destination = settings.folderUri?.let { uri -> ExportDestination.Folder(Uri.parse(uri)) } ?: ExportDestination.Gallery,
+                    notice = problems.takeIf { it.isNotEmpty() }?.joinToString("\n")) }
+                observingStorage = true
+                observeStorage()
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) {
+                mutable.update { it.copy(storageFailure = error.message ?: "工作台无法恢复，请重试") }
+            } finally { mutable.update { it.copy(recovering = false) } }
+        }
+    }
+
+    private fun observeStorage() {
+        storageObservers.forEach { it.cancel() }
+        storageObservers.clear()
+        storageObservers += viewModelScope.launch {
+            try {
+                store.photos.collect { photos ->
+                    val (available, missing) = store.available(photos)
+                    mutable.update { previous -> previous.copy(photos = available,
+                        selected = previous.selected?.takeIf { id -> available.any { it.id == id } } ?: available.firstOrNull()?.id,
+                        notice = if (missing > 0) "$missing 张导入副本缺失，原有记录保留" else previous.notice) }
+                }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { storageFailed(error.message ?: "无法读取照片记录") }
+        }
+        storageObservers += viewModelScope.launch {
+            try {
+                store.transfers.collect { tasks ->
+                    tasksMutable.value = tasks
+                    mutable.value.activeTransferBatch?.let { id ->
+                        val batch = tasks.filter { it.batchId == id }
+                        cameraMutable.update { it.copy(transferTotal = batch.size, transferred = batch.count { task -> task.state == "IMPORTED" }) }
+                    }
+                }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { storageFailed(error.message ?: "无法读取传输记录") }
+        }
+    }
+
+    private fun storageFailed(message: String) {
+        observingStorage = false
+        mutable.update { it.copy(storageFailure = message) }
+        storageObservers.forEach { it.cancel() }
+        cameraJob?.cancel(TransferStop(false, "记录存储中断，传输已暂停"))
+        cameraSession?.interrupt()
+    }
+
+    private fun persistPreferences() {
+        val snapshot = mutable.value
+        viewModelScope.launch {
+            try {
+                store.savePreferences(WorkspacePreferences(snapshot.output,
+                    (snapshot.destination as? ExportDestination.Folder)?.treeUri?.toString(), snapshot.selected?.value))
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { mutable.update { it.copy(notice = error.message ?: "设置未能保存") } }
+        }
+    }
+
+    fun notice(message: String) { mutable.update { it.copy(notice = message) } }
 
     fun connectCamera() = cameraOperation {
         clearCameraSession()
@@ -161,7 +247,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         if (network != watchedNetwork && network != wifiConnection?.network) return
         cameraMutable.update { it.copy(connected = false, disconnected = true,
             problem = "相机连接已断开，已传入的照片保留。重新连接后可继续传输。") }
-        cameraJob?.cancel()
+        cameraJob?.cancel(TransferStop(false, "相机断开，传输已暂停"))
         clearCameraSession()
         wifiConnection?.close()
         wifiConnection = null
@@ -200,33 +286,35 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun importCameraPhotos() = cameraOperation {
         val session = cameraSession ?: error("请先连接相机")
         val photos = cameraMutable.value.entries.filter { it.id in cameraMutable.value.selectedIds && it.editableResource != null }
-        cameraMutable.update { it.copy(transferTotal = photos.size, transferred = 0, progress = null) }
-        mutable.update { it.copy(failures = emptyList(), notice = null) }
-        val directory = File(getApplication<Application>().filesDir, "camera-transfers")
-        val failedIds = mutableSetOf<String>()
-        for (entry in photos) {
-            coroutineContext.ensureActive()
-            val resource = requireNotNull(entry.editableResource)
-            val name = resource.originalName ?: entry.title
-            var downloaded: File? = null
-            try {
-                cameraMutable.update { it.copy(progress = null) }
-                val completedFile = session.download(resource, directory) { progress ->
-                    cameraMutable.update { it.copy(progress = progress) }
+        val batchId = store.enqueue(session.device, photos)
+        cameraMutable.update { it.copy(selectedIds = it.selectedIds - photos.map { photo -> photo.id }.toSet()) }
+        runTransferBatch(batchId)
+    }
+
+    fun resumeTransferBatch(batchId: String) = cameraOperation { runTransferBatch(batchId) }
+    fun cancelTransferBatch(batchId: String) = cameraOperation {
+        store.stopBatch(batchId, cancel = true, reason = "已取消后续传输，已导入照片保留")
+    }
+    fun pauseTransfer() {
+        cameraJob?.cancel(TransferStop(false, "传输已暂停，可继续未完成的任务"))
+        cameraSession?.interrupt()
+    }
+
+    private suspend fun runTransferBatch(batchId: String) {
+        val tasks = store.batch(batchId)
+        cameraMutable.update { it.copy(transferTotal = tasks.size, transferred = tasks.count { task -> task.state == "IMPORTED" }) }
+        mutable.update { it.copy(activeTransferBatch = batchId, notice = null) }
+        try {
+            var currentTask: String? = null
+            val result = transferRunner.run(batchId, cameraSession) { task, progress ->
+                if (currentTask != task.id) {
+                    currentTask = task.id
+                    cameraMutable.update { it.copy(progress = null) }
                 }
-                downloaded = completedFile
-                val photo = importer.importImage(Uri.fromFile(completedFile), name,
-                    rawEmbeddedPreview = resource.kind == CameraResourceKind.RAW_PREVIEW_JPEG)
-                mutable.update { it.copy(photos = it.photos + photo, selected = it.selected ?: photo.id) }
-            } catch (error: CancellationException) { throw error }
-            catch (error: Exception) {
-                failedIds += entry.id
-                mutable.update { it.copy(failures = it.failures + FailedPhoto(null, name, error.message ?: "传输失败")) }
-            } finally { downloaded?.delete() }
-            cameraMutable.update { it.copy(transferred = it.transferred + 1,
-                selectedIds = if (entry.id !in failedIds) it.selectedIds - entry.id else it.selectedIds) }
-        }
-        mutable.update { it.copy(notice = "已传入 ${photos.size - failedIds.size} 张照片") }
+                cameraMutable.update { it.copy(progress = progress) }
+            }
+            mutable.update { it.copy(notice = "本次传入 ${result.imported} 张，失败 ${result.failed} 张，待连接 ${result.waiting} 张") }
+        } finally { mutable.update { it.copy(activeTransferBatch = null) } }
     }
 
     private suspend fun loadCameraFolder(append: Boolean = false,
@@ -249,7 +337,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         cameraJob = viewModelScope.launch {
             try { block() }
             catch (error: CancellationException) {
-                cameraMutable.update { if (it.disconnected) it else it.copy(problem = "操作已取消，已传入的照片保留") }
+                cameraMutable.update { if (it.disconnected) it else it.copy(problem = error.message ?: "操作已取消，已传入的照片保留") }
                 if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
             } catch (error: Exception) {
                 cameraMutable.update { it.copy(problem = error.message ?: "相机连接或传输失败") }
@@ -258,7 +346,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun cancelCameraOperation() { cameraJob?.cancel(); cameraSession?.interrupt() }
+    fun cancelCameraOperation() {
+        cameraJob?.cancel(TransferStop(true, "已取消后续传输，已导入照片保留"))
+        cameraSession?.interrupt()
+    }
     fun disconnectCamera() {
         if (mutable.value.cameraBusy) return
         clearCameraSession()
@@ -282,7 +373,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                     coroutineContext.ensureActive()
                     try {
                         val photo = importer.importImage(uri)
-                        mutable.update { it.copy(photos = it.photos + photo, selected = it.selected ?: photo.id) }
+                        withContext(NonCancellable) { store.save(photo) }
                     } catch (error: CancellationException) { throw error }
                     catch (error: Exception) {
                         mutable.update { it.copy(failures = it.failures + FailedPhoto(null, uri.lastPathSegment.orEmpty(),
@@ -293,12 +384,16 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun select(id: PhotoId) { mutable.update { it.copy(selected = id) } }
+    fun select(id: PhotoId) {
+        if (mutable.value.recovering) return
+        mutable.update { it.copy(selected = id) }
+        persistPreferences()
+    }
     fun output(settings: JpegOutput) {
-        if (!mutable.value.busy) mutable.update { it.copy(output = settings) }
+        if (!mutable.value.busy) { mutable.update { it.copy(output = settings) }; persistPreferences() }
     }
     fun destination(destination: ExportDestination) {
-        if (!mutable.value.busy) mutable.update { it.copy(destination = destination) }
+        if (!mutable.value.busy) { mutable.update { it.copy(destination = destination) }; persistPreferences() }
     }
 
     fun export(retryOnly: Boolean = false) {

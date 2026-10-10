@@ -55,8 +55,8 @@ class LumixCameraSession private constructor(
     }
 
     suspend fun download(resource: CameraResource, directory: File,
-        onProgress: (DownloadProgress) -> Unit = {}): File = commands.withLock {
-        downloadCameraResource(http, resource, directory, onProgress)
+        durable: Boolean = false, onProgress: suspend (DownloadProgress) -> Unit = {}): File = commands.withLock {
+        downloadCameraResource(http, resource, directory, onProgress, durable)
     }
 
     companion object {

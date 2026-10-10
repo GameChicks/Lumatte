@@ -35,14 +35,17 @@ import kotlin.math.roundToInt
 fun WorkspaceScreen(workspace: WorkspaceViewModel) {
     val state by workspace.state.collectAsStateWithLifecycle()
     val camera by workspace.cameraState.collectAsStateWithLifecycle()
+    val transfers by workspace.transferTasks.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val tones = LocalFilmMaterials.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { workspace.importImages(it) }
     val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
-            context.contentResolver.takePersistableUriPermission(uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            workspace.destination(ExportDestination.Folder(uri))
+            try {
+                context.contentResolver.takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                workspace.destination(ExportDestination.Folder(uri))
+            } catch (error: SecurityException) { workspace.notice("无法保留文件夹访问权限，请重新选择") }
         }
     }
     Column(Modifier.fillMaxSize().background(tones.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
@@ -59,7 +62,20 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = FilmSpacing.screen, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(FilmSpacing.gap)) {
-            item { CameraTransferPanel(camera, state.busy, state.cameraBusy, workspace) }
+            if (state.recovering) item {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Text("正在恢复工作台和传输记录")
+                }
+            }
+            state.storageFailure?.let { message -> item {
+                Column {
+                    Text(message, color = MaterialTheme.colorScheme.error)
+                    TextButton(enabled = !state.recovering, onClick = workspace::restoreWorkspace) { Text("重试恢复") }
+                }
+            } }
+            item { CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null, workspace) }
+            if (transfers.isNotEmpty()) item { TransferQueuePanel(transfers, state, workspace) }
             item {
                 PaperPanel(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -15,7 +15,8 @@ internal suspend fun downloadCameraResource(
     http: CameraHttp,
     resource: CameraResource,
     directory: File,
-    onProgress: (DownloadProgress) -> Unit,
+    onProgress: suspend (DownloadProgress) -> Unit,
+    durable: Boolean = false,
 ): File = withContext(Dispatchers.IO) {
     check(directory.isDirectory || directory.mkdirs()) { "无法创建传输目录" }
     val key = MessageDigest.getInstance("SHA-256").digest(resource.uri.toString().toByteArray())
@@ -41,7 +42,7 @@ internal suspend fun downloadCameraResource(
             check(!partial.exists() || partial.delete())
             validatorFile.delete()
             http.release(connection)
-            return@withContext downloadCameraResource(http, resource, directory, onProgress)
+            return@withContext downloadCameraResource(http, resource, directory, onProgress, durable)
         }
         if (code != 200 && code != 206) throw CameraProtocolException("下载 HTTP $code")
         var start = 0L
@@ -86,7 +87,8 @@ internal suspend fun downloadCameraResource(
         currentCoroutineContext().ensureActive()
         require(expected == null || received == expected) { "传输中断，文件尚未完整" }
         require(received > 0) { "相机返回空文件" }
-        val finished = File(directory, "${UUID.randomUUID()}.download")
+        val finished = File(directory, if (durable) "complete.download" else "${UUID.randomUUID()}.download")
+        require(!finished.exists()) { "已有完成的传输文件，请先恢复其导入" }
         check(partial.renameTo(finished)) { "无法保存完整的传输文件" }
         validatorFile.delete()
         finished

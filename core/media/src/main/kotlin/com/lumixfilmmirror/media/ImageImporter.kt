@@ -35,9 +35,14 @@ class ImageImporter(context: Context) {
     private val root = File(this.context.filesDir, "source-jpegs").apply { mkdirs() }
 
     suspend fun importImage(uri: Uri, displayName: String? = null,
-        rawEmbeddedPreview: Boolean = false): SourceImage = withContext(Dispatchers.IO) {
-        val id = PhotoId(UUID.randomUUID().toString())
-        val directory = File(root, id.value).apply { check(mkdirs()) }
+        rawEmbeddedPreview: Boolean = false, photoId: PhotoId? = null): SourceImage = withContext(Dispatchers.IO) {
+        val id = photoId ?: PhotoId(UUID.randomUUID().toString())
+        require(UUID.fromString(id.value).toString() == id.value)
+        val directory = File(root, id.value)
+        // Stable IDs are reserved by transfer tasks; never delete a finished import on retry.
+        SourceManifest.read(directory, id)?.let { return@withContext it }
+        if (directory.exists()) check(directory.deleteRecursively()) { "无法整理未完成的导入副本" }
+        check(directory.mkdirs())
         val staged = File(directory, "input")
         try {
             val name = displayName ?: context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
@@ -83,13 +88,33 @@ class ImageImporter(context: Context) {
             val size = if (rotated) PixelSize(encoded.height, encoded.width) else encoded
             val metadata = metadata(originalExif ?: embeddedExif)
             if (staged.exists()) check(staged.delete())
-            SourceImage(id, name, jpeg, size, orientation,
+            val photo = SourceImage(id, name, jpeg, size, orientation,
                 if (isJpeg && !rawEmbeddedPreview) InputOrigin.Jpeg else InputOrigin.RawEmbeddedJpeg(size), metadata)
+            SourceManifest.write(photo)
+            photo
         } catch (error: Throwable) {
             // Only this import's private copy is removed. The source provider and original stay read-only.
             directory.deleteRecursively()
             throw error
         }
+    }
+
+    suspend fun recoverImport(id: PhotoId): SourceImage? = withContext(Dispatchers.IO) {
+        require(UUID.fromString(id.value).toString() == id.value)
+        SourceManifest.read(File(root, id.value), id)
+    }
+
+    suspend fun recoverImports(): ImportRecovery = withContext(Dispatchers.IO) {
+        val photos = mutableListOf<SourceImage>()
+        val problems = mutableListOf<String>()
+        root.listFiles().orEmpty().filter { it.isDirectory }.sortedBy { File(it, "source.json").lastModified() }.forEach { directory ->
+            coroutineContext.ensureActive()
+            if (runCatching { UUID.fromString(directory.name).toString() == directory.name }.getOrDefault(false)) {
+                try { SourceManifest.read(directory, PhotoId(directory.name))?.let(photos::add) }
+                catch (error: Exception) { problems += "${directory.name}：${error.message ?: "导入记录无法恢复"}" }
+            }
+        }
+        ImportRecovery(photos, problems)
     }
 
     private fun jpegSize(file: File): PixelSize? {
