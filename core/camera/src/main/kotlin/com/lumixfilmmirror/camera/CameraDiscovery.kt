@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.Inet4Address
 import java.net.URI
 import java.net.SocketTimeoutException
 import java.util.Locale
@@ -25,13 +26,29 @@ data class DiscoveredCamera(val network: Network, val device: CameraDevice) {
     val key: String get() = "${network.networkHandle}:${device.udn.ifBlank { device.descriptionUri.toString() }}"
 }
 
+/** A current, process-local network choice. Does not infer or read a router SSID. */
+data class CameraWifiNetwork(val network: Network, val localIpv4: List<String>, val isSystemDefault: Boolean) {
+    val key: Long get() = network.networkHandle
+}
+
 /** SSDP searches only the selected Wi-Fi networks, and reads descriptions before offering a camera. */
 class CameraDiscovery(context: Context) {
     private val context = context.applicationContext
     private val manager = requireNotNull(this.context.getSystemService(ConnectivityManager::class.java))
 
-    fun wifiNetworks(): List<Network> = manager.allNetworks.filter {
-        manager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+    fun wifiNetworks(): List<Network> = manager.allNetworks.filter { network ->
+        val capabilities = manager.getNetworkCapabilities(network)
+        capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+            !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+    }
+
+    fun wifiOptions(): List<CameraWifiNetwork> {
+        val systemDefault = manager.activeNetwork
+        return wifiNetworks().distinct().sortedBy { it.networkHandle }.map { network ->
+            val addresses = manager.getLinkProperties(network)?.linkAddresses.orEmpty()
+                .mapNotNull { (it.address as? Inet4Address)?.hostAddress }.distinct()
+            CameraWifiNetwork(network, addresses, network == systemDefault)
+        }
     }
 
     suspend fun discover(networks: List<Network> = wifiNetworks()): List<DiscoveredCamera> = coroutineScope {

@@ -184,6 +184,7 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
             }
         }
     }
+    camera.wifiSelection?.let { CameraWifiSelectionDialog(it, workspace) }
 }
 
 @Composable

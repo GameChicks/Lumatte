@@ -91,6 +91,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
             }
             if (cameraBusy) {
                 val caption = when {
+                    camera.wifiSelection != null -> "请选择用于本次相机连接的 Wi-Fi"
                     camera.cacheBusy -> "正在整理传输缓存"
                     camera.waitingForIncoming -> "等待后续拍摄 · 已保存 ${camera.transferred} 项"
                     camera.bluetoothStep == BluetoothConnectionStep.SCANNING -> "正在查找蓝牙相机 · 最多 12 秒"

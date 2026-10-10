@@ -166,6 +166,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun connectBluetoothRouterWifi(ssid: String) = withCamera { camera.connectBluetoothRouterWifi(ssid) }
     fun connectBluetoothRouterSendingWifi(ssid: String) = withCamera { camera.connectBluetoothRouterSendingWifi(ssid) }
     fun reconnectSendingCamera() = withCamera(camera::reconnectSendingCamera)
+    // These actions answer the current operation; its busy flag must not block its own dialog.
+    fun chooseWifiNetwork(requestId: String, key: Long) = camera.chooseWifiNetwork(requestId, key)
+    fun refreshWifiSelection(requestId: String) = camera.refreshWifiSelection(requestId)
+    fun cancelWifiSelection(requestId: String) = camera.cancelWifiSelection(requestId)
     fun bluetoothPermissionDenied() = camera.bluetoothPermissionDenied()
     fun chooseCamera(key: String) = withCamera { camera.chooseCamera(key) }
     fun reconnectCamera() = withCamera(camera::reconnectCamera)

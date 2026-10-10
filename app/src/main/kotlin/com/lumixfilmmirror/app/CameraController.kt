@@ -18,6 +18,7 @@ import com.lumixfilmmirror.transfer.TransferPhase
 import com.lumixfilmmirror.transfer.TransferStop
 import com.lumixfilmmirror.transfer.TransferCacheManager
 import java.io.Closeable
+import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -53,6 +54,9 @@ class CameraController(private val application: Application) {
     private var watchedNetwork: Network? = null
     private var visibleClients = 0
     private var idleRelease: Job? = null
+    private data class PendingWifiSelection(val id: String, val title: String,
+        var options: List<CameraWifiNetwork>, val reply: CompletableDeferred<Network?>)
+    private var pendingWifiSelection: PendingWifiSelection? = null
 
     fun updateTransferCounts(batchId: String, total: Int, imported: Int) {
         cameraMutable.update { if (it.activeTransferBatch == batchId)
@@ -63,13 +67,14 @@ class CameraController(private val application: Application) {
     fun detachUi() { visibleClients = (visibleClients - 1).coerceAtLeast(0); releaseIfIdle() }
     private fun releaseIfIdle() {
         if (visibleClients == 0 && (!cameraMutable.value.busy ||
-            (cameraMutable.value.bluetoothStep != null && cameraMutable.value.activeTransferBatch == null))) {
+            ((cameraMutable.value.bluetoothStep != null || cameraMutable.value.wifiSelection != null) &&
+                cameraMutable.value.activeTransferBatch == null))) {
             idleRelease?.cancel()
             idleRelease = scope.launch {
                 delay(500) // Allow an Activity recreation to attach before releasing an idle connection.
                 if (visibleClients == 0) {
-                    if (cameraMutable.value.bluetoothStep != null)
-                        cameraJob?.cancel(CancellationException("已离开连接界面，蓝牙操作已取消"))
+                    if (cameraMutable.value.bluetoothStep != null || cameraMutable.value.wifiSelection != null)
+                        cameraJob?.cancel(CancellationException("已离开连接界面，连接操作已取消"))
                     if (!cameraMutable.value.busy) {
                         bluetoothWifiBinding = null
                         clearBluetoothCredentials()
@@ -83,10 +88,9 @@ class CameraController(private val application: Application) {
     }
 
     fun connectCamera() = cameraOperation {
+        val network = selectExistingWifi("选择查找相机的 Wi-Fi")
         clearSendingReconnect()
-        bluetoothWifiBinding = null
-        clearBluetoothCredentials()
-        clearCameraSession()
+        prepareExistingWifi(network)
         cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.DISCOVERING, operationRunning = true)
         findCamera()
     }
@@ -133,9 +137,9 @@ class CameraController(private val application: Application) {
         val target = bluetoothTarget ?: error("请重新查找蓝牙相机")
         check(bluetoothCredentials?.canStartRouterWifi == true) { "请重新读取相机连接资料" }
         val router = CameraRouterSsid.parse(routerSsid)
-        val network = selectRouterNetwork()
+        val network = selectExistingWifi("选择相机将加入的路由器网络")
         clearSendingReconnect()
-        prepareRouterNetwork(network)
+        prepareExistingWifi(network)
         try {
             bluetooth.withRouterWifi(target, ownClientId(), router,
                 onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) {
@@ -154,9 +158,9 @@ class CameraController(private val application: Application) {
             "请重新读取相机连接资料，或使用直连发送入口"
         }
         val router = CameraRouterSsid.parse(routerSsid)
-        val network = selectRouterNetwork()
+        val network = selectExistingWifi("选择用于接收相机发送的路由器网络")
         clearSendingReconnect()
-        prepareRouterNetwork(network)
+        prepareExistingWifi(network)
         try {
             bluetooth.withRouterSendingWifi(target, ownClientId(), router,
                 onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh, mode, address ->
@@ -171,21 +175,71 @@ class CameraController(private val application: Application) {
         }
     }
 
-    private fun selectRouterNetwork(): Network {
-        // Do not silently choose between concurrent Wi-Fi networks, or pretend
-        // the user-entered router name is an SSID read from Android.
-        val networks = discovery.wifiNetworks()
-        check(networks.size == 1) { "请在系统设置连接一个路由器 Wi-Fi；多个 Wi-Fi 网络时请使用手动查找入口" }
-        return networks.single()
+    private suspend fun selectExistingWifi(title: String): Network {
+        val options = discovery.wifiOptions()
+        check(options.isNotEmpty()) { "请先在系统设置连接相机或路由器 Wi-Fi" }
+        if (options.size == 1) return options.single().network
+        val pending = PendingWifiSelection(UUID.randomUUID().toString(), title, options, CompletableDeferred())
+        check(pendingWifiSelection == null)
+        pendingWifiSelection = pending
+        cameraMutable.update { it.copy(wifiSelection = CameraWifiSelection(pending.id, title, options)) }
+        try {
+            val selected = pending.reply.await() ?: throw CancellationException("已取消网络选择，未启动本次连接")
+            check(selected in discovery.wifiNetworks()) { "所选 Wi-Fi 已断开，请重新连接" }
+            return selected
+        } finally {
+            if (pendingWifiSelection === pending) {
+                pendingWifiSelection = null
+                cameraMutable.update { if (it.wifiSelection?.id == pending.id) it.copy(wifiSelection = null) else it }
+            }
+            pending.reply.cancel()
+        }
     }
 
-    private fun prepareRouterNetwork(network: Network) {
+    fun chooseWifiNetwork(requestId: String, key: Long) {
+        val pending = pendingWifiSelection?.takeIf { it.id == requestId && !it.reply.isCompleted } ?: return
+        val network = pending.options.firstOrNull { it.key == key }?.network ?: return
+        try {
+            if (network !in discovery.wifiNetworks()) {
+                refreshWifiSelection(requestId, "此 Wi-Fi 已断开，请刷新后重新选择")
+                return
+            }
+            pending.reply.complete(network)
+        } catch (error: Exception) {
+            cameraMutable.update { if (it.wifiSelection?.id == requestId)
+                it.copy(wifiSelection = it.wifiSelection.copy(problem = error.message ?: "无法读取当前网络")) else it }
+        }
+    }
+
+    fun refreshWifiSelection(requestId: String, problem: String? = null) {
+        val pending = pendingWifiSelection?.takeIf { it.id == requestId && !it.reply.isCompleted } ?: return
+        try {
+            pending.options = discovery.wifiOptions()
+            cameraMutable.update { if (it.wifiSelection?.id == requestId)
+                it.copy(wifiSelection = CameraWifiSelection(requestId, pending.title, pending.options, problem)) else it }
+        } catch (error: Exception) {
+            cameraMutable.update { if (it.wifiSelection?.id == requestId)
+                it.copy(wifiSelection = it.wifiSelection.copy(problem = error.message ?: "无法刷新网络")) else it }
+        }
+    }
+
+    fun cancelWifiSelection(requestId: String) {
+        pendingWifiSelection?.takeIf { it.id == requestId }?.reply?.complete(null)
+    }
+
+    private fun prepareExistingWifi(network: Network) {
         bluetoothWifiBinding = null
         clearCameraSession()
-        wifiConnection?.close()
-        wifiConnection = null
         clearBluetoothCredentials()
-        wifiConnection = CameraWifiConnector.useExisting(application, network, ::cameraNetworkLost)
+        val previous = wifiConnection
+        if (previous?.network == network) {
+            // Retain a request-owned Wi-Fi too; closing it here could drop the selected network.
+            check(network in discovery.wifiNetworks()) { "所选 Wi-Fi 已断开，请重新连接" }
+        } else {
+            val replacement = CameraWifiConnector.useExisting(application, network, ::cameraNetworkLost)
+            wifiConnection = replacement
+            previous?.close()
+        }
     }
 
     private suspend fun discoverRouterCamera(network: Network, target: BluetoothCamera, routerSsid: String,
@@ -245,8 +299,8 @@ class CameraController(private val application: Application) {
             val routerSsid = pending.routerSsid
             if (routerSsid != null) {
                 val router = CameraRouterSsid.parse(routerSsid)
-                val network = selectRouterNetwork()
-                prepareRouterNetwork(network)
+                val network = selectExistingWifi("选择更新发送连接的路由器网络")
+                prepareExistingWifi(network)
                 bluetooth.withRouterSendingWifi(pending.camera, ownClientId(), router,
                     onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } },
                     reconnect = pending.request) { fresh, mode, address ->
@@ -377,15 +431,19 @@ class CameraController(private val application: Application) {
     fun reconnectCamera() = cameraOperation {
         check(pendingSendingReconnect == null) { "相机已请求更新发送连接，请使用发送更新入口" }
         val expected = cameraMutable.value.device ?: error("请先查找相机")
-        clearCameraSession()
+        val network = wifiConnection?.network ?: selectExistingWifi("选择重新查找原相机的 Wi-Fi")
+        val previousBinding = bluetoothWifiBinding?.takeIf { it.network == network }
+        prepareExistingWifi(network)
+        bluetoothWifiBinding = previousBinding
         cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING, disconnected = false) }
-        val candidates = discovery.discover(wifiConnection?.let { listOf(it.network) } ?: discovery.wifiNetworks())
+        val candidates = discovery.discover(listOf(network))
         cameraMutable.update { it.copy(discovered = candidates) }
         val candidate = candidates.firstOrNull { target ->
             if (expected.udn.isNotBlank()) target.device.udn == expected.udn
             else target.device.descriptionUri == expected.descriptionUri && target.device.model == expected.model
         } ?: error("未找到原相机，请确认 Wi-Fi 连接，或使用连接入口重新连接")
-        connectTarget(candidate, restoreSelection = true)
+        connectTarget(candidate, restoreSelection = true, expectedMode = previousBinding?.expectedMode,
+            expectedDevice = expected)
     }
 
     fun cameraPermissionDenied() { cameraMutable.update { it.copy(problem = "未获得 Wi-Fi 连接权限，可在系统设置连接后查找相机") } }
@@ -396,9 +454,10 @@ class CameraController(private val application: Application) {
 
     private suspend fun findCamera(expectedMode: CameraAccessMode? = null, expectedDevice: CameraDevice? = null,
         address: CameraConnectionAddress? = null) {
-        val candidates = if (address != null) discoverCameraAddress(
-            requireNotNull(wifiConnection?.network) { "相机网络已断开，请重新连接" }, address, expectedDevice)
-        else discovery.discover(wifiConnection?.let { listOf(it.network) } ?: discovery.wifiNetworks())
+        val network = requireNotNull(wifiConnection?.network) { "请先选择并连接相机网络" }
+        check(network in discovery.wifiNetworks()) { "相机网络已断开，请重新连接" }
+        val candidates = if (address != null) discoverCameraAddress(network, address, expectedDevice)
+        else discovery.discover(listOf(network))
             .filter { expectedDevice == null || matchesExpected(it.device, expectedDevice) }
         cameraMutable.update { it.copy(discovered = candidates) }
         if (candidates.isEmpty()) error(if (expectedDevice == null) "未发现相机，请开启相机的 Wi-Fi 传输功能并确认连接"
@@ -409,6 +468,9 @@ class CameraController(private val application: Application) {
     private suspend fun connectTarget(candidate: DiscoveredCamera, restoreSelection: Boolean = false,
         expectedMode: CameraAccessMode? = bluetoothWifiBinding?.takeIf { it.network == candidate.network }?.expectedMode,
         expectedDevice: CameraDevice? = bluetoothWifiBinding?.takeIf { it.network == candidate.network }?.expectedDevice) {
+        check(wifiConnection?.network == candidate.network && candidate.network in discovery.wifiNetworks()) {
+            "原查找网络已断开或变化，请重新查找后选择相机"
+        }
         val previous = cameraMutable.value
         var connected = false
         try {
