@@ -24,6 +24,7 @@ data class CameraWorkspaceState(
     val bluetoothStep: BluetoothConnectionStep? = null,
     val bluetoothWifiSsid: String? = null,
     val bluetoothCanStartWifi: Boolean = false,
+    val bluetoothCanFollowIncoming: Boolean = false,
     val step: ConnectionStep? = null,
     val folders: List<CameraFolder> = listOf(CameraFolder("0", "相机媒体")),
     val entries: List<CameraMedia> = emptyList(),
@@ -41,6 +42,8 @@ data class CameraWorkspaceState(
     val transferCache: TransferCacheSnapshot? = null,
     val activeTransferBatch: String? = null,
     val receiving: Boolean = false,
+    val followingIncoming: Boolean = false,
+    val waitingForIncoming: Boolean = false,
     val notice: String? = null,
 ) {
     val busy: Boolean get() = operationRunning || activeTransferBatch != null

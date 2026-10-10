@@ -10,7 +10,9 @@ class IncomingTransferReceiver(private val store: WorkspaceStore, private val fi
     suspend fun run(id: String, session: LumixCameraSession,
         onCount: (Int) -> Unit = {},
         onPhase: (TransferTask, TransferPhase) -> Unit = { _, _ -> },
-        onProgress: (TransferTask, DownloadProgress) -> Unit = {}): TransferResult {
+        onProgress: (TransferTask, DownloadProgress) -> Unit = {},
+        awaitNext: (suspend () -> Unit)? = null,
+        onWaiting: (Boolean) -> Unit = {}): TransferResult {
         try {
             return coroutineScope {
                 var run = requireNotNull(store.incoming(id)) { "接收记录缺失" }
@@ -62,6 +64,16 @@ class IncomingTransferReceiver(private val store: WorkspaceStore, private val fi
                             }
                         }
                         if (head == null) {
+                            if (awaitNext != null) {
+                                run = run.copy(state = "WAITING", error = null)
+                                store.saveIncoming(run)
+                                onWaiting(true)
+                                try { awaitNext() } finally { onWaiting(false) }
+                                currentCoroutineContext().ensureActive()
+                                run = run.copy(state = "RUNNING")
+                                store.saveIncoming(run)
+                                continue
+                            }
                             store.saveIncoming(run.copy(state = "COMPLETE", error = null))
                             return@coroutineScope TransferResult(imported, 0, 0, videos)
                         }

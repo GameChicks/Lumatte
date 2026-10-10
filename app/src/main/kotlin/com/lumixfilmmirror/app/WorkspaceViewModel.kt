@@ -160,7 +160,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun refreshCameraPhotos() = withCamera(camera::refreshCameraPhotos)
     fun selectCameraPhoto(id: String) = withCamera { camera.selectCameraPhoto(id) }
     fun importCameraPhotos() = withCamera(camera::importCameraPhotos)
-    fun receiveIncomingPhotos() = withCamera(camera::receiveIncomingPhotos)
+    fun receiveIncomingPhotos(follow: Boolean = false) = withCamera { camera.receiveIncomingPhotos(follow) }
     fun resumeTransferBatch(id: String) = withCamera { camera.resumeTransferBatch(id) }
     fun cancelTransferBatch(id: String) = withCamera { camera.cancelTransferBatch(id) }
     fun pauseTransfer() = camera.stopTransfer(false, "传输已暂停，可继续未完成的任务")

@@ -58,6 +58,7 @@ fun IncomingQueuePanel(runs: List<IncomingTransfer>, tasks: List<TransferTask>, 
 
 private fun incomingLabel(state: String): String = when (state) {
     "RUNNING" -> "接收中"
+    "WAITING" -> "等待后续拍摄"
     "PAUSED" -> "已暂停"
     "COMPLETE" -> "本轮目录已清空"
     "CANCELLED" -> "已停止"

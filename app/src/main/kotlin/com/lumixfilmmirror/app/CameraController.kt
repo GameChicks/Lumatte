@@ -40,6 +40,10 @@ class CameraController(private val application: Application) {
     private val bluetooth = CameraBluetooth(application)
     private var bluetoothCredentials: CameraWifiCredentials? = null
     private var bluetoothTarget: BluetoothCamera? = null
+    private data class BluetoothWifiBinding(val network: Network, val camera: BluetoothCamera,
+        val ssid: String, val canObserve: Boolean)
+    private var bluetoothWifiBinding: BluetoothWifiBinding? = null
+    private var followBinding: BluetoothWifiBinding? = null
     private var wifiConnection: CameraWifiConnection? = null
     private var networkWatch: Closeable? = null
     private var watchedNetwork: Network? = null
@@ -54,7 +58,8 @@ class CameraController(private val application: Application) {
     fun attachUi() { idleRelease?.cancel(); visibleClients++ }
     fun detachUi() { visibleClients = (visibleClients - 1).coerceAtLeast(0); releaseIfIdle() }
     private fun releaseIfIdle() {
-        if (visibleClients == 0 && (!cameraMutable.value.busy || cameraMutable.value.bluetoothStep != null)) {
+        if (visibleClients == 0 && (!cameraMutable.value.busy ||
+            (cameraMutable.value.bluetoothStep != null && cameraMutable.value.activeTransferBatch == null))) {
             idleRelease?.cancel()
             idleRelease = scope.launch {
                 delay(500) // Allow an Activity recreation to attach before releasing an idle connection.
@@ -62,6 +67,7 @@ class CameraController(private val application: Application) {
                     if (cameraMutable.value.bluetoothStep != null)
                         cameraJob?.cancel(CancellationException("已离开连接界面，蓝牙操作已取消"))
                     if (!cameraMutable.value.busy) {
+                        bluetoothWifiBinding = null
                         clearBluetoothCredentials()
                         clearCameraSession()
                         wifiConnection?.close()
@@ -73,6 +79,7 @@ class CameraController(private val application: Application) {
     }
 
     fun connectCamera() = cameraOperation {
+        bluetoothWifiBinding = null
         clearBluetoothCredentials()
         clearCameraSession()
         cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.DISCOVERING, operationRunning = true)
@@ -107,14 +114,18 @@ class CameraController(private val application: Application) {
 
     fun connectBluetoothWifi(startOnCamera: Boolean = false) = cameraOperation {
         val credentials = bluetoothCredentials ?: error("连接资料已释放，请重新从蓝牙相机读取")
+        val target = bluetoothTarget ?: error("请重新查找蓝牙相机")
         try {
             if (startOnCamera) {
-                val target = bluetoothTarget ?: error("请重新查找蓝牙相机")
                 bluetooth.withTransferWifi(target, ownClientId(), credentials.ssid,
                     onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh ->
                     connectWifi(fresh.ssid, fresh.password())
+                    bindBluetoothWifi(target, fresh)
                 }
-            } else connectWifi(credentials.ssid, credentials.password())
+            } else {
+                connectWifi(credentials.ssid, credentials.password())
+                bindBluetoothWifi(target, credentials)
+            }
         }
         finally { clearBluetoothCredentials() }
     }
@@ -138,6 +149,7 @@ class CameraController(private val application: Application) {
     }
 
     private suspend fun connectWifi(ssid: String, password: String) {
+        bluetoothWifiBinding = null
         clearCameraSession()
         wifiConnection?.close()
         wifiConnection = null
@@ -149,6 +161,13 @@ class CameraController(private val application: Application) {
         wifiConnection = CameraWifiConnector.connect(application, ssid, password, ::cameraNetworkLost)
         cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING) }
         findCamera()
+    }
+
+    private fun bindBluetoothWifi(target: BluetoothCamera, credentials: CameraWifiCredentials) {
+        val network = wifiConnection?.network ?: return
+        bluetoothWifiBinding = BluetoothWifiBinding(network, target, credentials.ssid, credentials.canObserveIncoming)
+        cameraMutable.update { it.copy(bluetoothCanFollowIncoming = credentials.canObserveIncoming &&
+            cameraSession?.accessMode?.incoming == true && watchedNetwork == network) }
     }
 
     fun chooseCamera(key: String) = cameraOperation {
@@ -214,7 +233,8 @@ class CameraController(private val application: Application) {
                 cameraMutable.update { it.copy(selectedIds = previous.selectedIds.intersect(available),
                     problem = if (!available.containsAll(previous.selectedIds)) "部分待传文件缺失或信息已变化，请重新选择" else null) }
             }
-            cameraMutable.update { it.copy(connected = true) }
+            cameraMutable.update { it.copy(connected = true, bluetoothCanFollowIncoming = session.accessMode.incoming &&
+                bluetoothWifiBinding?.let { binding -> binding.network == candidate.network && binding.canObserve } == true) }
             connected = true
         } finally {
             if (restoreSelection && !connected) cameraMutable.update { it.copy(device = previous.device,
@@ -230,6 +250,7 @@ class CameraController(private val application: Application) {
         cameraJob?.cancel(TransferStop(false, "相机断开，操作已暂停"))
         stopTransfer(false, "相机断开，传输已暂停")
         clearCameraSession()
+        bluetoothWifiBinding = null
         wifiConnection?.close()
         wifiConnection = null
     }
@@ -240,7 +261,7 @@ class CameraController(private val application: Application) {
         networkWatch = null
         cameraSession?.close()
         cameraSession = null
-        cameraMutable.update { it.copy(connected = false) }
+        cameraMutable.update { it.copy(connected = false, bluetoothCanFollowIncoming = false) }
     }
 
     fun openCameraFolder(entry: CameraMedia) {
@@ -267,18 +288,18 @@ class CameraController(private val application: Application) {
 
     fun importCameraPhotos() = cameraOperation {
         val session = cameraSession ?: error("请先连接相机")
-        check(!session.accessMode.incoming) { "此模式的接收与确认链路尚在接入，请结束自动发送后重新连接使用普通传输" }
+        check(!session.accessMode.incoming) { "此模式请使用待发送接收入口" }
         val photos = cameraMutable.value.entries.filter { it.id in cameraMutable.value.selectedIds && it.transferResource != null }
         val batchId = store.enqueue(session.device, photos)
         cameraMutable.update { it.copy(selectedIds = it.selectedIds - photos.map { photo -> photo.id }.toSet()) }
         requestTransfer(batchId)
     }
 
-    fun receiveIncomingPhotos() = cameraOperation {
+    fun receiveIncomingPhotos(follow: Boolean = false) = cameraOperation {
         val session = cameraSession ?: error("请先连接相机")
         check(session.accessMode.incoming) { "请先在相机上进入发送模式" }
         val receiving = store.startIncoming(session.device, session.preparedIncomingDirectory())
-        requestTransfer(receiving.id)
+        requestTransfer(receiving.id, follow)
     }
 
     fun resumeTransferBatch(batchId: String) = cameraOperation { requestTransfer(batchId) }
@@ -307,7 +328,7 @@ class CameraController(private val application: Application) {
         cameraSession?.interrupt()
     }
 
-    private suspend fun requestTransfer(batchId: String) {
+    private suspend fun requestTransfer(batchId: String, follow: Boolean = false) {
         check(cameraMutable.value.activeTransferBatch == null) { "已有正在执行的传输" }
         val incoming = store.incoming(batchId)
         val session = cameraSession
@@ -318,19 +339,25 @@ class CameraController(private val application: Application) {
                 "请连接此记录对应的相机并进入相同发送模式后继续"
             }
         } else check(session?.accessMode?.incoming != true) { "普通队列请在结束相机发送模式后继续" }
+        val binding = if (follow) requireNotNull(bluetoothWifiBinding?.takeIf {
+            incoming != null && it.canObserve && it.network == watchedNetwork
+        }) { "后续拍摄接收需要通过已识别的蓝牙相机 Wi-Fi 连接入口连接" } else null
         val tasks = store.batch(batchId)
         if (incoming == null && tasks.all { it.terminal }) {
             cameraMutable.update { it.copy(notice = "此批没有未完成的任务") }
             return
         }
         pendingStop = null
+        followBinding = binding
         cameraMutable.update { it.copy(activeTransferBatch = batchId, notice = null, transferCache = null,
             receiving = incoming != null, transferPhase = if (incoming != null) TransferPhase.RESOLVING else null,
+            followingIncoming = follow, waitingForIncoming = false,
             transferTotal = tasks.size, transferred = tasks.count { task -> task.completed }) }
         try {
             application.startForegroundService(CameraTransferService.startIntent(application, batchId))
         } catch (error: Exception) {
-            cameraMutable.update { it.copy(activeTransferBatch = null, receiving = false,
+            followBinding = null
+            cameraMutable.update { it.copy(activeTransferBatch = null, receiving = false, followingIncoming = false,
                 problem = "无法启动后台传输：${error.message ?: "请在工作台重试"}") }
         }
     }
@@ -340,6 +367,7 @@ class CameraController(private val application: Application) {
         if (cameraMutable.value.activeTransferBatch != batchId || transferJob != null) return null
         val session = cameraSession
         val job = serviceScope.launch(start = CoroutineStart.LAZY) {
+            val binding = followBinding
             try {
                 pendingStop?.let { throw it }
                 var currentTask: String? = null
@@ -355,12 +383,20 @@ class CameraController(private val application: Application) {
                     }
                 }
                 val result = if (store.incoming(batchId) != null) {
-                    incomingReceiver.run(batchId, requireNotNull(session) { "请连接相机后继续接收" },
-                        onCount = { count -> cameraMutable.update { it.copy(incomingCount = count,
+                    val sendingSession = requireNotNull(session) { "请连接相机后继续接收" }
+                    val count: (Int) -> Unit = { count -> cameraMutable.update { it.copy(incomingCount = count,
                             entries = if (count == 0) emptyList() else it.entries,
                             nextOffset = if (count == 0) null else it.nextOffset,
-                            total = if (count == 0) 0 else it.total) } },
-                        onPhase = phase, onProgress = progress)
+                            total = if (count == 0) 0 else it.total) } }
+                    if (binding != null) bluetooth.withIncomingEvents(binding.camera, ownClientId(), binding.ssid,
+                        sendingSession.accessMode,
+                        onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { events ->
+                        cameraMutable.update { it.copy(bluetoothStep = null) }
+                        incomingReceiver.run(batchId, sendingSession, onCount = count, onPhase = phase,
+                            onProgress = progress, awaitNext = events::awaitFiles,
+                            onWaiting = { waiting -> cameraMutable.update { it.copy(waitingForIncoming = waiting,
+                                progress = null, transferPhase = if (waiting) null else TransferPhase.RESOLVING) } })
+                    } else incomingReceiver.run(batchId, sendingSession, onCount = count, onPhase = phase, onProgress = progress)
                 } else transferRunner.run(batchId, session, onPhase = phase, onProgress = progress)
                 cameraMutable.update { it.copy(notice = "本次传入 ${result.imported} 张照片、保存 ${result.savedVideos} 个视频；失败 ${result.failed} 项、待连接 ${result.waiting} 项") }
             } catch (error: CancellationException) {
@@ -371,11 +407,14 @@ class CameraController(private val application: Application) {
                 cameraMutable.update { it.copy(notice = error.message ?: "传输已暂停") }
                 throw error
             } catch (error: Exception) {
+                withContext(NonCancellable) { store.stopBatch(batchId, false, error.message ?: "接收已暂停") }
                 cameraMutable.update { it.copy(problem = error.message ?: "传输失败，请重试队列") }
             } finally {
                 transferJob = null
                 pendingStop = null
-                cameraMutable.update { it.copy(activeTransferBatch = null, receiving = false, progress = null, transferPhase = null) }
+                followBinding = null
+                cameraMutable.update { it.copy(activeTransferBatch = null, receiving = false, followingIncoming = false,
+                    waitingForIncoming = false, bluetoothStep = null, progress = null, transferPhase = null) }
                 releaseIfIdle()
             }
         }
@@ -388,7 +427,9 @@ class CameraController(private val application: Application) {
         cameraMutable.update { it.copy(problem = message) }
         if (transferJob != null) stopTransfer(false, message)
         else {
-            cameraMutable.update { it.copy(activeTransferBatch = null, receiving = false, problem = message) }
+            followBinding = null
+            cameraMutable.update { it.copy(activeTransferBatch = null, receiving = false, followingIncoming = false,
+                waitingForIncoming = false, problem = message) }
             pendingStop = null
             releaseIfIdle()
         }
@@ -439,6 +480,7 @@ class CameraController(private val application: Application) {
     fun disconnectCamera() {
         if (cameraMutable.value.busy) return
         clearBluetoothCredentials()
+        bluetoothWifiBinding = null
         clearCameraSession()
         wifiConnection?.close()
         wifiConnection = null

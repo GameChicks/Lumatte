@@ -124,7 +124,7 @@ internal abstract class WorkspaceDao {
     abstract suspend fun checkpoint(id: String, state: String, bytes: Long, error: String?)
     @Query("UPDATE transfers SET state = 'PAUSED', error = '上次传输或保存中断，可继续未完成的任务' WHERE state IN ('RUNNING', 'PUBLISHING')")
     abstract suspend fun recoverInterrupted()
-    @Query("UPDATE incoming_transfers SET state = 'PAUSED', acknowledgement = CASE WHEN acknowledgement = 'IN_FLIGHT' THEN 'UNKNOWN' ELSE acknowledgement END, error = '上次接收中断，已保存结果保留；确认响应未知时不会自动重发' WHERE state = 'RUNNING' OR acknowledgement = 'IN_FLIGHT'")
+    @Query("UPDATE incoming_transfers SET state = 'PAUSED', acknowledgement = CASE WHEN acknowledgement = 'IN_FLIGHT' THEN 'UNKNOWN' ELSE acknowledgement END, error = '上次接收中断，已保存结果保留；确认响应未知时不会自动重发' WHERE state IN ('RUNNING', 'WAITING') OR acknowledgement = 'IN_FLIGHT'")
     abstract suspend fun recoverIncoming()
     @Query("UPDATE transfers SET cameraAcknowledgement = 'UNKNOWN' WHERE cameraAcknowledgement = 'IN_FLIGHT'")
     abstract suspend fun recoverAcknowledgements()

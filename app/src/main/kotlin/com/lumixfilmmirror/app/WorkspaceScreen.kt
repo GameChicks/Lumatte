@@ -49,6 +49,7 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
         when (target) {
             "import" -> workspace.importCameraPhotos()
             "receive" -> workspace.receiveIncomingPhotos()
+            "follow" -> workspace.receiveIncomingPhotos(follow = true)
             else -> workspace.resumeTransferBatch(target)
         }
     }
@@ -103,7 +104,8 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                 }
             } }
             item { CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null,
-                onImport = { startTransfer(if (camera.accessMode.incoming) "receive" else "import") }, workspace = workspace) }
+                onImport = { startTransfer(if (camera.accessMode.incoming) "receive" else "import") },
+                onFollow = { startTransfer("follow") }, workspace = workspace) }
             if (incoming.isNotEmpty()) item { IncomingQueuePanel(incoming, transfers, state, workspace, startTransfer) }
             if (transfers.isNotEmpty()) item { TransferQueuePanel(transfers, state, workspace,
                 onResume = startTransfer) }

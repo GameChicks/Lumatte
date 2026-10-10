@@ -19,6 +19,9 @@ internal object LumixBleProtocol {
     val wifiChoiceReply: UUID = UUID.fromString("18345be1-3217-11e6-b56c-0002a5d5c51b")
     val connectionMode: UUID = UUID.fromString("e182ec40-3213-11e6-ab07-0002a5d5c51b")
     val connectionStatus: UUID = UUID.fromString("e182ec41-3213-11e6-ab07-0002a5d5c51b")
+    val sendingService: UUID = UUID.fromString("6b005f20-3214-11e6-a5ac-0002a5d5c51b")
+    val imageTransferEvent: UUID = UUID.fromString("48669da0-3217-11e6-b08d-0002a5d5c51b")
+    val sendingModeEvent: UUID = UUID.fromString("e182ec43-3213-11e6-ab07-0002a5d5c51b")
     val cccd: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     // Exactly 16 ASCII bytes: the recovered string encoder then has no zero-padding region.
     val appName: ByteArray get() = "Lumix FilmMirror".toByteArray(Charsets.US_ASCII)

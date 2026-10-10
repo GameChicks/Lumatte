@@ -16,7 +16,7 @@ import com.lumixfilmmirror.design.PaperPanel
 
 @Composable
 fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy: Boolean,
-    transferring: Boolean, onImport: () -> Unit, workspace: WorkspaceViewModel) {
+    transferring: Boolean, onImport: () -> Unit, onFollow: () -> Unit, workspace: WorkspaceViewModel) {
     PaperPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("从相机传入", style = MaterialTheme.typography.titleMedium)
@@ -36,10 +36,11 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 }
             } else {
                 Text("${camera.device?.model.orEmpty()} · ${camera.device?.friendlyName.orEmpty()}", style = MaterialTheme.typography.bodySmall)
+                if (camera.followingIncoming) Text("后续拍摄接收已开启", style = MaterialTheme.typography.labelSmall)
                 if (camera.accessMode.incoming) {
                     Text(if (camera.accessMode == CameraAccessMode.AUTO_UPLOAD) "相机已进入拍后自动发送模式"
                         else "相机已进入选定文件发送模式", style = MaterialTheme.typography.titleSmall)
-                    Text("接收相机当前待发送的文件；目录清空后结束本轮。后续新照片可再发起接收。",
+                    Text("单轮接收在目录清空后结束；若下方提供后续拍摄入口，可保持连接继续接收。",
                         style = MaterialTheme.typography.bodySmall)
                     camera.incomingCount?.let { Text("相机报告待发送 $it 项", style = MaterialTheme.typography.labelSmall) }
                 }
@@ -81,12 +82,16 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                     Text("传入选中文件 · ${camera.selectedIds.size} 项")
                 }
                 if (camera.accessMode.incoming) Button(enabled = !busy, onClick = onImport) { Text("接收待发送文件") }
+                if (camera.accessMode.incoming && camera.bluetoothCanFollowIncoming) {
+                    IncomingFollowControl(busy, onFollow, workspace)
+                }
                 if (!camera.accessMode.incoming) Text("照片进入工作台；视频直接保存到 Movies/LumixFilmMirror，保持原文件内容。",
                     style = MaterialTheme.typography.labelSmall)
             }
             if (cameraBusy) {
                 val caption = when {
                     camera.cacheBusy -> "正在整理传输缓存"
+                    camera.waitingForIncoming -> "等待后续拍摄 · 已保存 ${camera.transferred} 项"
                     camera.bluetoothStep == BluetoothConnectionStep.SCANNING -> "正在查找蓝牙相机 · 最多 12 秒"
                     camera.bluetoothStep == BluetoothConnectionStep.CONNECTING -> "正在连接蓝牙相机，请在相机上确认配对"
                     camera.bluetoothStep == BluetoothConnectionStep.READING_SERVICES -> "正在读取蓝牙连接能力"
@@ -112,7 +117,9 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 }
                 Row {
                     if (transferring) TextButton(onClick = workspace::pauseTransfer) { Text("暂停传输") }
-                    TextButton(onClick = workspace::cancelCameraOperation) { Text(if (transferring) "取消后续传输" else "取消操作") }
+                    TextButton(onClick = workspace::cancelCameraOperation) {
+                        Text(if (camera.followingIncoming) "停止后续接收" else if (transferring) "取消后续传输" else "取消操作")
+                    }
                 }
             }
             camera.problem?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
