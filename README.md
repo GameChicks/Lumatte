@@ -24,4 +24,6 @@ RAW 导入先尝试 TIFF／RW2 JPEG 标签，再使用固定 LibRaw 的 JPEG 预
 
 蓝牙查找、旧／APS 身份握手、Wi-Fi 资料读取及显式启动传输网络已加入工作台源码。读到的密码只临时用于连接；按实际特征显示蓝牙启动入口，也保留在相机上手动开启 Wi-Fi 后连接。真实配对及机型差异尚未验证，见 [蓝牙连接记录](docs/engineering/bluetooth-connection.md)。
 
+待发送会话已区分拍后自动发送与相机选定发送，读取各自指定目录并显示待发送列表。当前只有模式识别和目录预览；自动接收、持久确认及 BLE 事件仍在接入，见 [自动传输记录](docs/engineering/automatic-transfer.md)。
+
 新应用代码采用 [GNU GPLv3](LICENSE)，许可正文来自 [GNU gnulib 的 COPYINGv3](https://github.com/coreutils/gnulib/blob/master/doc/COPYINGv3)。第三方依赖和恢复素材按各自的来源、COPYRIGHT 与许可清单管理，不由应用许可替代。

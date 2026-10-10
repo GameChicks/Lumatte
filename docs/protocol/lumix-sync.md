@@ -17,10 +17,12 @@
 | SOAP ContentDirectory Browse：分页、BrowseDirectChildren、X_FromCP LumixLink2.0 | `p321v4/C5116a.java:225`、`p335x4/C5306m.java` | AOT SOAPAction、BrowseFlag、X_FromCP、CDS_control |
 | JPEG 原图 CAM_ORG；缩略 CAM_TN／CAM_LRGTN；RAW CAM_RAW；RAW JPEG CAM_RAW_JPG | `p258m4/C4667e.java` | AOT CAM_ORG／CAM_RAW／CAM_RAW_JPG |
 | MP4／MOV／AVCHD 资源可能使用 application/octet-stream；分别按 CAM_AVC_MP4_／CAM_AVC_MOV_／CAM_AVC_TS_HP_ 分类 | `p258m4/C4667e.java:84–123`；MP4 ORG 选择见 `p321v4/C5116a.java:170` | 尚未恢复第三方对应分类逻辑 |
+| `upload_bt`／`transfer` 对应两种待发送模式；allmenu 指定自动目录，选定发送使用 dir_id_mark_list | `ImageAppTotalService.java`，RunnableC3468f；`p321v4/C5116a.java`，m27945n | 尚未恢复第三方自动状态机 |
+| get_content_info 数量、4294967295 忙碌哨兵、transfer 模式目录级 notify | `ImageAppTotalService.java`，RunnableC3465c、C3464b；`p335x4/C5308o.java`，m28782a0 | 尚未恢复第三方确认逻辑 |
 
 ## 当前源码实现范围
 
-`core:camera` 独立实现设备描述、正常相机确认握手、挑战编码、内存会话头、SOAP 分页和 DIDL 资源分类。公开 API 仅包含连接、浏览初始化、浏览和下载；没有遥控拍摄、实时取景、录像或参数控制接口。
+`core:camera` 独立实现设备描述、正常相机确认握手、挑战编码、内存会话头、SOAP 分页和 DIDL 资源分类。公开 API 仅包含连接、普通／待发送目录初始化、数量读取、浏览和下载；没有遥控拍摄、实时取景、录像或参数控制接口。待发送模式已保留握手类型并使用独立目录预览，尚未接入实际自动接收与确认，详见 [自动传输记录](../engineering/automatic-transfer.md)。
 
 `app` 提供系统 Wi-Fi 设置入口、已连接网络上的相机查找、输入相机 SSID／密码后发起系统确认的连接入口。另已接入蓝牙扫描、两种身份握手、Wi-Fi 资料读取和显式 SoftAP 传输网络启动源码，流程与证据限制见 [蓝牙连接资料](../engineering/bluetooth-connection.md)。SSDP 在各 Wi-Fi Network 上发送 MediaServer M-SEARCH（MX=2），读取回应的 LOCATION；设备描述需确认 Panasonic 制造商及相机字段。无组播回应时尝试该网络的本地网关，以及 192.168.54.x 网络的默认相机地址。发现一台时进入连接，多台时交给用户选择。
 

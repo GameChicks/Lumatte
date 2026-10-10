@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lumixfilmmirror.camera.ConnectionStep
 import com.lumixfilmmirror.camera.CameraResourceKind
+import com.lumixfilmmirror.camera.CameraAccessMode
 import com.lumixfilmmirror.camera.BluetoothConnectionStep
 import com.lumixfilmmirror.design.FilmSpacing
 import com.lumixfilmmirror.design.PaperPanel
@@ -35,6 +36,13 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 }
             } else {
                 Text("${camera.device?.model.orEmpty()} · ${camera.device?.friendlyName.orEmpty()}", style = MaterialTheme.typography.bodySmall)
+                if (camera.accessMode.incoming) {
+                    Text(if (camera.accessMode == CameraAccessMode.AUTO_UPLOAD) "相机已进入拍后自动发送模式"
+                        else "相机已进入选定文件发送模式", style = MaterialTheme.typography.titleSmall)
+                    Text("当前可以查看待发送目录；自动接收和传输确认尚在接入。要传入照片，请在相机上结束此模式，然后重新连接使用普通传输。",
+                        style = MaterialTheme.typography.bodySmall)
+                    camera.incomingCount?.let { Text("相机报告待发送 $it 项", style = MaterialTheme.typography.labelSmall) }
+                }
                 Row {
                     TextButton(enabled = !busy, onClick = workspace::refreshCameraPhotos) { Text("刷新列表") }
                     TextButton(enabled = !busy, onClick = workspace::disconnectCamera) { Text("断开") }
@@ -44,12 +52,13 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp)) {
                     items(camera.entries, key = { it.id }) { entry ->
                         if (entry.isFolder) {
-                            TextButton(enabled = !busy, onClick = { workspace.openCameraFolder(entry) }) { Text("文件夹 · ${entry.title}") }
+                            TextButton(enabled = !busy && !camera.accessMode.incoming,
+                                onClick = { workspace.openCameraFolder(entry) }) { Text("文件夹 · ${entry.title}") }
                         } else {
                             val resource = entry.transferResource
                             Row {
-                                Checkbox(checked = entry.id in camera.selectedIds, enabled = !busy && resource != null,
-                                    onCheckedChange = { workspace.selectCameraPhoto(entry.id) })
+                                if (!camera.accessMode.incoming) Checkbox(checked = entry.id in camera.selectedIds,
+                                    enabled = !busy && resource != null, onCheckedChange = { workspace.selectCameraPhoto(entry.id) })
                                 Column(Modifier.weight(1f).padding(top = 8.dp)) {
                                     Text(resource?.originalName ?: entry.title, style = MaterialTheme.typography.bodySmall)
                                     val label = when (resource?.kind) {
@@ -68,10 +77,10 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 }
                 Text("已载入 ${camera.entries.size} / ${camera.total} 项", style = MaterialTheme.typography.labelSmall)
                 if (camera.nextOffset != null) TextButton(enabled = !busy, onClick = workspace::loadMoreCameraPhotos) { Text("加载更多") }
-                Button(enabled = !busy && camera.selectedIds.isNotEmpty(), onClick = onImport) {
+                if (!camera.accessMode.incoming) Button(enabled = !busy && camera.selectedIds.isNotEmpty(), onClick = onImport) {
                     Text("传入选中文件 · ${camera.selectedIds.size} 项")
                 }
-                Text("照片进入工作台；视频直接保存到 Movies/LumixFilmMirror，保持原文件内容。",
+                if (!camera.accessMode.incoming) Text("照片进入工作台；视频直接保存到 Movies/LumixFilmMirror，保持原文件内容。",
                     style = MaterialTheme.typography.labelSmall)
             }
             if (cameraBusy) {

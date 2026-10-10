@@ -59,6 +59,65 @@ internal object CameraXml {
         throw CameraProtocolException("响应缺少 result")
     }
 
+    fun requireOk(xml: String) {
+        val status = result(xml)
+        if (status != "ok") throw CameraProtocolException(status)
+    }
+
+    fun contentCount(xml: String): Int {
+        requireOk(xml)
+        require(xml.trimStart().startsWith("<")) { "待发送数量响应格式尚不支持" }
+        val parser = parser(xml)
+        var count: Long? = null
+        while (parser.eventType != XmlPullParser.END_DOCUMENT) {
+            if (parser.eventType == XmlPullParser.START_TAG && parser.name.equals("total_content_number", true)) {
+                require(count == null) { "待发送数量响应重复" }
+                count = requireNotNull(parser.nextText().trim().toLongOrNull()) { "待发送数量无效" }
+            }
+            parser.next()
+        }
+        if (count == 0xffffffffL) throw CameraProtocolException("err_busy")
+        val value = requireNotNull(count) { "响应缺少待发送数量" }
+        require(value in 0..Int.MAX_VALUE.toLong()) { "待发送数量超出范围" }
+        return value.toInt()
+    }
+
+    /** Sync selects the last child of the first parent in autouploaddirinfo/autouploaddirlist. */
+    fun autoUploadDirectory(xml: String): String {
+        val parser = parser(xml)
+        var infoDepth: Int? = null
+        var listDepth: Int? = null
+        var firstParentDepth: Int? = null
+        var firstParentSeen = false
+        var objectId: String? = null
+        while (parser.eventType != XmlPullParser.END_DOCUMENT) {
+            val name = parser.name
+            if (parser.eventType == XmlPullParser.START_TAG) {
+                when {
+                    name.equals("autouploaddirinfo", true) && infoDepth == null -> infoDepth = parser.depth
+                    name.equals("autouploaddirlist", true) && parser.depth == (infoDepth ?: -2) + 1 ->
+                        listDepth = parser.depth
+                    name.equals("dir", true) && parser.depth == (listDepth ?: -2) + 1 && !firstParentSeen -> {
+                        firstParentSeen = true
+                        firstParentDepth = parser.depth
+                    }
+                    name.equals("dir", true) && parser.depth == (firstParentDepth ?: -2) + 1 -> {
+                        // Retain source selection semantics: do not silently use an earlier sibling.
+                        objectId = parser.getAttributeValue(null, "object_id")?.trim()
+                    }
+                }
+            } else if (parser.eventType == XmlPullParser.END_TAG) {
+                if (parser.depth == firstParentDepth) firstParentDepth = null
+                if (parser.depth == listDepth) listDepth = null
+                if (parser.depth == infoDepth) break
+            }
+            parser.next()
+        }
+        return requireNotNull(objectId?.takeIf { it.isNotBlank() && it != "0" }) {
+            "相机未提供可识别的自动发送目录；请结束自动发送后使用普通传输"
+        }
+    }
+
     fun browse(xml: String, offset: Int, base: URI): CameraMediaPage {
         val parser = parser(xml)
         val fields = mutableMapOf<String, String>()

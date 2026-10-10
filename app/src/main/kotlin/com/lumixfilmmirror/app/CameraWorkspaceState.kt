@@ -1,6 +1,7 @@
 package com.lumixfilmmirror.app
 
 import com.lumixfilmmirror.camera.CameraDevice
+import com.lumixfilmmirror.camera.CameraAccessMode
 import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.ConnectionStep
 import com.lumixfilmmirror.camera.DownloadProgress
@@ -16,6 +17,8 @@ data class CameraWorkspaceState(
     val device: CameraDevice? = null,
     val connected: Boolean = false,
     val disconnected: Boolean = false,
+    val accessMode: CameraAccessMode = CameraAccessMode.BROWSING,
+    val incomingCount: Int? = null,
     val discovered: List<DiscoveredCamera> = emptyList(),
     val bluetoothCameras: List<BluetoothCamera> = emptyList(),
     val bluetoothStep: BluetoothConnectionStep? = null,

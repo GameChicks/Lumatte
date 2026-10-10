@@ -187,11 +187,16 @@ class CameraController(private val application: Application) {
                 cameraMutable.update { it.copy(step = step) }
             }
             cameraSession = session
-            session.prepareBrowsing()
+            val incoming = if (session.accessMode.incoming) session.prepareIncoming()
+                else { session.prepareBrowsing(); null }
+            val restoreBrowsing = restoreSelection && incoming == null && previous.accessMode == CameraAccessMode.BROWSING
             cameraMutable.update { it.copy(device = session.device, entries = emptyList(), selectedIds = emptySet(),
-                folders = if (restoreSelection) previous.folders else listOf(CameraFolder("0", "相机媒体"))) }
+                accessMode = session.accessMode, incomingCount = null,
+                folders = if (incoming != null) listOf(CameraFolder(incoming.objectId,
+                    if (incoming.mode == CameraAccessMode.AUTO_UPLOAD) "拍后自动发送目录" else "相机选定的发送目录"))
+                    else if (restoreBrowsing) previous.folders else listOf(CameraFolder("0", "相机媒体"))) }
             loadCameraFolder()
-            if (restoreSelection && previous.selectedIds.isNotEmpty()) {
+            if (restoreBrowsing && previous.selectedIds.isNotEmpty()) {
                 // Reload the previously viewed pages before restoring IDs; never reuse stale resource URLs.
                 while (cameraMutable.value.nextOffset != null &&
                     !cameraMutable.value.entries.map { it.id }.toSet().containsAll(previous.selectedIds)) {
@@ -208,7 +213,8 @@ class CameraController(private val application: Application) {
             connected = true
         } finally {
             if (restoreSelection && !connected) cameraMutable.update { it.copy(device = previous.device,
-                entries = previous.entries, selectedIds = previous.selectedIds, folders = previous.folders) }
+                entries = previous.entries, selectedIds = previous.selectedIds, folders = previous.folders,
+                accessMode = previous.accessMode, incomingCount = previous.incomingCount) }
         }
     }
 
@@ -233,13 +239,14 @@ class CameraController(private val application: Application) {
     }
 
     fun openCameraFolder(entry: CameraMedia) {
-        if (!entry.isFolder) return
+        if (!entry.isFolder || cameraMutable.value.accessMode.incoming) return
         cameraOperation {
             loadCameraFolder(folders = cameraMutable.value.folders + CameraFolder(entry.id, entry.title))
         }
     }
 
     fun cameraFolderBack() = cameraOperation {
+        check(!cameraMutable.value.accessMode.incoming) { "待发送模式没有普通浏览目录" }
         if (cameraMutable.value.folders.size > 1) {
             loadCameraFolder(folders = cameraMutable.value.folders.dropLast(1))
         }
@@ -249,12 +256,13 @@ class CameraController(private val application: Application) {
     fun refreshCameraPhotos() = cameraOperation { loadCameraFolder() }
 
     fun selectCameraPhoto(id: String) {
-        if (cameraMutable.value.busy) return
+        if (cameraMutable.value.busy || cameraMutable.value.accessMode.incoming) return
         cameraMutable.update { it.copy(selectedIds = if (id in it.selectedIds) it.selectedIds - id else it.selectedIds + id) }
     }
 
     fun importCameraPhotos() = cameraOperation {
         val session = cameraSession ?: error("请先连接相机")
+        check(!session.accessMode.incoming) { "此模式的接收与确认链路尚在接入，请结束自动发送后重新连接使用普通传输" }
         val photos = cameraMutable.value.entries.filter { it.id in cameraMutable.value.selectedIds && it.transferResource != null }
         val batchId = store.enqueue(session.device, photos)
         cameraMutable.update { it.copy(selectedIds = it.selectedIds - photos.map { photo -> photo.id }.toSet()) }
@@ -289,6 +297,7 @@ class CameraController(private val application: Application) {
 
     private suspend fun requestTransfer(batchId: String) {
         check(cameraMutable.value.activeTransferBatch == null) { "已有正在执行的传输" }
+        check(cameraSession?.accessMode?.incoming != true) { "待发送模式暂不执行普通队列；请结束该模式后重新连接" }
         val tasks = store.batch(batchId)
         if (tasks.all { it.terminal }) {
             cameraMutable.update { it.copy(notice = "此批没有未完成的任务") }
@@ -312,6 +321,7 @@ class CameraController(private val application: Application) {
         val job = serviceScope.launch(start = CoroutineStart.LAZY) {
             try {
                 pendingStop?.let { throw it }
+                check(session?.accessMode?.incoming != true) { "待发送模式尚未接入队列执行" }
                 var currentTask: String? = null
                 var lastProgressAt = 0L
                 val result = transferRunner.run(batchId, session,
@@ -360,12 +370,20 @@ class CameraController(private val application: Application) {
         val session = cameraSession ?: error("请先连接相机")
         val snapshot = cameraMutable.value
         val offset = if (append) snapshot.nextOffset ?: return else 0
+        val incomingCount = if (!append && session.accessMode.incoming) {
+            session.incomingContentCount()
+        } else snapshot.incomingCount
+        if (!append && incomingCount == 0 && session.accessMode.incoming) {
+            cameraMutable.update { it.copy(folders = folders, entries = emptyList(), selectedIds = emptySet(),
+                nextOffset = null, total = 0, updateId = null, incomingCount = 0) }
+            return
+        }
         val page = session.browse(folders.last().id, offset)
         if (append && snapshot.updateId != page.updateId) error("相机照片列表已更新，请刷新后重新选择")
         cameraMutable.update { it.copy(folders = folders,
             entries = (if (append) it.entries + page.entries else page.entries).distinctBy { entry -> entry.id },
             selectedIds = if (append) it.selectedIds else emptySet(), nextOffset = page.nextOffset,
-            total = page.totalMatches, updateId = page.updateId) }
+            total = page.totalMatches, updateId = page.updateId, incomingCount = incomingCount) }
     }
 
     private fun cameraOperation(cache: Boolean = false, block: suspend () -> Unit) {

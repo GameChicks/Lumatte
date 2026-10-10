@@ -14,21 +14,67 @@ import java.util.UUID
 class LumixCameraSession private constructor(
     val device: CameraDevice,
     private val http: CameraHttp,
+    val accessMode: CameraAccessMode,
 ) {
     private val commands = Mutex()
+    private var incomingDirectory: CameraIncomingDirectory? = null
 
     suspend fun prepareBrowsing(includeRaw: Boolean = true) = commands.withLock {
+        check(accessMode == CameraAccessMode.BROWSING) { "相机当前处于待发送模式，请结束该模式后重新连接以浏览" }
         val playback = commandStatus("camcmd", "value" to "playmode")
         if (playback != "ok") throw CameraProtocolException(playback)
+        prepareRawResources(includeRaw)
+    }
+
+    /** Read-only incoming setup, apart from enabling advertised RAW transfer resources. No playmode. */
+    suspend fun prepareIncoming(includeRaw: Boolean = true): CameraIncomingDirectory = commands.withLock {
+        check(accessMode.incoming) { "相机尚未进入待发送模式" }
+        incomingDirectory = null
+        prepareRawResources(includeRaw)
+        val directory = when (accessMode) {
+            CameraAccessMode.AUTO_UPLOAD -> {
+                val menu = commandReply("getinfo", "type" to "allmenu")
+                CameraXml.requireOk(menu)
+                CameraIncomingDirectory(accessMode, CameraXml.autoUploadDirectory(menu))
+            }
+            CameraAccessMode.MARKED_TRANSFER -> CameraIncomingDirectory(accessMode, CameraIncomingDirectory.MARKED_OBJECT_ID)
+            CameraAccessMode.BROWSING -> error("相机尚未进入待发送模式")
+        }
+        incomingDirectory = directory
+        directory
+    }
+
+    suspend fun incomingContentCount(): Int = commands.withLock {
+        val directory = requireNotNull(incomingDirectory) { "待发送目录尚未准备" }
+        requireIncomingDirectory(directory)
+        // Some firmware returns ok with the unsigned -1 sentinel while its list is still busy.
+        repeat(5) { attempt ->
+            val reply = http.command("get_content_info", "value" to directory.objectId)
+            try { return@withLock CameraXml.contentCount(reply) }
+            catch (error: CameraProtocolException) {
+                if (error.status != "err_busy" || attempt == 4) throw error
+                delay(500)
+            }
+        }
+        error("无法读取待发送数量")
+    }
+
+    private fun requireIncomingDirectory(directory: CameraIncomingDirectory) {
+        require(directory == incomingDirectory && directory.mode == accessMode) { "待发送目录尚未由此相机会话确认" }
+    }
+
+    private suspend fun prepareRawResources(includeRaw: Boolean) {
         val status = commandStatus("setsetting", "type" to "raw_img_send",
             "value" to if (includeRaw) "enable" else "disable")
-        // Older cameras may not support RAW transfer; use only resources they advertise.
         if (status !in setOf("ok", "err_non_support", "err_param")) throw CameraProtocolException(status)
     }
 
     suspend fun browse(objectId: String = "0", offset: Int = 0, count: Int = 50): CameraMediaPage =
         commands.withLock {
             require(offset >= 0 && count in 1..100)
+            if (accessMode.incoming) {
+                require(objectId == incomingDirectory?.objectId) { "待发送模式只读取相机指定的发送目录" }
+            }
             val body = """<?xml version="1.0" encoding="utf-8"?>
                 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
                 <s:Body><u:Browse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1" xmlns:pana="urn:schemas-panasonic-com:pana">
@@ -46,9 +92,13 @@ class LumixCameraSession private constructor(
     fun interrupt() { http.interrupt() }
 
     private suspend fun commandStatus(mode: String, vararg fields: Pair<String, String>): String {
+        return CameraXml.result(commandReply(mode, *fields))
+    }
+
+    private suspend fun commandReply(mode: String, vararg fields: Pair<String, String>): String {
         repeat(5) { attempt ->
-            val status = CameraXml.result(http.command(mode, *fields))
-            if (status != "err_busy" || attempt == 4) return status
+            val reply = http.command(mode, *fields)
+            if (CameraXml.result(reply) != "err_busy" || attempt == 4) return reply
             delay(500)
         }
         error("无法读取相机状态")
@@ -105,7 +155,7 @@ class LumixCameraSession private constructor(
                         require(fields.size >= 4) { "相机会话响应不完整" }
                         http.setSession(fields.getOrNull(4)?.trim())
                         onStep(ConnectionStep.READY)
-                        return LumixCameraSession(device, http)
+                        return LumixCameraSession(device, http, CameraAccessMode.fromReply(fields.first()))
                     }
                     else -> throw CameraProtocolException(fields.firstOrNull().orEmpty())
                 }
