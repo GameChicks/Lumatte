@@ -111,6 +111,7 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                 onResume = startTransfer) }
             if (transfers.isNotEmpty()) item { TransferCachePanel(camera, state.busy,
                 onInspect = workspace::inspectTransferCache, onClean = workspace::clearTransferCache) }
+            item { ProcessingBatchPanel(state, workspace) }
             item {
                 PaperPanel(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(12.dp)) {

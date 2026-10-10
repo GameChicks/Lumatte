@@ -18,6 +18,8 @@ import com.lumixfilmmirror.storage.WorkspaceStore
 import com.lumixfilmmirror.storage.WorkspacePreferences
 import com.lumixfilmmirror.storage.TransferTask
 import com.lumixfilmmirror.storage.IncomingTransfer
+import com.lumixfilmmirror.storage.ProcessingBatch
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -26,6 +28,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.coroutines.coroutineContext
@@ -35,6 +38,9 @@ data class FailedPhoto(val id: PhotoId?, val name: String, val reason: String)
 
 data class WorkspaceState(
     val photos: List<SourceImage> = emptyList(),
+    val processingBatches: List<ProcessingBatch> = emptyList(),
+    val processingBatchId: String? = null,
+    val batchBusy: Boolean = false,
     val selected: PhotoId? = null,
     val output: JpegOutput = JpegOutput(),
     val destination: ExportDestination = ExportDestination.Gallery,
@@ -54,7 +60,14 @@ data class WorkspaceState(
     val notice: String? = null,
 ) {
     val current: SourceImage? get() = photos.firstOrNull { it.id == selected }
-    val busy: Boolean get() = importing || exporting || exportCacheBusy || cameraBusy || recovering || storageFailure != null
+    val processingBatch: ProcessingBatch? get() = processingBatches.firstOrNull { it.id == processingBatchId }
+    val busy: Boolean get() = importing || exporting || exportCacheBusy || cameraBusy || batchBusy || recovering || storageFailure != null
+}
+
+private fun WorkspaceState.showBatch(batches: List<ProcessingBatch>, id: String?): WorkspaceState {
+    val photos = batches.firstOrNull { it.id == id }?.photos.orEmpty()
+    return copy(processingBatches = batches, processingBatchId = id, photos = photos,
+        selected = selected?.takeIf { selected -> photos.any { it.id == selected } } ?: photos.firstOrNull()?.id)
 }
 
 class WorkspaceViewModel(application: Application) : AndroidViewModel(application) {
@@ -76,8 +89,16 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         viewModelScope.launch {
-            cameraState.collect { value -> mutable.update { it.copy(cameraBusy = value.busy,
-                activeTransferBatch = value.activeTransferBatch) } }
+            cameraState.collect { value ->
+                val nextBatch = value.activeTransferBatch?.takeIf { it != mutable.value.activeTransferBatch }
+                mutable.update { previous ->
+                    val updated = previous.copy(cameraBusy = value.busy, activeTransferBatch = value.activeTransferBatch)
+                    if (nextBatch == null || previous.exporting || previous.importing || previous.batchBusy) updated
+                    else updated.showBatch(updated.processingBatches, nextBatch)
+                        .copy(exported = emptyList(), failures = emptyList())
+                }
+                if (nextBatch != null && !mutable.value.recovering) persistPreferences()
+            }
         }
         restoreWorkspace()
     }
@@ -89,16 +110,24 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val problems = store.initialize(importer, recoverTransfers = !camera.isTransferring)
                 val settings = store.readPreferences()
+                val batches = availableBatches(store.processingBatches.first()).first
                 val cleanup = writer.cleanCache()
                 val folderExports = writer.inspectFolderExports()
                 val cleanupProblems = (cleanup.problems + cleanup.remaining.problems).distinct()
                 val cleanupNotice = if (cleanup.temporaryFilesRemoved + cleanup.pendingImagesRemoved > 0)
                     "已整理上次导出的 ${cleanup.temporaryFilesRemoved} 个中间文件、${cleanup.pendingImagesRemoved} 个未发布 JPG" else null
-                mutable.update { it.copy(output = settings.output, selected = settings.selectedId?.let(::PhotoId),
+                mutable.update { previous ->
+                    val batchId = previous.activeTransferBatch
+                        ?: settings.processingBatchId?.takeIf { id -> batches.any { it.id == id } }
+                        ?: batches.firstOrNull { batch -> batch.photos.any { it.id.value == settings.selectedId } }?.id
+                        ?: batches.firstOrNull { it.photos.isNotEmpty() }?.id ?: batches.firstOrNull()?.id
+                    previous.copy(output = settings.output, selected = settings.selectedId?.let(::PhotoId),
                     destination = settings.folderUri?.let { uri -> ExportDestination.Folder(Uri.parse(uri)) } ?: ExportDestination.Gallery,
                     exportCache = cleanup.remaining.copy(problems = cleanupProblems),
                     folderExports = folderExports,
-                    notice = (problems + listOfNotNull(cleanupNotice)).takeIf { it.isNotEmpty() }?.joinToString("\n")) }
+                    notice = (problems + listOfNotNull(cleanupNotice)).takeIf { it.isNotEmpty() }?.joinToString("\n"))
+                        .showBatch(batches, batchId)
+                }
                 observingStorage = true
                 observeStorage()
             } catch (error: CancellationException) { throw error }
@@ -113,11 +142,14 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         storageObservers.clear()
         storageObservers += viewModelScope.launch {
             try {
-                store.photos.collect { photos ->
-                    val (available, missing) = store.available(photos)
-                    mutable.update { previous -> previous.copy(photos = available,
-                        selected = previous.selected?.takeIf { id -> available.any { it.id == id } } ?: available.firstOrNull()?.id,
-                        notice = if (missing > 0) "$missing 张导入副本缺失，原有记录保留" else previous.notice) }
+                store.processingBatches.collect { batches ->
+                    val (available, missing) = availableBatches(batches)
+                    mutable.update { previous ->
+                        val id = previous.processingBatchId ?: available.firstOrNull { it.photos.isNotEmpty() }?.id
+                            ?: available.firstOrNull()?.id
+                        previous.showBatch(available, id).copy(
+                            notice = if (missing > 0) "$missing 张导入副本缺失，原有记录保留" else previous.notice)
+                    }
                 }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { storageFailed(error.message ?: "无法读取照片记录") }
@@ -144,12 +176,19 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         camera.stopTransfer(false, "记录存储中断，传输已暂停")
     }
 
+    private suspend fun availableBatches(batches: List<ProcessingBatch>): Pair<List<ProcessingBatch>, Int> {
+        val (available, missing) = store.available(batches.flatMap { it.photos })
+        val ids = available.map { it.id }.toSet()
+        return batches.map { it.copy(photos = it.photos.filter { photo -> photo.id in ids }) } to missing
+    }
+
     private fun persistPreferences() {
         val snapshot = mutable.value
         viewModelScope.launch {
             try {
                 store.savePreferences(WorkspacePreferences(snapshot.output,
-                    (snapshot.destination as? ExportDestination.Folder)?.treeUri?.toString(), snapshot.selected?.value))
+                    (snapshot.destination as? ExportDestination.Folder)?.treeUri?.toString(), snapshot.selected?.value,
+                    snapshot.processingBatchId))
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { mutable.update { it.copy(notice = error.message ?: "设置未能保存") } }
         }
@@ -231,13 +270,17 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun importImages(uris: List<Uri>) {
         if (mutable.value.busy || camera.cameraState.value.busy || uris.isEmpty()) return
+        val currentBatch = mutable.value.processingBatch?.id
         mutable.update { it.copy(importing = true, failures = emptyList(), notice = null) }
         viewModelScope.launch {
             try {
+                val batchId = currentBatch ?: store.createProcessingBatch().also(::showCreatedBatch).id
                 for (uri in uris) {
                     coroutineContext.ensureActive()
                     try {
-                        val photo = importer.importImage(uri)
+                        val id = PhotoId(UUID.randomUUID().toString())
+                        store.reserveLocalPhoto(batchId, id)
+                        val photo = importer.importImage(uri, photoId = id)
                         withContext(NonCancellable) { store.save(photo) }
                     } catch (error: CancellationException) { throw error }
                     catch (error: Exception) {
@@ -245,12 +288,40 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                             error.message ?: "导入失败")) }
                     }
                 }
-            } finally { mutable.update { it.copy(importing = false) } }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { mutable.update { it.copy(notice = error.message ?: "无法建立导入批次") } }
+            finally { mutable.update { it.copy(importing = false) } }
         }
     }
 
+    private fun showCreatedBatch(batch: ProcessingBatch) {
+        mutable.update { previous -> previous.showBatch(
+            (listOf(batch) + previous.processingBatches).distinctBy { it.id }, batch.id)
+            .copy(exported = emptyList(), failures = emptyList(), notice = null) }
+        persistPreferences()
+    }
+
+    fun newProcessingBatch() {
+        if (mutable.value.busy || camera.cameraState.value.busy) return
+        mutable.update { it.copy(batchBusy = true) }
+        viewModelScope.launch {
+            try { showCreatedBatch(store.createProcessingBatch()) }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { mutable.update { it.copy(notice = error.message ?: "无法新建批次") } }
+            finally { mutable.update { it.copy(batchBusy = false) } }
+        }
+    }
+
+    fun selectProcessingBatch(id: String) {
+        if (mutable.value.busy || camera.cameraState.value.busy || mutable.value.processingBatches.none { it.id == id }) return
+        if (id == mutable.value.processingBatchId) return
+        mutable.update { it.showBatch(it.processingBatches, id)
+            .copy(exported = emptyList(), failures = emptyList(), notice = null) }
+        persistPreferences()
+    }
+
     fun select(id: PhotoId) {
-        if (mutable.value.recovering) return
+        if (mutable.value.recovering || mutable.value.photos.none { it.id == id }) return
         mutable.update { it.copy(selected = id) }
         persistPreferences()
     }

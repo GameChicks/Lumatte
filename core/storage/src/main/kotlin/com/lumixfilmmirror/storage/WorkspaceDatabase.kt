@@ -52,6 +52,49 @@ enum class TransferState { QUEUED, RUNNING, DOWNLOADED, PUBLISHING, PAUSED, FAIL
 
 @Dao
 internal abstract class WorkspaceDao {
+    @Transaction
+    @Query("SELECT * FROM processing_batches ORDER BY createdAt DESC, id")
+    abstract fun processingBatches(): Flow<List<ProcessingBatchWithPhotos>>
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    abstract suspend fun insertProcessingBatch(batch: ProcessingBatchRow)
+    @Query("SELECT * FROM processing_batches WHERE id = :id")
+    abstract suspend fun processingBatch(id: String): ProcessingBatchRow?
+    @Query("SELECT * FROM processing_entries WHERE photoId = :id")
+    abstract suspend fun processingEntry(id: String): ProcessingEntryRow?
+    @Query("SELECT COALESCE(MAX(ordinal), -1) + 1 FROM processing_entries WHERE batchId = :id")
+    abstract suspend fun nextProcessingOrdinal(id: String): Long
+    @Insert
+    abstract suspend fun insertProcessingEntry(entry: ProcessingEntryRow)
+    @Transaction
+    open suspend fun reserveProcessingPhoto(batchId: String, photoId: String, ordinal: Long? = null) {
+        check(processingBatch(batchId) != null) { "处理批次不存在" }
+        val existing = processingEntry(photoId)
+        if (existing != null) {
+            check(existing.batchId == batchId) { "照片已有其他批次归属" }
+            return
+        }
+        val next = nextProcessingOrdinal(batchId)
+        insertProcessingEntry(ProcessingEntryRow(photoId, batchId, maxOf(next, ordinal ?: next)))
+    }
+    @Transaction
+    open suspend fun saveRecoveredPhoto(photo: PhotoRow) {
+        if (processingEntry(photo.id) == null) {
+            val transfer = task(photo.id)
+            val batchId = transfer?.batchId ?: "legacy-imports"
+            insertProcessingBatch(ProcessingBatchRow(batchId,
+                if (transfer == null) "历史与恢复照片" else "相机传入 · ${transfer.cameraModel}", transfer?.createdAt ?: 0L))
+            reserveProcessingPhoto(batchId, photo.id, transfer?.ordinal?.toLong())
+        }
+        savePhoto(photo)
+    }
+    @Transaction
+    open suspend fun enqueueProcessingBatch(batch: ProcessingBatchRow, tasks: List<TransferTask>) {
+        insertProcessingBatch(batch)
+        enqueue(tasks)
+        tasks.filter { it.expectedMedia().videoResource == null }.forEach {
+            reserveProcessingPhoto(batch.id, it.id, it.ordinal.toLong())
+        }
+    }
     @Query("SELECT * FROM photos ORDER BY ordinal")
     abstract fun photos(): Flow<List<PhotoRow>>
     @Query("SELECT * FROM photos WHERE id = :id")
@@ -122,6 +165,10 @@ internal abstract class WorkspaceDao {
             run.acknowledgement in setOf("CONFIRMED", "ADVANCED"))) { "上一待发送文件尚未处理完成" }
         val appended = task.copy(ordinal = batch(runId).size)
         enqueue(listOf(appended))
+        if (appended.expectedMedia().videoResource == null) {
+            insertProcessingBatch(ProcessingBatchRow(run.id, "相机接收 · ${run.cameraModel}", run.createdAt))
+            reserveProcessingPhoto(run.id, appended.id, appended.ordinal.toLong())
+        }
         check(updateIncoming(run.copy(currentTaskId = appended.id, acknowledgement = "NONE", error = null)) == 1)
         return appended
     }
@@ -154,12 +201,16 @@ internal abstract class WorkspaceDao {
 
     @Transaction
     open suspend fun finish(id: String, photo: PhotoRow, bytes: Long) {
+        val task = requireNotNull(task(id)) { "传输任务不存在" }
+        insertProcessingBatch(ProcessingBatchRow(task.batchId, "相机传入 · ${task.cameraModel}", task.createdAt))
+        reserveProcessingPhoto(task.batchId, photo.id, task.ordinal.toLong())
         savePhoto(photo)
         checkpoint(id, "IMPORTED", bytes, null)
     }
 }
 
-@Database(entities = [PhotoRow::class, TransferTask::class, IncomingTransfer::class], version = 3, exportSchema = true)
+@Database(entities = [PhotoRow::class, TransferTask::class, IncomingTransfer::class,
+    ProcessingBatchRow::class, ProcessingEntryRow::class], version = 4, exportSchema = true)
 internal abstract class WorkspaceDatabase : RoomDatabase() {
     abstract fun workspace(): WorkspaceDao
     companion object {
@@ -176,10 +227,21 @@ internal abstract class WorkspaceDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_incoming_transfers_state ON incoming_transfers(state)")
             }
         }
+        private val version3To4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS processing_batches (id TEXT NOT NULL PRIMARY KEY, title TEXT NOT NULL, createdAt INTEGER NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS processing_entries (photoId TEXT NOT NULL PRIMARY KEY, batchId TEXT NOT NULL, ordinal INTEGER NOT NULL, FOREIGN KEY(batchId) REFERENCES processing_batches(id) ON UPDATE NO ACTION ON DELETE NO ACTION)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_processing_entries_batchId ON processing_entries(batchId)")
+                db.execSQL("INSERT OR IGNORE INTO processing_batches (id, title, createdAt) SELECT batchId, '相机传入 · ' || MIN(cameraModel), MIN(createdAt) FROM transfers GROUP BY batchId")
+                db.execSQL("INSERT OR IGNORE INTO processing_entries (photoId, batchId, ordinal) SELECT id, batchId, ordinal FROM transfers")
+                db.execSQL("INSERT OR IGNORE INTO processing_batches (id, title, createdAt) SELECT 'legacy-imports', '历史与恢复照片', 0 WHERE EXISTS (SELECT 1 FROM photos WHERE id NOT IN (SELECT photoId FROM processing_entries))")
+                db.execSQL("INSERT OR IGNORE INTO processing_entries (photoId, batchId, ordinal) SELECT id, 'legacy-imports', ordinal FROM photos WHERE id NOT IN (SELECT photoId FROM processing_entries)")
+            }
+        }
         @Volatile private var instance: WorkspaceDatabase? = null
         fun get(context: Context): WorkspaceDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, WorkspaceDatabase::class.java,
-                "film-mirror-workspace.db").addMigrations(version1To2, version2To3).build().also { instance = it }
+                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4).build().also { instance = it }
         }
     }
 }

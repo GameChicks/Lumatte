@@ -4,8 +4,8 @@
 
 ## 数据归属
 
-- Room `film-mirror-workspace.db`：照片目录、原始 EXIF 文本、稳定照片顺序、传输批次与各项状态，以及视频保存目标 URI。
-- DataStore `workspace-settings`：JPG 尺寸百分比、压缩质量、导出目录 URI、当前照片 ID。默认 100%／95／系统相册。
+- Room `film-mirror-workspace.db`：照片目录、原始 EXIF 文本、处理批次与成员顺序、传输批次与各项状态，以及视频保存目标 URI。
+- DataStore `workspace-settings`：JPG 尺寸百分比、压缩质量、导出目录 URI、当前照片 ID 和处理批次 ID。默认 100%／95／系统相册。
 - 原图只读。仅应用私有目录保存输入副本、下载中间文件及内嵌 JPEG；不读取其他应用的数据库、密码、签名或身份。
 - 相机 UDN、型号、目录对象 ID 和资源描述保存在队列中，用于重连核对。会话令牌、Wi-Fi 密码、系统 Network 对象不保存。
 
@@ -49,7 +49,7 @@ files/camera-transfers/<task UUID>/complete.download
 
 `core:storage` 管理数据库与设置；`core:transfer` 管理顺序执行和文件提交；`core:camera` 只管理协议与网络；`core:media` 管理 JPEG 导入、完成记录及原视频保存。研究资料不加入构建。
 
-Room 当前数据库版本为 3。1 → 2 新增可为空的 `savedUri` 列；2 → 3 新增 `incoming_transfers` 接收记录表及 `transfers.cameraAcknowledgement` 可空列，保留照片、原队列和已保存 URI。未启用破坏性迁移。已配置 schema 导出目录 `core/storage/schemas`，但各版本都未运行编译，因此尚无生成的 schema JSON；首次获准编译后保留真实生成的当前版本文件，不伪造历史 schema。[迁移 API 依据](https://developer.android.com/training/data-storage/room/migrating-db-versions)
+Room 当前数据库版本为 4。1 → 2 新增可为空的 `savedUri` 列；2 → 3 新增 `incoming_transfers` 接收记录表及 `transfers.cameraAcknowledgement` 可空列；3 → 4 新增处理批次和预登记成员表，按原队列归组，其他旧照片进入历史组，见 [照片处理批次](processing-batches.md)。照片、原队列和已保存 URI 保留；未启用破坏性迁移。已配置 schema 导出目录 `core/storage/schemas`，但各版本都未运行编译，因此尚无生成的 schema JSON；首次获准编译后保留真实生成的当前版本文件，不伪造历史 schema。[迁移 API 依据](https://developer.android.com/training/data-storage/room/migrating-db-versions)
 
 ## 待发送接收记录
 
@@ -57,7 +57,7 @@ Room 当前数据库版本为 3。1 → 2 新增可为空的 `savedUri` 列；2 
 
 恢复将 IN_FLIGHT 确认改为 UNKNOWN，不自动重发目录级确认。继续核对只对尚在首项的同一文件保留歧义；原文件已不再为首项时记录目录前进，但不虚构确认成功。停止接收保留已保存文件及确认历史，不自动退出相机发送模式。完整流程及限制见 [待发送接收](automatic-transfer.md)。
 
-模式切换后旧接收保留 PAUSED；按相机、模式和目录选择对应未结束记录，另一模式可建立独立记录，不要求删除或取消旧记录。Room 事务在创建／恢复和写入 RUNNING／WAITING 时检查同相机其他活跃接收，限制同时只有一个；暂停记录的文件、序号、UNKNOWN 与确认历史不迁移到新模式。数据库版本仍为 3，此次只修改查询及事务逻辑，没有新增列或表。
+模式切换后旧接收保留 PAUSED；按相机、模式和目录选择对应未结束记录，另一模式可建立独立记录，不要求删除或取消旧记录。Room 事务在创建／恢复和写入 RUNNING／WAITING 时检查同相机其他活跃接收，限制同时只有一个；暂停记录的文件、序号、UNKNOWN 与确认历史不迁移到新模式。该接收状态逻辑未新增列或表；当前版本 4 的新增表用于照片处理批次。
 
 ## 原视频保存与恢复
 

@@ -23,6 +23,7 @@ data class WorkspacePreferences(
     val output: JpegOutput = JpegOutput(),
     val folderUri: String? = null,
     val selectedId: String? = null,
+    val processingBatchId: String? = null,
 )
 
 class WorkspaceStore(context: Context) {
@@ -30,18 +31,32 @@ class WorkspaceStore(context: Context) {
     private val dao = WorkspaceDatabase.get(this.context).workspace()
     private val preferences = this.context.workspacePreferences
     val photos = dao.photos().map { rows -> rows.map(::source) }
+    val processingBatches = dao.processingBatches().map { groups -> groups.map { group ->
+        ProcessingBatch(group.batch.id, group.batch.title, group.batch.createdAt,
+            group.entries.sortedWith(compareBy({ it.entry.ordinal }, { it.entry.photoId }))
+                .mapNotNull { it.photos.singleOrNull()?.let(::source) })
+    } }
     val transfers = dao.transfers()
     val incomingTransfers = dao.incomingTransfers()
 
     suspend fun initialize(importer: ImageImporter, recoverTransfers: Boolean = true): List<String> {
         if (recoverTransfers) { dao.recoverInterrupted(); dao.recoverReceivers() }
         val recovery = importer.recoverImports()
-        recovery.photos.forEach { dao.savePhoto(row(it)) }
+        recovery.photos.forEach { dao.saveRecoveredPhoto(row(it)) }
         return recovery.problems
     }
 
     suspend fun source(id: String): SourceImage? = dao.photo(id)?.let(::source)
-    suspend fun save(photo: SourceImage) = dao.savePhoto(row(photo))
+    suspend fun save(photo: SourceImage) = dao.saveRecoveredPhoto(row(photo))
+    suspend fun createProcessingBatch(): ProcessingBatch {
+        val id = UUID.randomUUID().toString()
+        val created = System.currentTimeMillis()
+        val title = "照片批次 · " + java.time.LocalDateTime.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm"))
+        dao.insertProcessingBatch(ProcessingBatchRow(id, title, created))
+        return ProcessingBatch(id, title, created)
+    }
+    suspend fun reserveLocalPhoto(batchId: String, id: PhotoId) = dao.reserveProcessingPhoto(batchId, id.value)
     suspend fun finish(task: TransferTask, photo: SourceImage, bytes: Long) = dao.finish(task.id, row(photo), bytes)
     suspend fun reserveVideo(task: TransferTask, uri: String, bytes: Long) = dao.reserveVideo(task.id, uri, bytes)
     suspend fun finishVideo(task: TransferTask, uri: String, bytes: Long) = dao.finishVideo(task.id, uri, bytes)
@@ -79,14 +94,14 @@ class WorkspaceStore(context: Context) {
                 resource.mimeType, resource.profile, resource.originalName, resource.bytes,
                 resource.uri.toString(), createdAt = created)
         }
-        dao.enqueue(tasks)
+        dao.enqueueProcessingBatch(ProcessingBatchRow(batchId, "相机传入 · ${device.model}", created), tasks)
         return batchId
     }
 
     suspend fun readPreferences(): WorkspacePreferences {
         val values = preferences.data.first()
         return WorkspacePreferences(JpegOutput((values[percent] ?: 100).coerceIn(1, 100),
-            (values[quality] ?: 95).coerceIn(1, 100)), values[folder], values[selected])
+            (values[quality] ?: 95).coerceIn(1, 100)), values[folder], values[selected], values[processingBatch])
     }
     suspend fun savePreferences(value: WorkspacePreferences) {
         preferences.edit { values ->
@@ -94,6 +109,7 @@ class WorkspaceStore(context: Context) {
             values[quality] = value.output.compressionQuality
             if (value.folderUri == null) values.remove(folder) else values[folder] = value.folderUri
             if (value.selectedId == null) values.remove(selected) else values[selected] = value.selectedId
+            if (value.processingBatchId == null) values.remove(processingBatch) else values[processingBatch] = value.processingBatchId
         }
     }
 
@@ -126,6 +142,7 @@ class WorkspaceStore(context: Context) {
         private val quality = intPreferencesKey("jpeg-compression-quality")
         private val folder = stringPreferencesKey("export-folder-uri")
         private val selected = stringPreferencesKey("selected-photo-id")
+        private val processingBatch = stringPreferencesKey("processing-batch-id")
     }
 }
 
