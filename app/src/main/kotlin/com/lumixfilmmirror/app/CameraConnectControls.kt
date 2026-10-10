@@ -8,6 +8,8 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,15 +18,31 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.lumixfilmmirror.camera.CameraRouterSsid
+import com.lumixfilmmirror.camera.CameraWifiConnector
+import com.lumixfilmmirror.camera.CameraWifiSecurity
+
+/** Ordinary class: a generated data-class toString must never include the password. */
+private class ManualCameraWifiInput(val ssid: String, val password: String, val security: CameraWifiSecurity)
 
 @Composable
 fun CameraConnectControls(busy: Boolean, workspace: WorkspaceViewModel) {
     val context = LocalContext.current
     var showWifi by remember { mutableStateOf(false) }
     var ssid by remember { mutableStateOf("") }
+    var security by remember { mutableStateOf(CameraWifiSecurity.WPA2_PERSONAL) }
+    val wpa3Available = remember(context, showWifi) {
+        runCatching { CameraWifiConnector.supportsWpa3(context) }.getOrDefault(false)
+    }
     // Credentials stay in this UI's memory only; no saveable state, logs or app preferences.
     var password by remember { mutableStateOf("") }
-    var pending by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var pending by remember { mutableStateOf<ManualCameraWifiInput?>(null) }
+    val ssidError = remember(ssid) {
+        if (ssid.isEmpty()) null else runCatching { CameraRouterSsid.parse(ssid) }.exceptionOrNull()?.message
+    }
+    val passwordError = security.passwordProblem(password)
+    val canConnect = ssid.isNotBlank() && ssidError == null && passwordError == null &&
+        (security != CameraWifiSecurity.WPA3_PERSONAL || wpa3Available)
     val permissions = if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES)
         else arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -32,7 +50,7 @@ fun CameraConnectControls(busy: Boolean, workspace: WorkspaceViewModel) {
         pending = null
         val required = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
         if (credentials != null) {
-            if (result[required] == true) workspace.connectCameraWifi(credentials.first, credentials.second)
+            if (result[required] == true) workspace.connectCameraWifi(credentials.ssid, credentials.password, credentials.security)
             else workspace.cameraPermissionDenied()
         }
     }
@@ -52,22 +70,35 @@ fun CameraConnectControls(busy: Boolean, workspace: WorkspaceViewModel) {
         onDismissRequest = { showWifi = false; password = "" },
         title = { Text("连接相机 Wi-Fi") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("输入相机屏幕上的名称和密码，随后在系统弹窗中确认连接。",
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("按相机屏幕输入名称，选择对应安全类型；随后在系统弹窗中确认连接。",
                     style = MaterialTheme.typography.bodySmall)
-                OutlinedTextField(value = ssid, onValueChange = { ssid = it }, label = { Text("Wi-Fi 名称") }, singleLine = true)
-                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("密码") }, singleLine = true,
+                OutlinedTextField(value = ssid, onValueChange = { ssid = it }, label = { Text("Wi-Fi 名称") },
+                    singleLine = true, isError = ssidError != null,
+                    supportingText = { Text(ssidError ?: "${ssid.toByteArray(Charsets.UTF_8).size}/32 字节 · 按原名称输入") })
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (type in CameraWifiSecurity.entries) FilterChip(selected = security == type,
+                        enabled = !busy && (type != CameraWifiSecurity.WPA3_PERSONAL || wpa3Available),
+                        onClick = { security = type; if (type == CameraWifiSecurity.OPEN) password = "" },
+                        label = { Text(type.label) })
+                }
+                if (!wpa3Available) Text("本机暂不可请求 WPA3；若已在系统设置连接，可直接查找相机。",
+                    style = MaterialTheme.typography.labelSmall)
+                if (security != CameraWifiSecurity.OPEN) OutlinedTextField(value = password,
+                    onValueChange = { password = it }, label = { Text("密码") }, singleLine = true,
+                    isError = password.isNotEmpty() && passwordError != null,
+                    supportingText = { Text(passwordError ?: "保留原有空格和大小写") },
                     visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-                Text("开放网络可留空密码。", style = MaterialTheme.typography.labelSmall)
             }
         },
         confirmButton = {
-            TextButton(enabled = !busy && ssid.isNotBlank(), onClick = {
-                val credentials = ssid to password
+            TextButton(enabled = !busy && canConnect, onClick = {
+                val credentials = ManualCameraWifiInput(ssid, password, security)
                 password = ""
                 showWifi = false
                 if (permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
-                    workspace.connectCameraWifi(credentials.first, credentials.second)
+                    workspace.connectCameraWifi(credentials.ssid, credentials.password, credentials.security)
                 } else {
                     pending = credentials
                     permissionLauncher.launch(permissions)

@@ -6,6 +6,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.WifiNetworkSpecifier
+import android.net.wifi.WifiManager
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -19,6 +20,18 @@ class CameraWifiConnection internal constructor(val network: Network, private va
 }
 
 object CameraWifiConnector {
+    fun supportsWpa3(context: Context): Boolean =
+        context.applicationContext.getSystemService(WifiManager::class.java)?.isWpa3SaeSupported == true
+
+    /** Validate before releasing an existing connection, and again before constructing a request. */
+    fun validateRequest(context: Context, ssid: String, password: String, security: CameraWifiSecurity) {
+        CameraSsidCodec.validate(ssid)
+        security.passwordProblem(password)?.let { throw IllegalArgumentException(it) }
+        check(security != CameraWifiSecurity.WPA3_PERSONAL || supportsWpa3(context)) {
+            "此手机当前无法请求 WPA3 网络；若已在系统设置连接，可使用查找相机入口"
+        }
+    }
+
     /** Observes an existing network; never requests a replacement or changes system routing. */
     fun useExisting(context: Context, network: Network, onLost: (Network) -> Unit): CameraWifiConnection {
         val manager = requireNotNull(context.applicationContext.getSystemService(ConnectivityManager::class.java))
@@ -30,13 +43,15 @@ object CameraWifiConnector {
     }
 
     suspend fun connect(context: Context, ssid: String, password: String,
+        security: CameraWifiSecurity = CameraWifiSecurity.legacy(password),
         onLost: (Network) -> Unit): CameraWifiConnection {
-        CameraSsidCodec.validate(ssid)
-        require(password.isEmpty() || (password.length in 8..63 && password.all { it.code in 32..126 })) {
-            "Wi-Fi 密码需要 8–63 位英文字符、数字或符号，请按相机屏幕输入"
-        }
+        validateRequest(context, ssid, password, security)
         val specifier = WifiNetworkSpecifier.Builder().setSsid(ssid).apply {
-            if (password.isNotEmpty()) setWpa2Passphrase(password)
+            when (security) {
+                CameraWifiSecurity.WPA2_PERSONAL -> setWpa2Passphrase(password)
+                CameraWifiSecurity.WPA3_PERSONAL -> setWpa3Passphrase(password)
+                CameraWifiSecurity.OPEN -> Unit
+            }
         }.build()
         val request = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
             .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).setNetworkSpecifier(specifier).build()
@@ -64,7 +79,7 @@ object CameraWifiConnector {
                 }
                 override fun onUnavailable() {
                     if (delivered.compareAndSet(false, true)) continuation.resumeWithException(
-                        java.io.IOException("未能连接相机 Wi-Fi，请检查名称、密码或系统连接确认"))
+                        java.io.IOException("未能连接相机 Wi-Fi，请检查名称、安全类型、密码或系统连接确认"))
                     release()
                 }
                 override fun onLost(network: Network) {

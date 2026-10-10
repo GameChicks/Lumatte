@@ -13,6 +13,7 @@ import com.lumixfilmmirror.media.SourceImage
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.PhotoId
 import com.lumixfilmmirror.camera.CameraMedia
+import com.lumixfilmmirror.camera.CameraWifiSecurity
 import com.lumixfilmmirror.storage.WorkspaceStore
 import com.lumixfilmmirror.storage.WorkspacePreferences
 import com.lumixfilmmirror.storage.TransferTask
@@ -158,7 +159,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun withCamera(action: () -> Unit) { if (!mutable.value.busy) action() }
     fun connectCamera() = withCamera(camera::connectCamera)
-    fun connectCameraWifi(ssid: String, password: String) = withCamera { camera.connectCameraWifi(ssid, password) }
+    fun connectCameraWifi(ssid: String, password: String, security: CameraWifiSecurity) =
+        withCamera { camera.connectCameraWifi(ssid, password, security) }
     fun scanBluetoothCameras() = withCamera(camera::scanBluetoothCameras)
     fun readBluetoothCamera(address: String) = withCamera { camera.readBluetoothCamera(address) }
     fun connectBluetoothWifi(startOnCamera: Boolean = false) = withCamera { camera.connectBluetoothWifi(startOnCamera) }

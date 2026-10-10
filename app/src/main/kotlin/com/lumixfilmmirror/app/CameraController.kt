@@ -95,10 +95,10 @@ class CameraController(private val application: Application) {
         findCamera()
     }
 
-    fun connectCameraWifi(ssid: String, password: String) = cameraOperation {
+    fun connectCameraWifi(ssid: String, password: String, security: CameraWifiSecurity) = cameraOperation {
         clearSendingReconnect()
         clearBluetoothCredentials()
-        connectWifi(ssid, password)
+        connectWifi(ssid, password, security = security)
     }
 
     fun scanBluetoothCameras() = cameraOperation {
@@ -398,7 +398,9 @@ class CameraController(private val application: Application) {
     }
 
     private suspend fun connectWifi(ssid: String, password: String, expectedMode: CameraAccessMode? = null,
-        expectedDevice: CameraDevice? = null, address: CameraConnectionAddress? = null) {
+        expectedDevice: CameraDevice? = null, address: CameraConnectionAddress? = null,
+        security: CameraWifiSecurity = CameraWifiSecurity.legacy(password)) {
+        CameraWifiConnector.validateRequest(application, ssid, password, security)
         bluetoothWifiBinding = null
         clearCameraSession()
         wifiConnection?.close()
@@ -409,7 +411,7 @@ class CameraController(private val application: Application) {
             application.getSystemService(LocationManager::class.java)?.isLocationEnabled != true) {
             error("当前 Android 版本需要开启系统定位后才能发起 Wi-Fi 连接；也可以先在系统设置中连接")
         }
-        wifiConnection = CameraWifiConnector.connect(application, ssid, password, ::cameraNetworkLost)
+        wifiConnection = CameraWifiConnector.connect(application, ssid, password, security, ::cameraNetworkLost)
         cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING) }
         findCamera(expectedMode, expectedDevice, address)
     }
