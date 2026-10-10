@@ -8,6 +8,7 @@ import com.lumixfilmmirror.media.ExportDestination
 import com.lumixfilmmirror.media.ImageImporter
 import com.lumixfilmmirror.media.JpegOutputWriter
 import com.lumixfilmmirror.media.JpegExportCacheSnapshot
+import com.lumixfilmmirror.media.FolderExportSnapshot
 import com.lumixfilmmirror.media.SourceImage
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.PhotoId
@@ -40,6 +41,7 @@ data class WorkspaceState(
     val exporting: Boolean = false,
     val exportCacheBusy: Boolean = false,
     val exportCache: JpegExportCacheSnapshot? = null,
+    val folderExports: FolderExportSnapshot? = null,
     val cameraBusy: Boolean = false,
     val recovering: Boolean = true,
     val storageFailure: String? = null,
@@ -87,12 +89,14 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 val problems = store.initialize(importer, recoverTransfers = !camera.isTransferring)
                 val settings = store.readPreferences()
                 val cleanup = writer.cleanCache()
+                val folderExports = writer.inspectFolderExports()
                 val cleanupProblems = (cleanup.problems + cleanup.remaining.problems).distinct()
                 val cleanupNotice = if (cleanup.temporaryFilesRemoved + cleanup.pendingImagesRemoved > 0)
                     "已整理上次导出的 ${cleanup.temporaryFilesRemoved} 个中间文件、${cleanup.pendingImagesRemoved} 个未发布 JPG" else null
                 mutable.update { it.copy(output = settings.output, selected = settings.selectedId?.let(::PhotoId),
                     destination = settings.folderUri?.let { uri -> ExportDestination.Folder(Uri.parse(uri)) } ?: ExportDestination.Gallery,
                     exportCache = cleanup.remaining.copy(problems = cleanupProblems),
+                    folderExports = folderExports,
                     notice = (problems + listOfNotNull(cleanupNotice)).takeIf { it.isNotEmpty() }?.joinToString("\n")) }
                 observingStorage = true
                 observeStorage()
@@ -183,6 +187,21 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun inspectExportCache() = exportCacheOperation(clean = false)
     fun clearExportCache() = exportCacheOperation(clean = true)
+    fun inspectFolderExports() = folderExportOperation(null)
+    fun forgetFolderExport(id: String) = folderExportOperation(id)
+    private fun folderExportOperation(id: String?) {
+        if (mutable.value.busy || camera.cameraState.value.busy) return
+        mutable.update { it.copy(exportCacheBusy = true) }
+        viewModelScope.launch {
+            try {
+                val result = if (id == null) writer.inspectFolderExports() else writer.forgetFolderExport(id)
+                mutable.update { it.copy(folderExports = result,
+                    notice = if (id == null) "已读取文件夹导出记录；文件需打开核对" else "已移除应用内记录，文件夹中的照片未删除") }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { mutable.update { it.copy(notice = error.message ?: "无法读取文件夹导出记录") } }
+            finally { mutable.update { it.copy(exportCacheBusy = false) } }
+        }
+    }
     private fun exportCacheOperation(clean: Boolean) {
         if (mutable.value.busy || camera.cameraState.value.busy) return
         mutable.update { it.copy(exportCacheBusy = true) }
@@ -264,7 +283,17 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 mutable.update { it.copy(notice = "已保存 ${it.exported.size} 张照片") }
             } catch (error: CancellationException) {
                 mutable.update { it.copy(notice = "已取消后续导出，已保存的照片会保留") }
-            } finally { mutable.update { it.copy(exporting = false) } }
+            } finally {
+                withContext(NonCancellable) {
+                    try {
+                        val records = writer.inspectFolderExports()
+                        mutable.update { it.copy(folderExports = records) }
+                    } catch (error: Exception) {
+                        mutable.update { it.copy(notice = "导出已结束，但文件夹记录暂不可读：${error.message.orEmpty()}") }
+                    }
+                }
+                mutable.update { it.copy(exporting = false) }
+            }
         }
     }
 

@@ -36,9 +36,16 @@ sealed interface ExportDestination {
 class JpegOutputWriter(context: Context) {
     private val context = context.applicationContext
     private val cache = JpegExportCache(this.context)
+    private val folderJournal = SafExportJournal(this.context)
 
     suspend fun inspectCache(): JpegExportCacheSnapshot = cache.inspect()
     suspend fun cleanCache(): JpegExportCleanup = cache.clean()
+    suspend fun inspectFolderExports(): FolderExportSnapshot = withContext(Dispatchers.IO) {
+        JpegExportAccess.mutex.withLock { folderJournal.inspect() }
+    }
+    suspend fun forgetFolderExport(id: String): FolderExportSnapshot = withContext(Dispatchers.IO) {
+        JpegExportAccess.mutex.withLock { folderJournal.forget(id); folderJournal.inspect() }
+    }
 
     suspend fun write(source: SourceImage, settings: JpegOutput, destination: ExportDestination,
         onPublished: suspend (Uri) -> Unit = {}): Uri = withContext(Dispatchers.IO) {
@@ -60,7 +67,7 @@ class JpegOutputWriter(context: Context) {
                 val name = "LFM-$stamp-${UUID.randomUUID()}.jpg"
                 when (destination) {
                     ExportDestination.Gallery -> publishGallery(temp, name, onPublished)
-                    is ExportDestination.Folder -> publishFolder(temp, name, destination.treeUri, onPublished)
+                    is ExportDestination.Folder -> publishFolder(source, temp, name, destination.treeUri, onPublished)
                 }
             } finally { temp.delete() }
         }
@@ -188,17 +195,34 @@ class JpegOutputWriter(context: Context) {
         }
     }
 
-    private suspend fun publishFolder(file: File, name: String, tree: Uri, onPublished: suspend (Uri) -> Unit): Uri {
+    private suspend fun publishFolder(source: SourceImage, file: File, name: String, tree: Uri,
+        onPublished: suspend (Uri) -> Unit): Uri {
         val folder = DocumentFile.fromTreeUri(context, tree) ?: error("导出文件夹不可用")
-        val target = folder.createFile("image/jpeg", name) ?: error("无法创建导出文件")
+        val prepared = folderJournal.prepare(source, name, tree, file.length())
+        var target: DocumentFile? = null
+        var targetRecorded = false
         var committed = false
         try {
-            copy(file, target.uri)
+            val created = folder.createFile("image/jpeg", name) ?: error("提供者未返回导出文件，请核对文件夹")
+            target = created
+            val record = folderJournal.created(prepared, created.uri)
+            targetRecorded = true
+            copy(file, created.uri)
             coroutineContext.ensureActive()
-            withContext(NonCancellable) { committed = true; onPublished(target.uri) }
-            return target.uri
+            withContext(NonCancellable) {
+                // Preserve the closed, fully copied file even if recording the decision fails.
+                committed = true
+                try { folderJournal.committed(record) }
+                catch (error: Exception) { throw java.io.IOException("JPG 已写入，但完成记录未保存，请在文件夹中核对", error) }
+                onPublished(created.uri)
+            }
+            return created.uri
         } catch (error: Throwable) {
-            if (!committed) runCatching { check(target.delete()) { "无法移除未完成的文件夹导出" } }
+            val failedTarget = target
+            if (!committed && targetRecorded && failedTarget != null) runCatching {
+                check(failedTarget.delete()) { "无法移除未完成的文件夹导出，请核对文件夹记录" }
+                folderJournal.forget(prepared.id)
+            }
                 .exceptionOrNull()?.let { error.addSuppressed(it) }
             throw error
         }

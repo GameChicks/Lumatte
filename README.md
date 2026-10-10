@@ -20,7 +20,7 @@
 
 工作台可按需查看、清理已登记传输任务的缓存。仅清理完成或取消任务的中间文件与未发布视频占位记录，保留照片、已保存视频、历史记录和可恢复任务；此功能尚未编译或运行。
 
-JPEG 导出另有编码缓存与未发布 JPG 的整理入口，恢复时处理可识别的残留。发布和工作台成功回调共用提交段，取消保留已发布结果。自选文件夹不参与批量清理，SAF 中断记录与持久导出队列仍待接入，见 [JPEG 生命周期](docs/engineering/jpeg-export-lifecycle.md)。
+JPEG 导出另有编码缓存与未发布 JPG 的整理入口，恢复时处理可识别的残留。发布和工作台成功回调共用提交段，取消保留已发布结果。自选文件夹另有持久创建／写入记录与打开核对面板，不参与批量清理；未知创建窗口、提供者差异与持久导出队列仍需继续，见 [JPEG 生命周期](docs/engineering/jpeg-export-lifecycle.md)、[文件夹记录](docs/engineering/folder-export-records.md)。
 
 RAW 导入先尝试 TIFF／RW2 JPEG 标签，再使用固定 LibRaw 的 JPEG 预览接口补充；仅提取内嵌 JPEG，不显影传感器数据。原生源码和构建配置已接入，尚未编译或以真实 RAW 验证，详见 [RAW 预览记录](docs/engineering/raw-preview.md)。
 

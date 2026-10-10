@@ -33,7 +33,7 @@ fun JpegExportCachePanel(state: WorkspaceState, workspace: WorkspaceViewModel) {
                 }
             }
             if (state.exportCacheBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            Text("应用恢复时会整理可识别的导出残留；自选文件夹中的文件需自行核对，不参与此清理。",
+            Text("应用恢复时会整理可识别的导出残留；下方记录可协助核对自选文件夹，其中的照片不参与此清理。",
                 style = MaterialTheme.typography.labelSmall)
         }
     }

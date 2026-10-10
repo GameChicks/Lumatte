@@ -148,6 +148,7 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                     onGallery = { workspace.destination(ExportDestination.Gallery) })
             }
             item { JpegExportCachePanel(state, workspace) }
+            item { FolderExportRecordsPanel(state, workspace) }
             if (state.importing) item {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
