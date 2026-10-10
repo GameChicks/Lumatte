@@ -1,0 +1,433 @@
+{
+  "repository": "https://github.com/LibRaw/LibRaw",
+  "tag": "0.22.2",
+  "commit": "b93f6e45c194f5df9b02a43b1af9a54b4f41f33f",
+  "files": [
+    {
+      "path": "COPYRIGHT",
+      "sha256": "f97c9353b839756d8d547943c51bfa9ae374115e0d23ca6e8e5012efc8ef7911"
+    },
+    {
+      "path": "internal/dcraw_defs.h",
+      "sha256": "7fbf6ffae5a95249241129c0b2b173bd28f6c06dd9240fbb33b28cd441072f9a"
+    },
+    {
+      "path": "internal/dcraw_fileio_defs.h",
+      "sha256": "382025c02f094cd78d455c6c785c118db4d5871fcec3e56d683d65fb08a5ef8f"
+    },
+    {
+      "path": "internal/defines.h",
+      "sha256": "94ab556c25e882674838c7d08e9a0158445964a2497ead05681744ba6262c7f8"
+    },
+    {
+      "path": "internal/dmp_include.h",
+      "sha256": "7f3f1247bdfed1320ef36c05f8420e9ae95e7c9d4e3291ed5783063f5b172836"
+    },
+    {
+      "path": "internal/libraw_cameraids.h",
+      "sha256": "69b7a108d7abe11b52b07543452631fd5496e4e00db596c82e99f8990f93dd58"
+    },
+    {
+      "path": "internal/libraw_checked_buffer.h",
+      "sha256": "dce15a658f315b81e478d8cc9d4d90a208c802b0dae279c1d7570dad4c80f2a8"
+    },
+    {
+      "path": "internal/libraw_cxx_defs.h",
+      "sha256": "e8e671ac526dd21debad263a2588a06b5b3a9bde18ad03a8e909a2cceb1436ae"
+    },
+    {
+      "path": "internal/libraw_internal_funcs.h",
+      "sha256": "3a26d35f54c132a700e8111eb4d65e63562992a1ef7a4423c831aad4669ee7cc"
+    },
+    {
+      "path": "internal/losslessjpeg.h",
+      "sha256": "edb4b7d85cad5637a4d423c68e7d1e29598e03276e5c1531e7bfd1493d22117f"
+    },
+    {
+      "path": "internal/var_defines.h",
+      "sha256": "b1880827eb48854db002d0dae7ae1f0ab1ab2e2ebdf4295495c9266cf87224b5"
+    },
+    {
+      "path": "internal/x3f_tools.h",
+      "sha256": "d27afb98c00526906e1969e8f6882cd3767a808536db766108121bc1509d8afb"
+    },
+    {
+      "path": "libraw/libraw.h",
+      "sha256": "aed87d59084c9032f873d1a0b80c7e9283d11bb0ce730b354ab2329557091c38"
+    },
+    {
+      "path": "libraw/libraw_alloc.h",
+      "sha256": "7e4a3e80f4c14cee022c2943beb1f23bd9fbcb5c29a61a9c8fb5675c387c053c"
+    },
+    {
+      "path": "libraw/libraw_const.h",
+      "sha256": "13df834bb975c27ec371080cc20317e6df7b461fb192026ce3481a4c6303a6c6"
+    },
+    {
+      "path": "libraw/libraw_datastream.h",
+      "sha256": "e8288586b794b02805d7e6f90242157a438b183359e045c59f11a5301107e8fc"
+    },
+    {
+      "path": "libraw/libraw_internal.h",
+      "sha256": "3862d375198be195e8a6e2a78acf52b22106bb0c5b99fc54f3702b729379a87c"
+    },
+    {
+      "path": "libraw/libraw_types.h",
+      "sha256": "2784f8a6b097de997888b3edcebdd6665a9f6b8553ea74f478447e4774b3952c"
+    },
+    {
+      "path": "libraw/libraw_version.h",
+      "sha256": "a84583ac21a452e72a2228314d1e97b3b64593715b3423eab69888c14e6a104a"
+    },
+    {
+      "path": "LICENSE.CDDL",
+      "sha256": "ba254fa81b15c19338b4482de042a93ccb53943ed9c6c786e15b13f2ddefd3da"
+    },
+    {
+      "path": "LICENSE.LGPL",
+      "sha256": "90629b9cbfd2b66ce27a78bbc8c9a302e66f57c0067e1205a4943ae9c2ab0311"
+    },
+    {
+      "path": "Makefile.am",
+      "sha256": "cb0e2dfd35ea6eb6ba8525888dae074a6884a895a71fe91c14b332747c6fc379"
+    },
+    {
+      "path": "README.md",
+      "sha256": "c26817a256f7d130d3541e0671e514053986e9838e73c550d1fc4b7b15d4ff73"
+    },
+    {
+      "path": "src/decoders/canon_600.cpp",
+      "sha256": "65f3f0d801669245335092093e77528ce2f259e2b267449b8f995d5808bb6266"
+    },
+    {
+      "path": "src/decoders/crx.cpp",
+      "sha256": "6d448e2807e6b695547a5fda5f7c33752a20f38a9c70ef68b14a85f8571fc835"
+    },
+    {
+      "path": "src/decoders/decoders_dcraw.cpp",
+      "sha256": "f05c2a57a467f8c7f60ee1c9ccb2d43e66b4e248fd472d2ec6556cf3e2a96db9"
+    },
+    {
+      "path": "src/decoders/decoders_libraw.cpp",
+      "sha256": "ffa3ed6321ad403720a37fb43335666fa0e169e315af22f6f10a87011e25ccad"
+    },
+    {
+      "path": "src/decoders/decoders_libraw_dcrdefs.cpp",
+      "sha256": "b67a1942de457b4e9cafc980f03a9b5b8f0ce4977f0ebee6bb548c0f482fdb6a"
+    },
+    {
+      "path": "src/decoders/dng.cpp",
+      "sha256": "d86befaff126560740f4e68eb92012b4454e4b18121ac405b5f602633bd5fb63"
+    },
+    {
+      "path": "src/decoders/fp_dng.cpp",
+      "sha256": "ddc0ffbfeb419f01ad1a5f25ac54435e09ce9e6e2b5b94743aa902ccbf227717"
+    },
+    {
+      "path": "src/decoders/fuji_compressed.cpp",
+      "sha256": "70155663033a535573403d2202d712fcddb7407af31300c956b95d4e2a0886ad"
+    },
+    {
+      "path": "src/decoders/generic.cpp",
+      "sha256": "cd22e753da151e34f5fd974bc5431f228c1fa5bde383d43bee411c9ca5319dfc"
+    },
+    {
+      "path": "src/decoders/kodak_decoders.cpp",
+      "sha256": "fe28546339ec2eb8f04c826f2a60b38e44406388aecd8093054ddf19a5a4c49f"
+    },
+    {
+      "path": "src/decoders/load_mfbacks.cpp",
+      "sha256": "ea576c5465601c9fd82515eae954f528d02d7846e9b947aff421382d6ac15e52"
+    },
+    {
+      "path": "src/decoders/olympus14.cpp",
+      "sha256": "a3f4f3a4b3f167082166af85d294c9441cb28122217e252a56082c6c07d831b3"
+    },
+    {
+      "path": "src/decoders/pana8.cpp",
+      "sha256": "9ea3933c5ec11f74a519c68543b45d0c946b09f0cda53247b27aa86be1d35c03"
+    },
+    {
+      "path": "src/decoders/smal.cpp",
+      "sha256": "e20eceb62345c029b47bf42045dc33d29b48889ccaa8a49baa2045a60a7390fb"
+    },
+    {
+      "path": "src/decoders/sonycc.cpp",
+      "sha256": "6a68e2c7e594135e6e23c68b217348cc79ef047f42a1ac4171c6ff994e7204ae"
+    },
+    {
+      "path": "src/decoders/unpack.cpp",
+      "sha256": "1945a323876ea393d432014364418a3561510700fd25caebbc0f5870148d0cdf"
+    },
+    {
+      "path": "src/decoders/unpack_thumb.cpp",
+      "sha256": "b9382b99fe8082e0711f8ad105d01e17877121ad5c43188bec3f820cbbab38f6"
+    },
+    {
+      "path": "src/decompressors/losslessjpeg.cpp",
+      "sha256": "77dcd56e2d66be7522609c6accc3dfce441d67180507ab29d36fd061c14936cb"
+    },
+    {
+      "path": "src/demosaic/aahd_demosaic.cpp",
+      "sha256": "8e44947d4e8e04792ba8994135ed69b8a3dfcb397b2db8393f3471d1c813cfd6"
+    },
+    {
+      "path": "src/demosaic/ahd_demosaic.cpp",
+      "sha256": "dd6c93191e608fa1ac100187c5d5100a8376f758632f55194216814c3322aabd"
+    },
+    {
+      "path": "src/demosaic/dcb_demosaic.cpp",
+      "sha256": "e02a3626c5794c40221bde1be4bd55ee0cad15c860013319969f0cbec682410f"
+    },
+    {
+      "path": "src/demosaic/dht_demosaic.cpp",
+      "sha256": "2e342ba80d51534f69e721707acb86d4de24e6c264a92b41f057ea43e44c6f8d"
+    },
+    {
+      "path": "src/demosaic/misc_demosaic.cpp",
+      "sha256": "09f356b6fc06bf48a6cc615b46d430a4fbb803ce4415e9e2f4bf05f18ba81c9b"
+    },
+    {
+      "path": "src/demosaic/xtrans_demosaic.cpp",
+      "sha256": "baf40956a32d5290c2e58644ecc881874512db61799d74c6a4ad98dddfe241d8"
+    },
+    {
+      "path": "src/integration/dngsdk_glue.cpp",
+      "sha256": "6c952d53f61b1cacf841fa0c3d66ae996208c519dd24488055c1226e851ec605"
+    },
+    {
+      "path": "src/integration/rawspeed_glue.cpp",
+      "sha256": "e22c6c6000facc05c4f1faeb89b32b26775bb5c8cc7a83fc3e8859041e9c0b05"
+    },
+    {
+      "path": "src/libraw_c_api.cpp",
+      "sha256": "02cbe72e4e90555de767dcb1bd194c075e0707802337756d9b98e201777e14dd"
+    },
+    {
+      "path": "src/libraw_datastream.cpp",
+      "sha256": "9a0105931042457115f7e0195ff701681d051f9bdd2c4f2b31a1e0124e7f3416"
+    },
+    {
+      "path": "src/Makefile",
+      "sha256": "7e145e169ee472888b1c9cb855d8443109a728ab509b8629c70696e1140ecd49"
+    },
+    {
+      "path": "src/metadata/adobepano.cpp",
+      "sha256": "989864a5f4c5a889727606f723ad398ee0162d86737f6bde4c89525339925cca"
+    },
+    {
+      "path": "src/metadata/canon.cpp",
+      "sha256": "99cd15cc042ef57a1c5087cdc7351653ee53e4fe9ca78b57cd6211dfb0fd8045"
+    },
+    {
+      "path": "src/metadata/ciff.cpp",
+      "sha256": "fe9f7d0e9fd43d00a8dcb3c963ba6e5136937fd6e0d09fada189ebf4a49128a7"
+    },
+    {
+      "path": "src/metadata/cr3_parser.cpp",
+      "sha256": "1f46ad9806462b7ba6622788acb8aebc28f7a714682aa859198bad8e485d003e"
+    },
+    {
+      "path": "src/metadata/epson.cpp",
+      "sha256": "9b3151a43563bf8d4ee1d3f198810402bb9ce9e61720bda5ee647ac9185ddd99"
+    },
+    {
+      "path": "src/metadata/exif_gps.cpp",
+      "sha256": "085522d56bc36298147ab26b487ebb87cead8040a228d1d2c2e2efc4d9bba673"
+    },
+    {
+      "path": "src/metadata/fuji.cpp",
+      "sha256": "6d1f89cf11ae06755dd5dd0c49afa49f779423b926283e4c5d2725160b763b76"
+    },
+    {
+      "path": "src/metadata/hasselblad_model.cpp",
+      "sha256": "02b7606d7827b733a63ea550c3bc70ac9719b811cbd8ab442f4c7f5dadbd651f"
+    },
+    {
+      "path": "src/metadata/identify.cpp",
+      "sha256": "c2c3bfea4e261c74bd35d39ad32eb334dcc30b53fec7ea45017459fa8afcdf56"
+    },
+    {
+      "path": "src/metadata/identify_tools.cpp",
+      "sha256": "cba48f1e9321ac61bbdf490c6d5a0da738d7ffc9a2fe81d0f559152ce3b693ce"
+    },
+    {
+      "path": "src/metadata/kodak.cpp",
+      "sha256": "7661ddf9a0094da75b9d9ce933ae4eb9395c53050e445ac2ba4048c4a2be76ed"
+    },
+    {
+      "path": "src/metadata/leica.cpp",
+      "sha256": "ebab9c2e1f7ed985e740d2214d5759ed38ac68f108c129101554137760a006f9"
+    },
+    {
+      "path": "src/metadata/makernotes.cpp",
+      "sha256": "2a395e6c7de46d57bd7705ceb7398491ffc60f47afab34cffc3633645d360711"
+    },
+    {
+      "path": "src/metadata/mediumformat.cpp",
+      "sha256": "b113cde07d3a09b266c4b14a67795a2e012ecf63cdd7b655d21a5bd5219c8a25"
+    },
+    {
+      "path": "src/metadata/minolta.cpp",
+      "sha256": "32d71a29b4ceb0c86ec96b84bfe0ec67edba33a8e0ae8cb61dee2b2e2f28292b"
+    },
+    {
+      "path": "src/metadata/misc_parsers.cpp",
+      "sha256": "7d27b7405786bdba40976758e622446b697579495cc21d4291450184a88c787e"
+    },
+    {
+      "path": "src/metadata/nikon.cpp",
+      "sha256": "9b55b29d8b14d060d0c0585fb5023e05d32b93d0aaf61ebb3a870286c57d285d"
+    },
+    {
+      "path": "src/metadata/normalize_model.cpp",
+      "sha256": "1654fdfff66c81a9d4de9b0953c034159beffd885c5ac3a8bc809a1f6b219108"
+    },
+    {
+      "path": "src/metadata/olympus.cpp",
+      "sha256": "801eed202220ebe3fea9b1f0e5cc6fd6fb2930af84fc8741278c75d363fd2c88"
+    },
+    {
+      "path": "src/metadata/p1.cpp",
+      "sha256": "49e8d0880dfe3bdf80b33e8afac8e71a33fa83b35d266eeb20c05ba30cb39088"
+    },
+    {
+      "path": "src/metadata/pentax.cpp",
+      "sha256": "e6373f380a6c84fea8fefee2a3b3882611728cbdc6c1614f61218a9928425c94"
+    },
+    {
+      "path": "src/metadata/samsung.cpp",
+      "sha256": "7beb2ab90ecd548df3bf1101b13cbf9b752e5f979f33870bd139615eac00a687"
+    },
+    {
+      "path": "src/metadata/sony.cpp",
+      "sha256": "716bb57e2bd71b468e592bdff09c3d61b48a43ac7a76dc38deab8fdefd457c52"
+    },
+    {
+      "path": "src/metadata/tiff.cpp",
+      "sha256": "90044d092d30963a7682d32f813cab457dd2cfb05693fb1422ef162b4c53218a"
+    },
+    {
+      "path": "src/postprocessing/aspect_ratio.cpp",
+      "sha256": "712828e6fc4188242408fb730d4dedae3a18b47252c4a8853ad671591d2ebf7e"
+    },
+    {
+      "path": "src/postprocessing/dcraw_process.cpp",
+      "sha256": "28b3d8f3db9b047ad4a3cd157414c2f3420d06d586a85c501a6c1370d522032a"
+    },
+    {
+      "path": "src/postprocessing/mem_image.cpp",
+      "sha256": "9f44e28b9af03d7c00fb94d03155ba5cbd8c70f0a9cf28e9c8ed44844d09ae91"
+    },
+    {
+      "path": "src/postprocessing/postprocessing_aux.cpp",
+      "sha256": "0ee9f3659d10326a4202cd6707d9624cba18b82f90f1064c7f5bbac1467224b7"
+    },
+    {
+      "path": "src/postprocessing/postprocessing_ph.cpp",
+      "sha256": "1b67ba0ce3a5df5c7b267ce8e7815d52b8cf216a237b48161513b06756531170"
+    },
+    {
+      "path": "src/postprocessing/postprocessing_utils.cpp",
+      "sha256": "35db75d7b23c98cefb27c90f1618ad9c40330a83354e4ea2b47840e81c6a397d"
+    },
+    {
+      "path": "src/postprocessing/postprocessing_utils_dcrdefs.cpp",
+      "sha256": "04a6d8c549ba56126de523e331d386b4f1e16b25dc22fefb66b51ef6a8176061"
+    },
+    {
+      "path": "src/preprocessing/ext_preprocess.cpp",
+      "sha256": "9aada4c3b8e0cf218ed33684f0b847302014e94ff27f39e260f905bc5defa296"
+    },
+    {
+      "path": "src/preprocessing/preprocessing_ph.cpp",
+      "sha256": "30f2afd1e9ad1d0b36e8b034637764eb757db80fb34420adf5b579e818557cdb"
+    },
+    {
+      "path": "src/preprocessing/raw2image.cpp",
+      "sha256": "e3ae94ca56968c284096019290895a9f9a59438da9afcd9f0d4ee03dd0b53108"
+    },
+    {
+      "path": "src/preprocessing/subtract_black.cpp",
+      "sha256": "9cd8b26c4f2275f1bdd9bb33f0a9f88faf54fcfefbd5120f1a5d5d4eeb822c41"
+    },
+    {
+      "path": "src/tables/cameralist.cpp",
+      "sha256": "3cbbe01b0a55bc4acdbebd0d40ed81dc8245c2bb8ec978df35aea794cce74544"
+    },
+    {
+      "path": "src/tables/colorconst.cpp",
+      "sha256": "0f136fe87d88df6cf143565e5799ba07367402febc279a21df5cb9489741f5a8"
+    },
+    {
+      "path": "src/tables/colordata.cpp",
+      "sha256": "987dda6014ae7169a0e6fd34fbf31b0e3e1ed0f7c694bade1f46339c0be0fe16"
+    },
+    {
+      "path": "src/tables/wblists.cpp",
+      "sha256": "f01f65d4388de96f12f2b2779b2b6f1ab6f857ea5030d4a8c36418ce24a1ee65"
+    },
+    {
+      "path": "src/utils/curves.cpp",
+      "sha256": "fb19ceab2289159805be4f97969f1b9a96f51d941566d99607be6961997aa363"
+    },
+    {
+      "path": "src/utils/decoder_info.cpp",
+      "sha256": "8e9b09604bd6b883188170eb3ceb38d0b7b7fcd125cef9262d251c309285980b"
+    },
+    {
+      "path": "src/utils/init_close_utils.cpp",
+      "sha256": "e539299242c2cec8e7e9f905307b7ef6e0056f40511f349039df08cffa1dc39e"
+    },
+    {
+      "path": "src/utils/open.cpp",
+      "sha256": "fa8c40ad7efceae7b5a4dcb63bdfcc8a870bca8d4ac1da01588b19a87caa70b8"
+    },
+    {
+      "path": "src/utils/phaseone_processing.cpp",
+      "sha256": "360cf39f9f85681f260412645607127c59575f6c2dd883a5208130ec89f29450"
+    },
+    {
+      "path": "src/utils/read_utils.cpp",
+      "sha256": "b7b4daa85300f3cf3cc8cdd2ef740bf66656e5bf4e053bdacac9916394902f3f"
+    },
+    {
+      "path": "src/utils/thumb_utils.cpp",
+      "sha256": "6e5296df62a19777cd18bb8bcedf27e89a032c2e514e3ebb404dcaffb8e86d56"
+    },
+    {
+      "path": "src/utils/utils_dcraw.cpp",
+      "sha256": "821067888993f250ad053702248f3614465beb6fe11ec198992eb1b09af30ae7"
+    },
+    {
+      "path": "src/utils/utils_libraw.cpp",
+      "sha256": "4e39bd8705716cf3c8539f1595bace6649c79ecf6afe5d222e9b43ae543f967c"
+    },
+    {
+      "path": "src/write/apply_profile.cpp",
+      "sha256": "8c729ae3b1cf5026ab5c3915b68503f307e8938003fe878b4f6fd3475edefac2"
+    },
+    {
+      "path": "src/write/file_write.cpp",
+      "sha256": "66fdb3f57cdb5c7662dde16bd96bc592274ccd8733ecd0dcf4a6c53e859a061b"
+    },
+    {
+      "path": "src/write/tiff_writer.cpp",
+      "sha256": "5c199f142049e951bf9a7a40f1f7c3ea650c4848936b25a71f5d559d438b00cf"
+    },
+    {
+      "path": "src/write/write_ph.cpp",
+      "sha256": "d713d637de4cf1b16a4b76975218a7a6cb3c14cc82ae01fc9e01374c674d194a"
+    },
+    {
+      "path": "src/x3f/x3f_parse_process.cpp",
+      "sha256": "003d3ce8d55cb3458823259a7454d1efdba051cc21d7535fdfa3fd9470d38a2e"
+    },
+    {
+      "path": "src/x3f/x3f_utils_patched.cpp",
+      "sha256": "de195bfb4120d883366a6e9b269d734d88c53a61fe59b61344bbf349b62f73f2"
+    }
+  ],
+  "source_bytes": 2019201,
+  "modifications": []
+}

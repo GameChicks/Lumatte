@@ -6,6 +6,7 @@ import java.util.ArrayDeque
 
 /** Reads preview byte ranges only. No sensor, strip, CFA or demosaicing interface exists here. */
 internal object RawJpegExtractor {
+    const val MAX_PREVIEW_BYTES = 64L * 1024 * 1024
     data class Range(val offset: Long, val length: Long)
 
     fun candidates(file: File): List<Range> = RandomAccessFile(file, "r").use { input ->
@@ -69,17 +70,18 @@ internal object RawJpegExtractor {
         }
         found.distinct().filter { range ->
             input.seek(range.offset)
-            range.length >= 4 && input.readUnsignedShort() == 0xffd8
+            range.length in 4..MAX_PREVIEW_BYTES && input.readUnsignedShort() == 0xffd8
         }
     }
 
-    fun extract(inputFile: File, range: Range, output: File) {
+    fun extract(inputFile: File, range: Range, output: File, checkActive: () -> Unit = {}) {
         RandomAccessFile(inputFile, "r").use { input ->
             input.seek(range.offset)
             output.outputStream().buffered().use { stream ->
                 val buffer = ByteArray(64 * 1024)
                 var remaining = range.length
                 while (remaining > 0) {
+                    checkActive()
                     val read = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
                     check(read > 0) { "RAW 内嵌 JPEG 数据不完整" }
                     stream.write(buffer, 0, read)

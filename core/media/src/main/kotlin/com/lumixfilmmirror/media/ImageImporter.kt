@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 import kotlin.coroutines.coroutineContext
 
@@ -64,26 +65,14 @@ class ImageImporter(context: Context) {
             if (isJpeg) {
                 check(staged.renameTo(jpeg)) { "无法保存导入照片" }
             } else {
-                val candidates = RawJpegExtractor.candidates(staged)
-                var bestPixels = 0L
-                for ((index, range) in candidates.withIndex()) {
-                    coroutineContext.ensureActive()
-                    val candidate = File(directory, "preview-$index.jpg")
-                    RawJpegExtractor.extract(staged, range, candidate)
-                    val size = jpegSize(candidate)
-                    if (size != null && size.width.toLong() * size.height > bestPixels) {
-                        if (jpeg.exists()) check(jpeg.delete())
-                        check(candidate.renameTo(jpeg))
-                        bestPixels = size.width.toLong() * size.height
-                    } else check(candidate.delete())
-                }
+                val bestPixels = extractRawPreview(staged, directory, jpeg)
                 check(bestPixels > 0) { "未找到可用的内嵌 JPEG，请导入相机 JPEG 成片" }
             }
             val encoded = jpegSize(jpeg) ?: error("JPEG 数据无法读取")
             val embeddedExif = runCatching { ExifInterface(jpeg) }.getOrNull()
             val originalExif = if (isJpeg) embeddedExif else runCatching { ExifInterface(staged) }.getOrNull()
             val orientation = embeddedExif?.getAttributeInt(ExifInterface.TAG_ORIENTATION, 0)?.takeIf { it in 1..8 }
-                ?: originalExif?.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1) ?: 1
+                ?: originalExif?.getAttributeInt(ExifInterface.TAG_ORIENTATION, 0)?.takeIf { it in 1..8 } ?: 1
             val rotated = orientation in setOf(5, 6, 7, 8)
             val size = if (rotated) PixelSize(encoded.height, encoded.width) else encoded
             val metadata = metadata(originalExif ?: embeddedExif)
@@ -97,6 +86,41 @@ class ImageImporter(context: Context) {
             directory.deleteRecursively()
             throw error
         }
+    }
+
+    private suspend fun extractRawPreview(staged: File, directory: File, jpeg: File): Long {
+        val operationContext = coroutineContext
+        // A truncated/unknown TIFF layout must not prevent the independent native preview path.
+        val ranges = try { RawJpegExtractor.candidates(staged) } catch (error: IOException) { emptyList() }
+        var bestPixels = 0L
+        for ((index, range) in ranges.withIndex()) {
+            operationContext.ensureActive()
+            val candidate = File(directory, "preview-$index.jpg")
+            try { RawJpegExtractor.extract(staged, range, candidate) { operationContext.ensureActive() } }
+            catch (error: IOException) {
+                if (candidate.exists()) check(candidate.delete()) { "无法清理损坏的预览副本" }
+                continue
+            }
+            bestPixels = selectPreview(candidate, jpeg, bestPixels)
+        }
+        if (bestPixels > 0) return bestPixels
+        for (candidate in LibRawPreview.extract(staged, directory)) {
+            operationContext.ensureActive()
+            bestPixels = selectPreview(candidate, jpeg, bestPixels)
+        }
+        return bestPixels
+    }
+
+    private fun selectPreview(candidate: File, jpeg: File, bestPixels: Long): Long {
+        val size = jpegSize(candidate)
+        val pixels = size?.let { it.width.toLong() * it.height } ?: 0L
+        if (pixels > bestPixels) {
+            if (jpeg.exists()) check(jpeg.delete()) { "无法替换预览副本" }
+            check(candidate.renameTo(jpeg)) { "无法保存内嵌 JPEG" }
+            return pixels
+        }
+        check(candidate.delete()) { "无法清理多余预览副本" }
+        return bestPixels
     }
 
     suspend fun recoverImport(id: PhotoId): SourceImage? = withContext(Dispatchers.IO) {

@@ -19,3 +19,5 @@ __pycache__/
 .idea/
 research/third-party-sync/decompiled/
 research/third-party-sync/raw/
+.cxx/
+**/.cxx/

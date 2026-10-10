@@ -19,3 +19,7 @@
 相机多选也可保存已识别的 MP4／MOV／AVCHD 原视频到 `Movies/LumixFilmMirror`，沿用持久队列和前台通知。视频保持原内容，不进入胶片或 JPG 导出设置；各机型传输与手机播放兼容性尚未验证。
 
 工作台可按需查看、清理已登记传输任务的缓存。仅清理完成或取消任务的中间文件与未发布视频占位记录，保留照片、已保存视频、历史记录和可恢复任务；此功能尚未编译或运行。
+
+RAW 导入先尝试 TIFF／RW2 JPEG 标签，再使用固定 LibRaw 的 JPEG 预览接口补充；仅提取内嵌 JPEG，不显影传感器数据。原生源码和构建配置已接入，尚未编译或以真实 RAW 验证，详见 [RAW 预览记录](docs/engineering/raw-preview.md)。
+
+新应用代码采用 [GNU GPLv3](LICENSE)，许可正文来自 [GNU gnulib 的 COPYINGv3](https://github.com/coreutils/gnulib/blob/master/doc/COPYINGv3)。第三方依赖和恢复素材按各自的来源、COPYRIGHT 与许可清单管理，不由应用许可替代。
