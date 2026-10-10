@@ -133,6 +133,20 @@ class CameraBluetooth(private val context: Context) {
         } finally { credentials.close() }
     }
 
+    /** Explicit rehandshake after a recognized event. Re-read credentials; never reuse a password. */
+    suspend fun <T> withSendingReconnectWifi(camera: BluetoothCamera, clientId: String,
+        request: CameraSendingReconnectRequest, onStep: (BluetoothConnectionStep) -> Unit,
+        block: suspend (CameraWifiCredentials, CameraAccessMode) -> T): T = withConnection(camera, onStep) { session ->
+        val credentials = identifyAndRead(session, clientId, onStep)
+        try {
+            check(credentials.canStartTransferWifi && credentials.canObserveIncoming) {
+                "此相机缺少发送启动能力，请使用手动 Wi-Fi 入口"
+            }
+            val mode = session.startSendingWifi(onStep, request)
+            session.sendingHandoff { block(credentials, mode) }
+        } finally { credentials.close() }
+    }
+
     @SuppressLint("MissingPermission")
     private suspend fun <T> withConnection(camera: BluetoothCamera, onStep: (BluetoothConnectionStep) -> Unit,
         block: suspend (ConnectionGatt) -> T): T {
@@ -243,10 +257,12 @@ private class ConnectionGatt(private val context: Context, private val device: B
                         val previous = sendingStartupMode.get()
                         if (previous == null && sendingStartupMode.compareAndSet(null, requested)) sendingRequested.complete(requested)
                         else if (sendingStartupMode.get() != requested)
-                            incomingEvents.stop(IllegalStateException("相机发送模式已切换，请重新发起连接"))
+                            incomingEvents.stop(sendingReconnect(requested, CameraSendingReconnectReason.MODE_CHANGED))
                     }
                     2 -> incomingEvents.stop(CameraSendingStopped("相机结束发送，连接已取消"))
-                    3 -> incomingEvents.stop(IllegalStateException("相机请求重新读取网络资料，请重新连接"))
+                    3 -> incomingEvents.stop(sendingStartupMode.get()?.let {
+                        sendingReconnect(it, CameraSendingReconnectReason.WIFI_DETAILS_CHANGED)
+                    } ?: IllegalStateException("相机请求重新读取网络资料，请重新连接"))
                 }
                 return
             }
@@ -261,10 +277,10 @@ private class ConnectionGatt(private val context: Context, private val device: B
                     1, 4 -> {
                         val requested = if (state == 1) CameraAccessMode.AUTO_UPLOAD else CameraAccessMode.MARKED_TRANSFER
                         if (requested == mode) incomingEvents.filesReady()
-                        else incomingEvents.stop(IllegalStateException("相机发送模式已切换，请重新连接后继续"))
+                        else incomingEvents.stop(sendingReconnect(requested, CameraSendingReconnectReason.MODE_CHANGED))
                     }
                     2 -> incomingEvents.stop(CameraSendingStopped("相机结束发送模式，已保存结果保留"))
-                    3 -> incomingEvents.stop(IllegalStateException("相机请求重新读取网络资料，请重新连接"))
+                    3 -> incomingEvents.stop(sendingReconnect(mode, CameraSendingReconnectReason.WIFI_DETAILS_CHANGED))
                 }
                 return
             }
@@ -362,7 +378,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
         write(protocol.wifiConnectionType, byteArrayOf(1), protocol.wifiService)
         write(protocol.connectionMode, byteArrayOf(3))
     }
-    suspend fun startSendingWifi(onStep: (BluetoothConnectionStep) -> Unit): CameraAccessMode {
+    suspend fun startSendingWifi(onStep: (BluetoothConnectionStep) -> Unit,
+        reconnect: CameraSendingReconnectRequest? = null): CameraAccessMode {
         check(canStartTransferWifi() && canObserveIncoming()) { "相机发送启动暂不支持，请使用 Wi-Fi 入口" }
         val protocol = LumixBleProtocol
         startupActive.set(true)
@@ -371,7 +388,11 @@ private class ConnectionGatt(private val context: Context, private val device: B
         subscribe(protocol.connectionStatus, protocol.service)
         subscribe(protocol.imageTransferEvent, protocol.sendingService)
         subscribe(protocol.sendingModeEvent, protocol.service)
-        onStep(BluetoothConnectionStep.WAITING_FOR_SEND)
+        if (reconnect != null) {
+            if (sendingStartupMode.compareAndSet(null, reconnect.mode)) sendingRequested.complete(reconnect.mode)
+            else if (sendingStartupMode.get() != reconnect.mode) incomingEvents.stop(sendingReconnect(
+                requireNotNull(sendingStartupMode.get()), CameraSendingReconnectReason.MODE_CHANGED))
+        } else onStep(BluetoothConnectionStep.WAITING_FOR_SEND)
         val mode = try {
             withTimeout(90_000L) {
                 select<CameraAccessMode> {

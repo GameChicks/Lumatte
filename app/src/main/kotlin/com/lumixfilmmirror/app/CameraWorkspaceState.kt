@@ -8,6 +8,7 @@ import com.lumixfilmmirror.camera.DownloadProgress
 import com.lumixfilmmirror.camera.DiscoveredCamera
 import com.lumixfilmmirror.camera.BluetoothCamera
 import com.lumixfilmmirror.camera.BluetoothConnectionStep
+import com.lumixfilmmirror.camera.CameraSendingReconnectRequest
 import com.lumixfilmmirror.transfer.TransferPhase
 import com.lumixfilmmirror.transfer.TransferCacheSnapshot
 
@@ -26,6 +27,7 @@ data class CameraWorkspaceState(
     val bluetoothCanStartWifi: Boolean = false,
     val bluetoothCanStartSendingWifi: Boolean = false,
     val bluetoothCanFollowIncoming: Boolean = false,
+    val sendingReconnect: CameraSendingReconnectRequest? = null,
     val step: ConnectionStep? = null,
     val folders: List<CameraFolder> = listOf(CameraFolder("0", "相机媒体")),
     val entries: List<CameraMedia> = emptyList(),

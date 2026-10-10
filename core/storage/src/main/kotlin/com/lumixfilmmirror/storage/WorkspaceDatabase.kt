@@ -77,8 +77,8 @@ internal abstract class WorkspaceDao {
     abstract fun incomingTransfers(): Flow<List<IncomingTransfer>>
     @Query("SELECT * FROM incoming_transfers WHERE id = :id")
     abstract suspend fun incoming(id: String): IncomingTransfer?
-    @Query("SELECT * FROM incoming_transfers WHERE cameraKey = :cameraKey AND state NOT IN ('COMPLETE', 'CANCELLED') ORDER BY createdAt LIMIT 1")
-    abstract suspend fun unfinishedIncoming(cameraKey: String): IncomingTransfer?
+    @Query("SELECT * FROM incoming_transfers WHERE cameraKey = :cameraKey AND state NOT IN ('COMPLETE', 'CANCELLED') ORDER BY createdAt")
+    abstract suspend fun unfinishedIncoming(cameraKey: String): List<IncomingTransfer>
     @Insert
     abstract suspend fun insertIncoming(run: IncomingTransfer)
     @Update
@@ -87,6 +87,11 @@ internal abstract class WorkspaceDao {
     abstract suspend fun updateAcknowledgement(id: String, acknowledgement: String): Int
     @Transaction
     open suspend fun saveIncomingState(run: IncomingTransfer) {
+        if (run.state in setOf("RUNNING", "WAITING")) {
+            check(unfinishedIncoming(run.cameraKey).none { it.id != run.id && it.state in setOf("RUNNING", "WAITING") }) {
+                "此相机已有另一条活跃接收，请先暂停"
+            }
+        }
         if (run.currentTaskId != null && run.acknowledgement != "NONE") {
             check(updateAcknowledgement(run.currentTaskId, run.acknowledgement) == 1) { "文件尚未保存，未记录相机确认" }
         }
@@ -97,11 +102,11 @@ internal abstract class WorkspaceDao {
 
     @Transaction
     open suspend fun getOrCreateIncoming(candidate: IncomingTransfer): IncomingTransfer {
-        val previous = unfinishedIncoming(candidate.cameraKey)
+        val unfinished = unfinishedIncoming(candidate.cameraKey)
+        check(unfinished.none { it.state in setOf("RUNNING", "WAITING") &&
+            (it.mode != candidate.mode || it.directoryId != candidate.directoryId) }) { "此相机已有另一条活跃接收，请先暂停" }
+        val previous = unfinished.firstOrNull { it.mode == candidate.mode && it.directoryId == candidate.directoryId }
         if (previous != null) {
-            require(previous.mode == candidate.mode && previous.directoryId == candidate.directoryId) {
-                "此相机还有另一发送模式的接收记录，请先停止该记录"
-            }
             return previous
         }
         insertIncoming(candidate)

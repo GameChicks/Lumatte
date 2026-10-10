@@ -21,10 +21,11 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("从相机传入", style = MaterialTheme.typography.titleMedium)
             if (!camera.connected) {
+                camera.sendingReconnect?.let { CameraSendingReconnectControl(it, busy, workspace) }
                 CameraConnectControls(busy, workspace)
                 HorizontalDivider()
                 CameraBluetoothControls(camera, busy, workspace)
-                if (camera.device != null) TextButton(enabled = !busy, onClick = workspace::reconnectCamera) {
+                if (camera.device != null && camera.sendingReconnect == null) TextButton(enabled = !busy, onClick = workspace::reconnectCamera) {
                     Text("重新连接 ${camera.device.model}")
                 }
                 if (camera.discovered.size > 1) {
