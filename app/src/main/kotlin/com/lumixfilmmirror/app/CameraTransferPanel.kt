@@ -75,8 +75,8 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                                         CameraResourceKind.RAW_PREVIEW_JPEG -> "RAW 内嵌 JPEG"
                                         CameraResourceKind.ORIGINAL_JPEG -> "原尺寸 JPEG"
                                         CameraResourceKind.VIDEO -> "${resource?.videoContainer?.label.orEmpty()} · 保存原视频到相册"
-                                        else -> if (entry.resources.any { it.kind == CameraResourceKind.VIDEO })
-                                            "此视频格式暂不支持传输" else "当前没有可传输的原图资源"
+                                        else -> if (entry.isVideo)
+                                            "未提供可传输的完整视频资源" else "当前没有可传输的原图资源"
                                     }
                                     Text(label, style = MaterialTheme.typography.labelSmall)
                                 }

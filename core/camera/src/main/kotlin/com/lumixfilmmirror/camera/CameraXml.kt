@@ -145,6 +145,7 @@ internal object CameraXml {
         var parent = ""
         var folder = false
         var title = ""
+        var mediaClass: String? = null
         var resources = mutableListOf<CameraResource>()
         while (parser.eventType != XmlPullParser.END_DOCUMENT) {
             if (parser.eventType == XmlPullParser.START_TAG) {
@@ -154,9 +155,13 @@ internal object CameraXml {
                         parent = parser.getAttributeValue(null, "parentID").orEmpty()
                         folder = parser.name == "container"
                         title = ""
+                        mediaClass = null
                         resources = mutableListOf()
                     }
                     "title" -> if (id != null) title = parser.nextText()
+                    "class" -> if (id != null && parser.namespace == "urn:schemas-upnp-org:metadata-1-0/upnp/") {
+                        mediaClass = parser.nextText().trim().takeIf { it.isNotEmpty() }
+                    }
                     "res" -> if (id != null) {
                         val info = CameraProtocolInfo.parse(parser.getAttributeValue(null, "protocolInfo").orEmpty())
                         val bytes = parser.getAttributeValue(null, "size")?.toLongOrNull()?.takeIf { it >= 0 }
@@ -165,7 +170,7 @@ internal object CameraXml {
                     }
                 }
             } else if (parser.eventType == XmlPullParser.END_TAG && parser.name in setOf("item", "container")) {
-                id?.let { output += CameraMedia(it, parent, title, folder, resources.toList()) }
+                id?.let { output += CameraMedia(it, parent, title, folder, resources.toList(), mediaClass) }
                 id = null
             }
             parser.next()

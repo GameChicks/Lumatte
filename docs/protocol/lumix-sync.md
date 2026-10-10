@@ -41,6 +41,8 @@ Wi-Fi 请求使用 [WifiNetworkSpecifier](https://developer.android.com/develop/
 
 媒体多选支持 JPEG／RAW 内嵌预览及已识别的视频资源。视频按相机广告的 MP4、MOV、TS 原容器复制到系统相册 `Movies/LumixFilmMirror`，不解码、不转码、不进入照片配方或 JPG 尺寸设置。优先选择带 `_ORG` 的视频资源；未确认完整视频语义的 IFRAME 独立资源类型不作为原视频使用，不降级到海报 JPEG。
 
+目录中的 UPnP 视频类／派生类现已参与项目识别；只有封面 JPEG 的视频不会再作为照片资源候选。application/octet-stream 的独立 IFRAME 标识也阻止封面降级，不要求该标识带 CAM_AVC 前缀。缺少完整支持资源时普通选择不可用，待发送首项暂停且不确认保存，详见 [视频项目与封面](../engineering/camera-resource-profiles.md#视频项目与封面)。
+
 ## 尚未证明或尚未实现
 
 - 没有编译、运行、测试或真机验证；上述是源码实现及参考分析证据。

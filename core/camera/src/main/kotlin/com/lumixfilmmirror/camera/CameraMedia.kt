@@ -32,7 +32,8 @@ data class CameraResource(
             name in setOf("CAM_RAW_JPG", "CAM_HSP_RAW_JPG") -> CameraResourceKind.RAW_PREVIEW_JPEG
             name in setOf("CAM_TN", "CAM_LRGTN") -> CameraResourceKind.THUMBNAIL
             name in setOf("CAM_RAW", "CAM_HSP_RAW") -> CameraResourceKind.RAW
-            contentType.startsWith("video/", true) || name?.startsWith("CAM_AVC_") == true || name == "CAM_FOCUS_SELECT_MP4" -> CameraResourceKind.VIDEO
+            contentType.startsWith("video/", true) || name?.startsWith("CAM_AVC_") == true || name == "CAM_FOCUS_SELECT_MP4" ||
+                (contentType.equals("application/octet-stream", true) && name?.contains("IFRAME") == true) -> CameraResourceKind.VIDEO
             else -> CameraResourceKind.UNKNOWN
         }
     }
@@ -60,12 +61,22 @@ data class CameraMedia(
     val title: String,
     val isFolder: Boolean,
     val resources: List<CameraResource>,
+    val mediaClass: String? = null,
 ) {
+    /** A video item can advertise only a JPEG poster; resource MIME alone cannot identify the item. */
+    val isVideo: Boolean get() {
+        val declared = mediaClass?.trim().orEmpty()
+        return declared.equals("object.item.videoItem", true) || declared.startsWith("object.item.videoItem.", true) ||
+            resources.any { it.kind == CameraResourceKind.VIDEO }
+    }
+
     /** Never silently substitute a thumbnail for an original photo. */
-    val editableResource: CameraResource? get() =
-        resources.firstOrNull { it.kind == CameraResourceKind.ORIGINAL_JPEG }
+    val editableResource: CameraResource? get() {
+        if (isVideo) return null
+        return resources.firstOrNull { it.kind == CameraResourceKind.ORIGINAL_JPEG }
             ?: resources.firstOrNull { it.kind == CameraResourceKind.RAW_PREVIEW_JPEG }
             ?: resources.firstOrNull { it.kind == CameraResourceKind.RAW }
+    }
     val thumbnailResources: List<CameraResource> get() = listOfNotNull(
         resources.firstOrNull { it.profile?.trim().equals("CAM_LRGTN", true) },
         resources.firstOrNull { it.profile?.trim().equals("CAM_TN", true) },
@@ -75,7 +86,7 @@ data class CameraMedia(
         resources.firstOrNull { it.videoContainer != null && it.profile?.trim()?.endsWith("_ORG", true) == true }
             ?: resources.firstOrNull { it.videoContainer != null }
     val transferResource: CameraResource? get() =
-        if (resources.any { it.kind == CameraResourceKind.VIDEO }) videoResource else editableResource
+        if (isVideo) videoResource else editableResource
 
     /** A reconnect may change URLs, but reused IDs must not silently select different media. */
     fun matchesPreviousPhoto(previous: CameraMedia): Boolean {

@@ -78,7 +78,10 @@ class IncomingTransferReceiver(private val store: WorkspaceStore, private val fi
                             return@coroutineScope TransferResult(imported, 0, 0, videos)
                         }
                         val next = requireNotNull(head)
-                        require(!next.isFolder && next.transferResource != null) { "发送目录首项没有支持的原始资源，未跳过该项" }
+                        require(!next.isFolder && next.transferResource != null) {
+                            if (next.isVideo) "发送目录首项未提供可传输的完整视频资源，接收已暂停，未保存封面或发送确认"
+                            else "发送目录首项没有支持的原始资源，未跳过该项"
+                        }
                         val previouslySaved = store.incomingSavedTasks(run).firstOrNull {
                             next.matchesPreviousMedia(it.expectedMedia())
                         }
