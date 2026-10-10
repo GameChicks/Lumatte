@@ -1,0 +1,15 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+*.apk
+*.aab
+*.keystore
+*.jks
+tools/.cache/
+research/filmtool/raw/
+research/filmtool/decompiled/
+artifacts/
+__pycache__/
+*.pyc
+.idea/

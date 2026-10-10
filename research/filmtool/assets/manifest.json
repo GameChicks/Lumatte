@@ -1,0 +1,955 @@
+{
+  "apk_sha256": "1ff129af2b54564f0dbeec44430b5e0633c2c056eecf5ba61d380300925a4b5f",
+  "resources": [
+    {
+      "id": "0x7f070128",
+      "type": "drawable",
+      "name": "cartridge_blank_v1",
+      "value": "res/33.png",
+      "bytes": 1573877,
+      "sha256": "9b1d74d504caea7b3d0dd0a9af2e2de5c7ae5901fe8457e83788463089fc8a37",
+      "extracted_path": "drawable/cartridge_blank_v1.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070129",
+      "type": "drawable",
+      "name": "film_bg_foma_fomapan100",
+      "value": "res/N7.jpg",
+      "bytes": 40381,
+      "sha256": "61ae80fa46aab361b341a1c02ae91300cb6edb29c28b3350114a126de29ae9ca",
+      "extracted_path": "drawable/film_bg_foma_fomapan100.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07012a",
+      "type": "drawable",
+      "name": "film_bg_foma_fomapan400",
+      "value": "res/-w.jpg",
+      "bytes": 39707,
+      "sha256": "7e80f7ab93a288b77ff41b0897f72406b8f530c7633274471c9e644d37df59ca",
+      "extracted_path": "drawable/film_bg_foma_fomapan400.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07012b",
+      "type": "drawable",
+      "name": "film_bg_fuji_8573",
+      "value": "res/Bb.jpg",
+      "bytes": 39498,
+      "sha256": "752030b03e6bac50b4d267206289e8931025d3d27e814624cb5f0757222c1209",
+      "extracted_path": "drawable/film_bg_fuji_8573.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07012c",
+      "type": "drawable",
+      "name": "film_bg_fuji_astia100f",
+      "value": "res/3D.jpg",
+      "bytes": 29020,
+      "sha256": "e51e429ffb5161ff1408e1ff6dc4d7901206d653632beff18e695072a14b978c",
+      "extracted_path": "drawable/film_bg_fuji_astia100f.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07012d",
+      "type": "drawable",
+      "name": "film_bg_fuji_c200",
+      "value": "res/KT.jpg",
+      "bytes": 48171,
+      "sha256": "9952a4af3e1b013ed4ef1e09eb9297898f5aeb9b4cb26a7e90e76a299791ef01",
+      "extracted_path": "drawable/film_bg_fuji_c200.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07012e",
+      "type": "drawable",
+      "name": "film_bg_fuji_industrial400",
+      "value": "res/xF.jpg",
+      "bytes": 38474,
+      "sha256": "f2233c64104bc8be0e63972f7ff47fd277c5399139129fa5bb2e6e99da975eb0",
+      "extracted_path": "drawable/film_bg_fuji_industrial400.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07012f",
+      "type": "drawable",
+      "name": "film_bg_fuji_premium400",
+      "value": "res/nX.jpg",
+      "bytes": 33335,
+      "sha256": "7def14204fe36c5373ef52f6f838a98360d3b39d074d41957f5845e7349824a4",
+      "extracted_path": "drawable/film_bg_fuji_premium400.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070130",
+      "type": "drawable",
+      "name": "film_bg_fuji_proimage100",
+      "value": "res/7d.jpg",
+      "bytes": 30809,
+      "sha256": "b0604de6391f40ae7c7c01984eb548a8a6d48d40a046e8a20cdc3d6231b4f736",
+      "extracted_path": "drawable/film_bg_fuji_proimage100.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070131",
+      "type": "drawable",
+      "name": "film_bg_fuji_provia100f",
+      "value": "res/bE.jpg",
+      "bytes": 39143,
+      "sha256": "7ae90883af031b0a429f0b39b953a5d5596a0dc4dbaea958c9d36ddef4afc121",
+      "extracted_path": "drawable/film_bg_fuji_provia100f.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070132",
+      "type": "drawable",
+      "name": "film_bg_fuji_superia400",
+      "value": "res/UD.jpg",
+      "bytes": 37613,
+      "sha256": "c8592966c113b122fdd65eb47e3d0baa64d1d0dc5b379a242b48566744d498be",
+      "extracted_path": "drawable/film_bg_fuji_superia400.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070133",
+      "type": "drawable",
+      "name": "film_bg_fuji_velvia100",
+      "value": "res/yB.jpg",
+      "bytes": 35657,
+      "sha256": "7e6f662e621162a3551ab3c7f8dd1d5e695ebc715b24ebe93ee2f76b4c90ca88",
+      "extracted_path": "drawable/film_bg_fuji_velvia100.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070134",
+      "type": "drawable",
+      "name": "film_bg_ilford_delta100",
+      "value": "res/Fy.jpg",
+      "bytes": 35482,
+      "sha256": "f9ac6f45a6954fa1ee040042edcec93619e9915ed7d745f0ae52f382e6a42e3f",
+      "extracted_path": "drawable/film_bg_ilford_delta100.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070135",
+      "type": "drawable",
+      "name": "film_bg_ilford_delta400",
+      "value": "res/sc.jpg",
+      "bytes": 39264,
+      "sha256": "74133f26a756aebe3e9c7ff815977414cbda4c50afa38c2bef845192b02a44d6",
+      "extracted_path": "drawable/film_bg_ilford_delta400.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070136",
+      "type": "drawable",
+      "name": "film_bg_ilford_fp4",
+      "value": "res/vE.jpg",
+      "bytes": 44239,
+      "sha256": "4dbcc9f1df4fdb2e2aad378a8c4098d54ae09ce420a4945b8eea20ded3da4315",
+      "extracted_path": "drawable/film_bg_ilford_fp4.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070137",
+      "type": "drawable",
+      "name": "film_bg_ilford_hp5",
+      "value": "res/Ea.jpg",
+      "bytes": 46392,
+      "sha256": "4b46fe8435a149643fa5d54a81863924493a27ef270409a427e305624bb66a63",
+      "extracted_path": "drawable/film_bg_ilford_hp5.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070138",
+      "type": "drawable",
+      "name": "film_bg_ilford_pan400",
+      "value": "res/1k.jpg",
+      "bytes": 49855,
+      "sha256": "b6bc6751b74b0238076fac3578bbf5210c5d6ced43fb09caff66df3c607b37da",
+      "extracted_path": "drawable/film_bg_ilford_pan400.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070139",
+      "type": "drawable",
+      "name": "film_bg_kodak_5213",
+      "value": "res/0N.jpg",
+      "bytes": 37415,
+      "sha256": "af4ca60feb1bc8000678b17edd7b4d2b0ea754c180f59aa8e48db86edd5e8881",
+      "extracted_path": "drawable/film_bg_kodak_5213.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07013a",
+      "type": "drawable",
+      "name": "film_bg_kodak_5219",
+      "value": "res/oT.jpg",
+      "bytes": 38318,
+      "sha256": "e4fe2cbabc2f56c96ffa2b1344f754bb120314657334855cce25507739309aaa",
+      "extracted_path": "drawable/film_bg_kodak_5219.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07013b",
+      "type": "drawable",
+      "name": "film_bg_kodak_5222",
+      "value": "res/BB.jpg",
+      "bytes": 42884,
+      "sha256": "0999b83c1dda5d7fa0a8e96dca36c7856e76a13b5b68e29ebbb9e202e9304f16",
+      "extracted_path": "drawable/film_bg_kodak_5222.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07013c",
+      "type": "drawable",
+      "name": "film_bg_kodak_5260",
+      "value": "res/5n.jpg",
+      "bytes": 50910,
+      "sha256": "34593973a0111a8457802e62e524e55b02ad820366c8d07dc103d1020b9bc94f",
+      "extracted_path": "drawable/film_bg_kodak_5260.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07013d",
+      "type": "drawable",
+      "name": "film_bg_kodak_e100",
+      "value": "res/dk.jpg",
+      "bytes": 32067,
+      "sha256": "03125d86f5f3a08a73ead8620c0633a8e5b4ad0f3a4f3816ae78852ccd644050",
+      "extracted_path": "drawable/film_bg_kodak_e100.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07013e",
+      "type": "drawable",
+      "name": "film_bg_kodak_proimage100",
+      "value": "res/jS.jpg",
+      "bytes": 29933,
+      "sha256": "863a6d11a3cd172d0aa4a16993742e5c1b77a7ba60568bb0c7a4a047d47553df",
+      "extracted_path": "drawable/film_bg_kodak_proimage100.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07013f",
+      "type": "drawable",
+      "name": "film_bg_kodak_tmax100",
+      "value": "res/hv.jpg",
+      "bytes": 50538,
+      "sha256": "69c66548cb47ccbc98fd77efab2fc704e10d21a4d4650e8a8c84069651510ac7",
+      "extracted_path": "drawable/film_bg_kodak_tmax100.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070140",
+      "type": "drawable",
+      "name": "film_bg_kodak_tmax400",
+      "value": "res/gr.jpg",
+      "bytes": 39463,
+      "sha256": "869cc491bb3de7d37e39d5a9e2e648d495320bbe016991181169adf082ca1507",
+      "extracted_path": "drawable/film_bg_kodak_tmax400.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070141",
+      "type": "drawable",
+      "name": "film_bg_kodak_trix400",
+      "value": "res/iX.jpg",
+      "bytes": 31840,
+      "sha256": "c78ffb7839a223aa395c64e61f5505ea6de660b69de42a16d32c9889bc292ca6",
+      "extracted_path": "drawable/film_bg_kodak_trix400.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070142",
+      "type": "drawable",
+      "name": "film_bg_lucky_c200",
+      "value": "res/0z.jpg",
+      "bytes": 32489,
+      "sha256": "5e70e06ce2fb41ea2030e6e7ecfc9c947f17f6f62e4cd0c4bb8cd1a17a25ceef",
+      "extracted_path": "drawable/film_bg_lucky_c200.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070143",
+      "type": "drawable",
+      "name": "film_bg_lucky_shd100",
+      "value": "res/Lo.jpg",
+      "bytes": 39471,
+      "sha256": "93bc69a87671eb0b6e1bf3210e30e4a68df75e583b88994e0227bd39abc2f8cf",
+      "extracted_path": "drawable/film_bg_lucky_shd100.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070144",
+      "type": "drawable",
+      "name": "film_bg_lucky_shd400",
+      "value": "res/ex.jpg",
+      "bytes": 35767,
+      "sha256": "06cd7ff39f17dce7508e0e6caf73468f1dffdc92dd77e46748499c46a9deda96",
+      "extracted_path": "drawable/film_bg_lucky_shd400.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070145",
+      "type": "drawable",
+      "name": "film_bg_rollei_rpx100",
+      "value": "res/_E.jpg",
+      "bytes": 38408,
+      "sha256": "523c3a842a1a6d9f6b836251dce14e3b5415c2a1867b52dcc731f670e74ca499",
+      "extracted_path": "drawable/film_bg_rollei_rpx100.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070146",
+      "type": "drawable",
+      "name": "film_bg_shanghai_gp3",
+      "value": "res/Q5.jpg",
+      "bytes": 46487,
+      "sha256": "3959d61d6d523ce9f4bbf5a926e7b5ffcfa43345df93799ebc428526699c4eff",
+      "extracted_path": "drawable/film_bg_shanghai_gp3.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070147",
+      "type": "drawable",
+      "name": "film_bg_yesstar_200",
+      "value": "res/QB.jpg",
+      "bytes": 30840,
+      "sha256": "19de605d4dfe4957acd9b6364a68b01e96df1ae61341586a99cf79735bb661fc",
+      "extracted_path": "drawable/film_bg_yesstar_200.jpg",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070148",
+      "type": "drawable",
+      "name": "film_cinestill_400d",
+      "value": "res/MV.png",
+      "bytes": 868795,
+      "sha256": "8df5cbff4ad8ed39fd443e1c7f1aebcf4a7c4ae3fafdbf6f068f364134cf5353",
+      "extracted_path": "drawable/film_cinestill_400d.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070149",
+      "type": "drawable",
+      "name": "film_cinestill_50d",
+      "value": "res/Xv.png",
+      "bytes": 814408,
+      "sha256": "85b458d7d500e3c0a10e22052918ca0aaee5813876ff89f3ee9cf79ea077b9b1",
+      "extracted_path": "drawable/film_cinestill_50d.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07014a",
+      "type": "drawable",
+      "name": "film_cinestill_800t",
+      "value": "res/i9.png",
+      "bytes": 858879,
+      "sha256": "297968c851f48f58028899608f3f75889f02749b299dd25148100f254d8dfd32",
+      "extracted_path": "drawable/film_cinestill_800t.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07014b",
+      "type": "drawable",
+      "name": "film_colorplus_200",
+      "value": "res/ch.png",
+      "bytes": 877915,
+      "sha256": "c8576912c487005d17bd9814a65a46235806964aa0eddcd2f256de2a46ce6c41",
+      "extracted_path": "drawable/film_colorplus_200.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07014c",
+      "type": "drawable",
+      "name": "film_ektar_100",
+      "value": "res/ev.png",
+      "bytes": 855609,
+      "sha256": "1b1c17ad1036b7e0bdb9709f980a990020f4665d6525bc4404ce7c97b30e0f7b",
+      "extracted_path": "drawable/film_ektar_100.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07014d",
+      "type": "drawable",
+      "name": "film_gold_200",
+      "value": "res/bY.png",
+      "bytes": 754307,
+      "sha256": "1fd047281b6ad10f8fcd033c40558086a9b473b8baae84a80f094cca8c4116ab",
+      "extracted_path": "drawable/film_gold_200.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07014e",
+      "type": "drawable",
+      "name": "film_gold_200_image2",
+      "value": "res/-_.png",
+      "bytes": 754307,
+      "sha256": "1fd047281b6ad10f8fcd033c40558086a9b473b8baae84a80f094cca8c4116ab",
+      "extracted_path": "drawable/film_gold_200_image2.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07014f",
+      "type": "drawable",
+      "name": "film_gold_flat",
+      "value": "res/qZ.png",
+      "bytes": 290896,
+      "sha256": "42fc5884401e6f2e668173c416a1abf54cba9b4db3658354f53e859a262472eb",
+      "extracted_path": "drawable/film_gold_flat.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070150",
+      "type": "drawable",
+      "name": "film_kodak_5207",
+      "value": "res/oc.png",
+      "bytes": 794135,
+      "sha256": "e6feb0208768c2308161591510d33b72777be7d3086ca1c91f8b3497e3aa8312",
+      "extracted_path": "drawable/film_kodak_5207.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070151",
+      "type": "drawable",
+      "name": "film_pkg_foma_fomapan100",
+      "value": "res/A6.png",
+      "bytes": 142431,
+      "sha256": "87f948073e5f0d05d6c64987758fcab97d67d65793b822498c76d641d01c1f88",
+      "extracted_path": "drawable/film_pkg_foma_fomapan100.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070152",
+      "type": "drawable",
+      "name": "film_pkg_foma_fomapan400",
+      "value": "res/r1.png",
+      "bytes": 132079,
+      "sha256": "621c7fc45e0a7ec5cb9fa0b78565628eb23a71ddf3729c793ca4a84846a4f5ed",
+      "extracted_path": "drawable/film_pkg_foma_fomapan400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070153",
+      "type": "drawable",
+      "name": "film_pkg_fuji_8573",
+      "value": "res/Mp.png",
+      "bytes": 156694,
+      "sha256": "b20f1dd85e94853252501819c6057de50488cb6ec51d07a1dd4cb9ff19998357",
+      "extracted_path": "drawable/film_pkg_fuji_8573.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070154",
+      "type": "drawable",
+      "name": "film_pkg_fuji_astia100f",
+      "value": "res/Za.png",
+      "bytes": 113026,
+      "sha256": "165b4411358718c1884f699d364226b92879e29e5e4733c1ddf1a3a1d7aac8db",
+      "extracted_path": "drawable/film_pkg_fuji_astia100f.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070155",
+      "type": "drawable",
+      "name": "film_pkg_fuji_c200",
+      "value": "res/fC.png",
+      "bytes": 191177,
+      "sha256": "b46dfb1a6b8218c9c79d39f52bec0e53ad61f3f45ebcc0a0c463714a838b00f7",
+      "extracted_path": "drawable/film_pkg_fuji_c200.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070156",
+      "type": "drawable",
+      "name": "film_pkg_fuji_industrial400",
+      "value": "res/KX.png",
+      "bytes": 139454,
+      "sha256": "dee27f91f732b5a39ebd8732f85789ced0d664de2fcacb0abb3660e4ac234e4e",
+      "extracted_path": "drawable/film_pkg_fuji_industrial400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070157",
+      "type": "drawable",
+      "name": "film_pkg_fuji_premium400",
+      "value": "res/tK.png",
+      "bytes": 118594,
+      "sha256": "abe26356a9d560051b9b501b2807381cd286228ca68fb45a7dea6e340d1bfacd",
+      "extracted_path": "drawable/film_pkg_fuji_premium400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070158",
+      "type": "drawable",
+      "name": "film_pkg_fuji_provia100f",
+      "value": "res/mZ.png",
+      "bytes": 151470,
+      "sha256": "97d31e21a36b17be6a99fc4c022b9f80be698a8a159fa4abe0851a0230acbb2b",
+      "extracted_path": "drawable/film_pkg_fuji_provia100f.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070159",
+      "type": "drawable",
+      "name": "film_pkg_fuji_superia400",
+      "value": "res/xI.png",
+      "bytes": 143055,
+      "sha256": "789345ca19eb656ba5191e2f461945d766a7ae2ee56e62951aa4256752fcdf24",
+      "extracted_path": "drawable/film_pkg_fuji_superia400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07015a",
+      "type": "drawable",
+      "name": "film_pkg_fuji_velvia100",
+      "value": "res/Wt.png",
+      "bytes": 140468,
+      "sha256": "21ecb4f7bc622175c2407e2db29f6ad349153165cece860f62918e68d9707d5b",
+      "extracted_path": "drawable/film_pkg_fuji_velvia100.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07015b",
+      "type": "drawable",
+      "name": "film_pkg_fujifilm_velvia_50",
+      "value": "res/-a.png",
+      "bytes": 255793,
+      "sha256": "d5310810b200acf684db942042f946e11394899d2959909324987cc5229270f7",
+      "extracted_path": "drawable/film_pkg_fujifilm_velvia_50.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07015c",
+      "type": "drawable",
+      "name": "film_pkg_ilford_delta100",
+      "value": "res/RB.png",
+      "bytes": 119463,
+      "sha256": "871e9a1c01b54e93964116b0e1417afb07c2e9b926ce2d40409a47f7b87d9c2f",
+      "extracted_path": "drawable/film_pkg_ilford_delta100.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07015d",
+      "type": "drawable",
+      "name": "film_pkg_ilford_delta400",
+      "value": "res/v_.png",
+      "bytes": 130609,
+      "sha256": "2b16fab5bf7ed8ce6344d0369f2d4dd1e140649609ac8ac27da99b8b6ac86f2a",
+      "extracted_path": "drawable/film_pkg_ilford_delta400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07015e",
+      "type": "drawable",
+      "name": "film_pkg_ilford_fp4",
+      "value": "res/95.png",
+      "bytes": 141988,
+      "sha256": "7334a82a9be6c50b7c3b6cd4c3ecf3b38995c58203c9be330158d551d2cdf5b4",
+      "extracted_path": "drawable/film_pkg_ilford_fp4.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07015f",
+      "type": "drawable",
+      "name": "film_pkg_ilford_hp5",
+      "value": "res/2T.png",
+      "bytes": 156257,
+      "sha256": "05df9385ea619125cf26b042d661e53d4bc705bfdea0010bf75bbc76638b81a5",
+      "extracted_path": "drawable/film_pkg_ilford_hp5.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070160",
+      "type": "drawable",
+      "name": "film_pkg_ilford_pan400",
+      "value": "res/Ta.png",
+      "bytes": 161308,
+      "sha256": "95eb84f640c27562f07162f8d761547b8542ad2a083abf0122741c444401229d",
+      "extracted_path": "drawable/film_pkg_ilford_pan400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070161",
+      "type": "drawable",
+      "name": "film_pkg_kodak_5203",
+      "value": "res/9b.png",
+      "bytes": 121362,
+      "sha256": "6efa92a9c5b90f7ca59eafe6644ed51038a3f739a7969fba56eb6fa206f2c047",
+      "extracted_path": "drawable/film_pkg_kodak_5203.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070162",
+      "type": "drawable",
+      "name": "film_pkg_kodak_5213",
+      "value": "res/3P.png",
+      "bytes": 140703,
+      "sha256": "40f744cb4bcf38da029aba14bc7866d4591f1c06264552408bc6df0c9daed3f8",
+      "extracted_path": "drawable/film_pkg_kodak_5213.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070163",
+      "type": "drawable",
+      "name": "film_pkg_kodak_5219",
+      "value": "res/Cr.png",
+      "bytes": 136964,
+      "sha256": "563bf9e1ef5b5cca046c10945c849a84b1dff560094321bb68ed9a67191f320b",
+      "extracted_path": "drawable/film_pkg_kodak_5219.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070164",
+      "type": "drawable",
+      "name": "film_pkg_kodak_5222",
+      "value": "res/kD.png",
+      "bytes": 149880,
+      "sha256": "ea7cf3ae8ada33d1113018ccf35241575cbcfe88788f48b4feb8d63e91c3c645",
+      "extracted_path": "drawable/film_pkg_kodak_5222.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070165",
+      "type": "drawable",
+      "name": "film_pkg_kodak_5260",
+      "value": "res/hn.png",
+      "bytes": 178146,
+      "sha256": "d6937a21b1337f51fcb309167825e7de7c336b021df4399232a38ff71d07a996",
+      "extracted_path": "drawable/film_pkg_kodak_5260.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070166",
+      "type": "drawable",
+      "name": "film_pkg_kodak_e100",
+      "value": "res/uc.png",
+      "bytes": 108003,
+      "sha256": "28af3c121525e512bb702b568fc2df526fb46b4b086937c3bee278173721c40b",
+      "extracted_path": "drawable/film_pkg_kodak_e100.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070167",
+      "type": "drawable",
+      "name": "film_pkg_kodak_proimage100",
+      "value": "res/vm.png",
+      "bytes": 102327,
+      "sha256": "449fb86f43aacce900ab40a2572125b2d4117f29ec16b41cade038414e6453f4",
+      "extracted_path": "drawable/film_pkg_kodak_proimage100.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070168",
+      "type": "drawable",
+      "name": "film_pkg_kodak_tmax100",
+      "value": "res/yQ.png",
+      "bytes": 151332,
+      "sha256": "b37eaf8b2a52c36c6b1aa9c5e9168bd9218596d9824626e6cb01a45dcc362d3e",
+      "extracted_path": "drawable/film_pkg_kodak_tmax100.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070169",
+      "type": "drawable",
+      "name": "film_pkg_kodak_tmax400",
+      "value": "res/DN.png",
+      "bytes": 135681,
+      "sha256": "9369a0bc69b28bf32bd05ed2be7c5ac745a33ffa5ea61ef89a3273e2f774442f",
+      "extracted_path": "drawable/film_pkg_kodak_tmax400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07016a",
+      "type": "drawable",
+      "name": "film_pkg_kodak_trix400",
+      "value": "res/eQ.png",
+      "bytes": 110274,
+      "sha256": "11a72576416364d72da533b19324588b359b9b7da14045b88027a23d451a0c53",
+      "extracted_path": "drawable/film_pkg_kodak_trix400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07016b",
+      "type": "drawable",
+      "name": "film_pkg_lucky_c200",
+      "value": "res/4l.png",
+      "bytes": 265285,
+      "sha256": "d721fd48b634b24bae7d7c97f20a0f57b03e7147de2a938829c522e2133b1dc3",
+      "extracted_path": "drawable/film_pkg_lucky_c200.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07016c",
+      "type": "drawable",
+      "name": "film_pkg_lucky_shd100",
+      "value": "res/mz.png",
+      "bytes": 306093,
+      "sha256": "86b9c3411f41e3688c60979189244046ba24f2e29570d437262dc4df91b0712c",
+      "extracted_path": "drawable/film_pkg_lucky_shd100.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07016d",
+      "type": "drawable",
+      "name": "film_pkg_lucky_shd400",
+      "value": "res/cr.png",
+      "bytes": 361476,
+      "sha256": "12c5ae77a8bf9e1756c855e12f1fccaa38fb2180285d39a98fb30a253421a61d",
+      "extracted_path": "drawable/film_pkg_lucky_shd400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07016e",
+      "type": "drawable",
+      "name": "film_pkg_rollei_rpx100",
+      "value": "res/NN.png",
+      "bytes": 117498,
+      "sha256": "1f5ad9bea721bb2af4d7ec5a9453effe8094ff640e35489444815d5dfdf2d2e7",
+      "extracted_path": "drawable/film_pkg_rollei_rpx100.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07016f",
+      "type": "drawable",
+      "name": "film_pkg_shanghai_gp3",
+      "value": "res/k5.png",
+      "bytes": 244726,
+      "sha256": "ca03f8a6738f70d2ee96d18f0e5490f5a84971ba120af2d74dfda5212dfa3d8b",
+      "extracted_path": "drawable/film_pkg_shanghai_gp3.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070170",
+      "type": "drawable",
+      "name": "film_pkg_yesstar_200",
+      "value": "res/bE.png",
+      "bytes": 298080,
+      "sha256": "c93a4d5352e6cebcf0965a674942404cb91a00a7bff60060fe277dd33205fa2c",
+      "extracted_path": "drawable/film_pkg_yesstar_200.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070171",
+      "type": "drawable",
+      "name": "film_ultramax_400",
+      "value": "res/Td.png",
+      "bytes": 828927,
+      "sha256": "f202ca43f48f682f3f5efa6c8f3f126b7fc3224fb506eaf4b58f1af0ffed3f10",
+      "extracted_path": "drawable/film_ultramax_400.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070172",
+      "type": "drawable",
+      "name": "film_velvia_50",
+      "value": "res/e6.png",
+      "bytes": 865327,
+      "sha256": "3c114c77d3f347d688c12aa5905a7fa03589c1a788febb38ef99701612405a1c",
+      "extracted_path": "drawable/film_velvia_50.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f070173",
+      "type": "drawable",
+      "name": "film_violet_flat",
+      "value": "res/kX.png",
+      "bytes": 663651,
+      "sha256": "ea8e02943ea8754f363703223e901513f370162533c7310a8c82cae30ab808c8",
+      "extracted_path": "drawable/film_violet_flat.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07018a",
+      "type": "drawable",
+      "name": "print_cotton_paper",
+      "value": "res/Un.png",
+      "bytes": 1979590,
+      "sha256": "8fa8c97d132162cc7f4204b33af277742964a0aa8a4af2c663a08a7ad0774f44",
+      "extracted_path": "drawable/print_cotton_paper.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f07018b",
+      "type": "drawable",
+      "name": "spool_120_blank_v1",
+      "value": "res/0v.png",
+      "bytes": 1209279,
+      "sha256": "d6200fd20fa6f10fb270166b7cebbda9735088c81a1a92e2d7c48f4167a6a373",
+      "extracted_path": "drawable/spool_120_blank_v1.png",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080000",
+      "type": "font",
+      "name": "barlow_condensed_black",
+      "value": "res/c3.ttf",
+      "bytes": 104904,
+      "sha256": "9541396da3d332ce5d89972fb63ca8f6f181537fc628c3c5fecbe9ac2c871d3b",
+      "extracted_path": "font/barlow_condensed_black.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080001",
+      "type": "font",
+      "name": "barlow_condensed_extrabold",
+      "value": "res/1e.ttf",
+      "bytes": 104368,
+      "sha256": "773f320a37afe08926cb85dfda0085639250ae9bec642e1be426d23520d911ec",
+      "extracted_path": "font/barlow_condensed_extrabold.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080002",
+      "type": "font",
+      "name": "film_mono_regular",
+      "value": "res/Oi.otf",
+      "bytes": 14192,
+      "sha256": "ef8b635d7c9b6aa6c594f235d51efa0ef00d0c482b346abde3be0305e1130fea",
+      "extracted_path": "font/film_mono_regular.otf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080003",
+      "type": "font",
+      "name": "film_mono_semibold",
+      "value": "res/XY.otf",
+      "bytes": 14472,
+      "sha256": "fb2af5665d0940973b82a0135fb7c37d4b2fb480663a1692ad081bc9c3ececdf",
+      "extracted_path": "font/film_mono_semibold.otf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080004",
+      "type": "font",
+      "name": "film_sans_bold",
+      "value": "res/IM.otf",
+      "bytes": 1824912,
+      "sha256": "40f1d7f8ab00ad81652a2fddc3d4388e71c9aa22dcba7d654ba8d6db7a2c628e",
+      "extracted_path": "font/film_sans_bold.otf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080005",
+      "type": "font",
+      "name": "film_sans_regular",
+      "value": "res/US.otf",
+      "bytes": 1785432,
+      "sha256": "1379c34cc4d8ed69300218856b653b73b09364dfa339cbddab678c123f537bf3",
+      "extracted_path": "font/film_sans_regular.otf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080006",
+      "type": "font",
+      "name": "print_display",
+      "value": "res/Cn.ttf",
+      "bytes": 58372,
+      "sha256": "c74a9205b39807559f17a668d6675421eee0292d8060749a9b0721b6f66dfd73",
+      "extracted_path": "font/print_display.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080007",
+      "type": "font",
+      "name": "print_great_vibes",
+      "value": "res/WM.ttf",
+      "bytes": 90528,
+      "sha256": "aacb35f3c5d4b8a6f53c16619c8d51b2fc5af787dea532e4305646ad14f28c4e",
+      "extracted_path": "font/print_great_vibes.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080008",
+      "type": "font",
+      "name": "print_highwind",
+      "value": "res/do.ttf",
+      "bytes": 66720,
+      "sha256": "d10945b3c4f094ddadef14cbc1713939f4b7ff5fcc40ba2c2bb60845b5a9a50f",
+      "extracted_path": "font/print_highwind.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080009",
+      "type": "font",
+      "name": "print_kunstler",
+      "value": "res/-p.ttf",
+      "bytes": 63392,
+      "sha256": "8a9783e50f3bf892d958b7e61990d6ccaee65daaa0ffc246d3e1bd4fb0104b41",
+      "extracted_path": "font/print_kunstler.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f08000a",
+      "type": "font",
+      "name": "print_rosethella",
+      "value": "res/Zd.otf",
+      "bytes": 49720,
+      "sha256": "17ec849aa43dc19240712f846efa335127fd83d0587432e107d9f08e16cb153e",
+      "extracted_path": "font/print_rosethella.otf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f08000b",
+      "type": "font",
+      "name": "print_script",
+      "value": "res/61.ttf",
+      "bytes": 79932,
+      "sha256": "7e457df97068dc950db6e4770094d08cec59778c0eac59b9a331b0a6814e42f8",
+      "extracted_path": "font/print_script.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f08000c",
+      "type": "font",
+      "name": "print_serif",
+      "value": "res/jG.ttf",
+      "bytes": 236212,
+      "sha256": "17e6c4698298ec2bc9fe8f5bf7bc120607ae6d0a357c96e4436d7e69c7747601",
+      "extracted_path": "font/print_serif.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f08000d",
+      "type": "font",
+      "name": "print_spaced",
+      "value": "res/Ou.ttf",
+      "bytes": 41676,
+      "sha256": "cea63bc3d6e417ae75afbbc27888151369c911991a9be009c4844227098d2182",
+      "extracted_path": "font/print_spaced.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f08000e",
+      "type": "font",
+      "name": "print_typewriter",
+      "value": "res/xe.ttf",
+      "bytes": 77252,
+      "sha256": "a6563be48e63fcb9c6adf45f401518a5dfd926f12628196daf3d14eba3746067",
+      "extracted_path": "font/print_typewriter.ttf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f08000f",
+      "type": "font",
+      "name": "rhode_normal_bold",
+      "value": "res/lv.otf",
+      "bytes": 35824,
+      "sha256": "0e8022acbe24a0e8fb7a23db65ebe997b0db14f79b6333f52ebcb8444e717eae",
+      "extracted_path": "font/rhode_normal_bold.otf",
+      "scope": "reference; not automatically licensed for redistribution"
+    },
+    {
+      "id": "0x7f080010",
+      "type": "font",
+      "name": "test_manuka_condensed_bold",
+      "value": "res/5N.otf",
+      "bytes": 11888,
+      "sha256": "eb7c25110c781bd9c3d21bc5e06188266a3ec986c9090a5f739560ad65cfc290",
+      "extracted_path": "font/test_manuka_condensed_bold.otf",
+      "scope": "reference; not automatically licensed for redistribution"
+    }
+  ]
+}

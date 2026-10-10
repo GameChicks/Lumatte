@@ -1,0 +1,1364 @@
+{
+  "warning": "Historical reconstruction, not original Git checkout or runtime verification",
+  "files": [
+    {
+      "path": "app/src/main/java/app/filmcompanion/ui/FilmTheme.kt",
+      "bytes": 9811,
+      "sha256": "63f74bb9adb7bc420a3a425165fd40c65337dcbc8fb507399f7e6c3ebecb5707",
+      "last_snapshot": "2026-10-01T06:56:34.168Z",
+      "history": [
+        {
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "timestamp": "2026-10-01T06:56:34.168Z",
+          "line": 39,
+          "kind": "snapshot",
+          "evidence_sha256": "26fcdb53c61a84726bdf1f2b99f1a26ead98c455add02314145a713f650a257b"
+        },
+        {
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "timestamp": "2026-10-01T07:03:30.685Z",
+          "line": 321,
+          "kind": "update",
+          "evidence_sha256": "aeb21e9e9b0a95394e2fbe10b606d63ef92b2a1f725265ab60ce62511d5ff233"
+        }
+      ],
+      "unresolved_changes": [
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmTheme.kt",
+          "timestamp": "2026-10-01T06:59:07.696Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 115,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmTheme.kt",
+          "timestamp": "2026-10-01T07:01:41.977Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 229,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmTheme.kt",
+          "timestamp": "2026-10-01T07:46:46.190Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 1113,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmTheme.kt",
+          "timestamp": "2026-10-01T08:10:02.636Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 1355,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmTheme.kt",
+          "timestamp": "2026-10-01T10:02:27.239Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 1883,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmTheme.kt",
+          "timestamp": "2026-10-02T10:38:46.798Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 219,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmTheme.kt",
+          "timestamp": "2026-10-02T10:47:12.017Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 287,
+          "reason": "Expected one exact context, found 0"
+        }
+      ],
+      "status": "captured_source_with_unresolved_diffs"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+      "bytes": 38104,
+      "sha256": "5569e9dbae90f196601a6a73e35cef8adbf372238c48ad3667eedefe5caef1e5",
+      "last_snapshot": "2026-09-26T17:49:45.010Z",
+      "history": [
+        {
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "timestamp": "2026-09-26T17:49:45.010Z",
+          "line": 1844,
+          "kind": "snapshot",
+          "evidence_sha256": "95b54e1bf669d20db8b2a142c1abf1c398e471da36ce329dd803c0823d1c7452"
+        }
+      ],
+      "unresolved_changes": [
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-26T17:50:08.897Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 1851,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-26T18:13:10.824Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 2505,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-26T18:17:52.700Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 2620,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-26T18:18:19.493Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 2627,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-26T18:18:45.054Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 2634,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:11:21.579Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3327,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:15:42.007Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3415,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:20:48.910Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3531,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:21:05.369Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3538,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:26:19.207Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3638,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:29:43.457Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3701,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:35:23.991Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3829,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:35:49.187Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3836,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:36:17.380Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3850,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:42:12.017Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3922,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:45:59.661Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 3975,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:50:13.401Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 4079,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T00:57:37.612Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 4219,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T01:02:45.003Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 4280,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T01:04:43.309Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 4326,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T01:15:27.861Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 4591,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T05:08:18.607Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 4858,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T05:13:45.660Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 4987,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T05:15:02.275Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 5004,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T05:26:17.746Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 5349,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T06:49:44.612Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 7133,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T15:55:19.856Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 7929,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T16:05:17.752Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 8120,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T16:06:11.429Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 8139,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T16:11:56.745Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 8254,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T16:12:16.835Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 8261,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T16:25:47.999Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 8530,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T16:31:49.741Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 8659,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T16:39:48.795Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 8857,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T22:30:33.267Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 9009,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T22:47:55.131Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 9380,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T23:01:22.595Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 9674,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T23:09:09.605Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 9854,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-27T23:10:50.510Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 9894,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T14:38:01.598Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 10202,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T15:05:45.838Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 10576,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T15:17:14.708Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 10733,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T15:38:02.449Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11042,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T15:56:53.347Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11424,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T15:57:24.575Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11438,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:03:28.228Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11550,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:05:11.176Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11583,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:05:28.403Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11592,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:09:03.947Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11670,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:09:20.479Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11677,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:10:42.299Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11710,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:13:21.755Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11767,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:19:43.163Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 11931,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:23:26.585Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 12029,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:24:35.314Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 12053,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:25:12.744Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 12074,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:30:57.618Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 12208,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:31:54.633Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 12222,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:33:43.343Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 12251,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:49:41.984Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 12660,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T16:52:30.510Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 12696,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-28T17:09:41.290Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 12976,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T10:25:25.697Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 13188,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T10:43:05.568Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 13288,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T10:48:22.213Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 13354,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T10:58:40.747Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 13489,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T14:19:19.897Z",
+          "session_id": "01a0f1fa-a84d-71e0-a1fe-1ec939e5bd7a",
+          "line": 487,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T14:24:05.745Z",
+          "session_id": "01a0f1fa-a84d-71e0-a1fe-1ec939e5bd7a",
+          "line": 526,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T16:18:40.779Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 13881,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T16:32:20.756Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 13950,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T22:39:33.453Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 14076,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T22:39:49.083Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 14084,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T23:27:41.113Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 14114,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T23:29:24.013Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 14155,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T23:42:32.817Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 14299,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-09-30T23:45:09.648Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 14341,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T00:32:01.699Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 14498,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T03:35:04.637Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 14964,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T03:35:04.659Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 14965,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T05:44:14.665Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 397,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T05:45:56.095Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 404,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T05:47:37.224Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 411,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T06:20:49.872Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 523,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T06:36:08.550Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 593,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T06:45:47.620Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 649,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T06:51:03.324Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 678,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T06:59:44.073Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 150,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T06:59:49.841Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 157,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T07:00:20.736Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 171,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T07:00:39.936Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 178,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T07:00:57.738Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 192,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T07:01:44.637Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 236,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T07:03:54.816Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 349,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T07:41:20.351Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 413,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T07:41:36.063Z",
+          "session_id": "01a0f63b-6b00-7711-92e0-44aaed861267",
+          "line": 428,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T07:46:46.190Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 1113,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T08:10:53.938Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 231,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T08:13:42.728Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 1379,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T08:28:24.567Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 1540,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T08:32:28.997Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 1579,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T10:02:27.239Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 1883,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T10:06:11.551Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 1972,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T15:34:46.329Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 1385,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T15:42:58.027Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 1402,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T16:14:06.356Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 1526,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T16:40:28.218Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 3694,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T16:48:21.062Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 3791,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-01T16:54:10.425Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 75,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-02T06:02:53.631Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 241,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-03T02:52:21.269Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 518,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-03T06:58:30.751Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 1537,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-03T07:00:18.770Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 1566,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-03T07:30:44.253Z",
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "line": 228,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-03T07:30:44.268Z",
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "line": 229,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-03T07:57:36.858Z",
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "line": 541,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/FilmCompanionApp.kt",
+          "timestamp": "2026-10-03T07:58:43.849Z",
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "line": 556,
+          "reason": "Expected one exact context, found 0"
+        }
+      ],
+      "status": "captured_source_with_unresolved_diffs"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/data/CatalogPresets.kt",
+      "bytes": 12795,
+      "sha256": "b1b625885fd9b83e1484fb95170901726a7968615221354893e17675cd1c0c93",
+      "last_snapshot": "2026-10-01T04:43:49.129Z",
+      "history": [
+        {
+          "session_id": "01a0f5c3-5509-7a82-a539-0ec5832d50f6",
+          "timestamp": "2026-10-01T04:43:49.129Z",
+          "line": 54,
+          "kind": "snapshot",
+          "evidence_sha256": "d6182b9582989eeaceef933ad5fb0af8cc46750e05fde8215d4415299f8beb65"
+        }
+      ],
+      "unresolved_changes": [
+        {
+          "path": "app/src/main/java/app/filmcompanion/data/CatalogPresets.kt",
+          "timestamp": "2026-10-02T06:02:53.631Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 241,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/data/CatalogPresets.kt",
+          "timestamp": "2026-10-02T10:41:00.107Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 238,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/data/CatalogPresets.kt",
+          "timestamp": "2026-10-02T11:11:52.371Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 566,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/data/CatalogPresets.kt",
+          "timestamp": "2026-10-02T11:33:44.503Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 743,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/data/CatalogPresets.kt",
+          "timestamp": "2026-10-03T03:20:51.538Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 75,
+          "reason": "Expected one exact context, found 0"
+        }
+      ],
+      "status": "captured_source_with_unresolved_diffs"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/domain/FilmProfiles.kt",
+      "bytes": 15816,
+      "sha256": "025ebee4b1b2096404b9cf05dbb81fe7d1b656f69227a9743c8ea522434daee8",
+      "last_snapshot": "2026-10-01T04:43:49.129Z",
+      "history": [
+        {
+          "session_id": "01a0f5c3-5509-7a82-a539-0ec5832d50f6",
+          "timestamp": "2026-10-01T04:43:49.129Z",
+          "line": 54,
+          "kind": "snapshot",
+          "evidence_sha256": "d6182b9582989eeaceef933ad5fb0af8cc46750e05fde8215d4415299f8beb65"
+        }
+      ],
+      "unresolved_changes": [
+        {
+          "path": "app/src/main/java/app/filmcompanion/domain/FilmProfiles.kt",
+          "timestamp": "2026-10-02T06:02:53.631Z",
+          "session_id": "01a0f5c2-42d8-7c72-80b2-795e5f80fe7b",
+          "line": 241,
+          "reason": "Expected one exact context, found 0"
+        }
+      ],
+      "status": "captured_source_with_unresolved_diffs"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/media/PhotoRecipe.kt",
+      "bytes": 6328,
+      "sha256": "b30b2306eccf413a15fc8d4e227d5b0a5c47da931a96b84a7a9b6749d92b7b82",
+      "last_snapshot": "2026-10-03T08:28:35.179Z",
+      "history": [
+        {
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "timestamp": "2026-10-03T08:28:35.179Z",
+          "line": 856,
+          "kind": "snapshot",
+          "evidence_sha256": "8fa2d42bbcd1e6af9af635c0120b94bbce63f7d1db475914ad9bbd3002677146"
+        }
+      ],
+      "unresolved_changes": [],
+      "status": "captured_source"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/media/ContactSheetRenderer.kt",
+      "bytes": 4435,
+      "sha256": "29d9a2e7f2adb425a77d22178d9f1145c448fa16c7b334fae9fad9af65e92af1",
+      "last_snapshot": "2026-10-01T15:25:28.442Z",
+      "history": [
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T15:25:28.442Z",
+          "line": 1345,
+          "kind": "snapshot",
+          "evidence_sha256": "3514638df83d067631dcb763e578a012553f42404ee14ba0bd8d32e036e851b1"
+        }
+      ],
+      "unresolved_changes": [
+        {
+          "path": "app/src/main/java/app/filmcompanion/media/ContactSheetRenderer.kt",
+          "timestamp": "2026-10-01T15:45:55.525Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 1409,
+          "reason": "Expected one exact context, found 0"
+        }
+      ],
+      "status": "captured_source_with_unresolved_diffs"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+      "bytes": 17325,
+      "sha256": "2984a200179a45cef9aeee2db431d73ec258a01a413afb1d22626758e77361ae",
+      "last_snapshot": "2026-10-01T08:07:00.557Z",
+      "history": [
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T08:07:00.557Z",
+          "line": 177,
+          "kind": "add",
+          "evidence_sha256": "1ba23ff8ebdb20742b144b405561aa101c13920762ab998776fdafdd809d8a00"
+        },
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T08:09:04.024Z",
+          "line": 197,
+          "kind": "update",
+          "evidence_sha256": "cb81c064cc85a60581d64922a7c0ec89518058f8c66a1e4e14722b53d99d2d94"
+        },
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T08:10:53.938Z",
+          "line": 231,
+          "kind": "update",
+          "evidence_sha256": "d150d068d5365b872c1498bef10b28f3901e0184c6075ad9d02d7ee5ce67eff4"
+        },
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T08:35:21.595Z",
+          "line": 437,
+          "kind": "update",
+          "evidence_sha256": "8284af774d3661d519a6c907d4fdc742571fb0e78ccbb8b9bc60d635cfe8e721"
+        },
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T15:49:57.568Z",
+          "line": 1425,
+          "kind": "update",
+          "evidence_sha256": "118a4c369f263f46634a72164efdee239b12ffeade2a9edbb8e567f96603d252"
+        },
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T16:19:03.677Z",
+          "line": 1549,
+          "kind": "update",
+          "evidence_sha256": "9e249f03275cacd1a1c2f65361f95fed871f756ce537709141f5166a323edb4d"
+        }
+      ],
+      "unresolved_changes": [
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-01T10:14:00.970Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 748,
+          "reason": "Expected one exact context, found 3"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-01T10:24:03.083Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 829,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-01T11:41:00.905Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 1231,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-01T16:39:42.222Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 741,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-01T16:53:45.755Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 804,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-02T05:18:22.229Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 607,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-02T06:45:33.316Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 105,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-02T07:15:26.773Z",
+          "session_id": "01a0de62-4947-7790-a775-abb1e9d3f21c",
+          "line": 385,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-02T10:33:05.697Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 168,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-02T14:04:22.403Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 1318,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/PhotoEditorDialog.kt",
+          "timestamp": "2026-10-03T02:35:20.061Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 387,
+          "reason": "Expected one exact context, found 0"
+        }
+      ],
+      "status": "captured_source_with_unresolved_diffs"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/media/PrintDesign.kt",
+      "bytes": 7326,
+      "sha256": "32b6de51cf3c3a9a19b2d4bde9613b486d28ff929f2bf019be9bfd4de1ebc0d1",
+      "last_snapshot": "2026-10-03T07:24:31.006Z",
+      "history": [
+        {
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "timestamp": "2026-10-03T07:24:31.006Z",
+          "line": 147,
+          "kind": "snapshot",
+          "evidence_sha256": "a4e610e05cbf6c3005030461e3d0ad467b0973b4a50e25421ae390f7ce9925a2"
+        }
+      ],
+      "unresolved_changes": [],
+      "status": "captured_source"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/media/FilmStripPainter.kt",
+      "bytes": 7259,
+      "sha256": "90b5137d244ad8b20e3d93dc8d985eb074f8c3f73c97f777b276cf5ca4447199",
+      "last_snapshot": "2026-10-01T15:25:28.442Z",
+      "history": [
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T15:25:28.442Z",
+          "line": 1345,
+          "kind": "snapshot",
+          "evidence_sha256": "3514638df83d067631dcb763e578a012553f42404ee14ba0bd8d32e036e851b1"
+        }
+      ],
+      "unresolved_changes": [
+        {
+          "path": "app/src/main/java/app/filmcompanion/media/FilmStripPainter.kt",
+          "timestamp": "2026-10-01T15:42:58.027Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 1402,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/media/FilmStripPainter.kt",
+          "timestamp": "2026-10-02T05:10:59.619Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 582,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/media/FilmStripPainter.kt",
+          "timestamp": "2026-10-02T05:15:49.374Z",
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "line": 598,
+          "reason": "Expected one exact context, found 0"
+        },
+        {
+          "path": "app/src/main/java/app/filmcompanion/media/FilmStripPainter.kt",
+          "timestamp": "2026-10-02T13:21:25.100Z",
+          "session_id": "01a0fc07-435e-7130-988b-d9f25d08401e",
+          "line": 1045,
+          "reason": "Expected one exact context, found 0"
+        }
+      ],
+      "status": "captured_source_with_unresolved_diffs"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/media/PrintAssets.kt",
+      "bytes": 2322,
+      "sha256": "dfa800d57c7cbb36630d38fda6c9c7f81613737d7286cfcb111b572cc8aac026",
+      "last_snapshot": "2026-10-01T10:05:57.570Z",
+      "history": [
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T10:05:57.570Z",
+          "line": 700,
+          "kind": "add",
+          "evidence_sha256": "27b19ba75b87110501db8b1ba55a0a3b5fcbfce6d50a6b86a30e7481416bad08"
+        },
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T10:08:06.459Z",
+          "line": 712,
+          "kind": "update",
+          "evidence_sha256": "7381bfe11031220e8369d0779d77ee5c9cca3c3518bf9994fbadddf379db17e9"
+        }
+      ],
+      "unresolved_changes": [],
+      "status": "captured_source"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/media/PhotoPrintRenderer.kt",
+      "bytes": 15875,
+      "sha256": "4bfcba4851f0dda8bee11b447ca6a2cea0fe8c24a251c805a7aba899d51783c1",
+      "last_snapshot": "2026-10-03T07:25:10.103Z",
+      "history": [
+        {
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "timestamp": "2026-10-03T07:25:10.103Z",
+          "line": 156,
+          "kind": "snapshot",
+          "evidence_sha256": "630f2cfe43dd89e077135dee07341c8fa6a5059f0f2c5f2f20377abe60a49369"
+        }
+      ],
+      "unresolved_changes": [],
+      "status": "captured_source"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/ui/PrintDesignDialogs.kt",
+      "bytes": 18883,
+      "sha256": "160401751df5a66380e3cb50e1eec474a8bcaffca788a7d1f4dc09880423fde8",
+      "last_snapshot": "2026-10-03T07:25:10.103Z",
+      "history": [
+        {
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "timestamp": "2026-10-03T07:25:10.103Z",
+          "line": 156,
+          "kind": "snapshot",
+          "evidence_sha256": "630f2cfe43dd89e077135dee07341c8fa6a5059f0f2c5f2f20377abe60a49369"
+        }
+      ],
+      "unresolved_changes": [],
+      "status": "captured_source"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/media/PrintBackground.kt",
+      "bytes": 2503,
+      "sha256": "19703b6a627e57c41e65ad243451bbd00066f4a380eb0b5e9fdf9cf30b4b60cd",
+      "last_snapshot": "2026-10-01T16:21:32.132Z",
+      "history": [
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T16:21:32.132Z",
+          "line": 1556,
+          "kind": "add",
+          "evidence_sha256": "8adfa68cdfeb06db733da7af495e330ef325e1d7b259c9e20d6fbe3ea68ea263"
+        },
+        {
+          "session_id": "01a0f66b-6269-75d3-bf96-e1be25f8bc8b",
+          "timestamp": "2026-10-01T16:23:28.891Z",
+          "line": 1564,
+          "kind": "update",
+          "evidence_sha256": "1d2dad17943d8340a8dbc6603137d67698590b93b039abd86b297202456e2f21"
+        }
+      ],
+      "unresolved_changes": [],
+      "status": "captured_source"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/ui/SlidingPages.kt",
+      "bytes": 1460,
+      "sha256": "ca9e59a3f84c5c2fa5585ca86224ec25dd7b094fceb97a2ca817ae8756969a32",
+      "last_snapshot": "2026-10-03T07:25:44.127Z",
+      "history": [
+        {
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "timestamp": "2026-10-03T07:25:44.127Z",
+          "line": 166,
+          "kind": "snapshot",
+          "evidence_sha256": "75b96eb34a027b117d7d778d0f226845e3635d29aa18d41ca50fed2f0b6a5808"
+        }
+      ],
+      "unresolved_changes": [
+        {
+          "path": "app/src/main/java/app/filmcompanion/ui/SlidingPages.kt",
+          "timestamp": "2026-10-03T07:28:55.631Z",
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "line": 204,
+          "reason": "Expected one exact context, found 0"
+        }
+      ],
+      "status": "captured_source_with_unresolved_diffs"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/ui/MotionDialog.kt",
+      "bytes": 950,
+      "sha256": "3afa950370c58127c9811fbbc14364c7ad00a062b8b8e08e36e4fc0dccca3e99",
+      "last_snapshot": "2026-10-03T08:15:42.350Z",
+      "history": [
+        {
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "timestamp": "2026-10-03T08:15:42.350Z",
+          "line": 713,
+          "kind": "snapshot",
+          "evidence_sha256": "713eb74bc602a8f7187188ae494e55ad29228cfb49bc65df5cc5d798e67309c0"
+        }
+      ],
+      "unresolved_changes": [],
+      "status": "captured_source"
+    },
+    {
+      "path": "app/src/main/java/app/filmcompanion/ui/CardExpansion.kt",
+      "bytes": 9089,
+      "sha256": "49535ea80f8fc2bf96394409f48325f0745b6a37e707a111024650d63e2233ff",
+      "last_snapshot": "2026-10-03T08:15:42.350Z",
+      "history": [
+        {
+          "session_id": "01a1009b-b7bc-7383-a661-bbf1cec31812",
+          "timestamp": "2026-10-03T08:15:42.350Z",
+          "line": 713,
+          "kind": "snapshot",
+          "evidence_sha256": "713eb74bc602a8f7187188ae494e55ad29228cfb49bc65df5cc5d798e67309c0"
+        }
+      ],
+      "unresolved_changes": [],
+      "status": "captured_source"
+    }
+  ],
+  "unrecovered_changes": []
+}

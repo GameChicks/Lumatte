@@ -1,0 +1,16 @@
+* text=auto
+.gitattributes text eol=lf
+.gitignore text eol=lf
+*.properties text eol=lf
+*.txt text eol=lf
+*.kt text eol=lf
+*.kts text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.ttf binary
+*.otf binary
