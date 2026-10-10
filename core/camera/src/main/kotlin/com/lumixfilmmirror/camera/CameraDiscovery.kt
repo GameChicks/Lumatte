@@ -1,0 +1,115 @@
+package com.lumixfilmmirror.camera
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
+import android.os.SystemClock
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
+import java.net.URI
+import java.net.SocketTimeoutException
+import java.util.Locale
+
+data class DiscoveredCamera(val network: Network, val device: CameraDevice) {
+    val key: String get() = "${network.networkHandle}:${device.udn.ifBlank { device.descriptionUri.toString() }}"
+}
+
+/** SSDP searches only the selected Wi-Fi networks, and reads descriptions before offering a camera. */
+class CameraDiscovery(context: Context) {
+    private val context = context.applicationContext
+    private val manager = requireNotNull(this.context.getSystemService(ConnectivityManager::class.java))
+
+    fun wifiNetworks(): List<Network> = manager.allNetworks.filter {
+        manager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+    }
+
+    suspend fun discover(networks: List<Network> = wifiNetworks()): List<DiscoveredCamera> = coroutineScope {
+        require(networks.isNotEmpty()) { "请先连接相机 Wi-Fi，或使用下方的连接入口" }
+        val attempts = networks.map { network -> async(Dispatchers.IO) {
+            try { Result.success(search(network)) }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { Result.failure(error) }
+        } }.awaitAll()
+        val found = attempts.flatMap { it.getOrNull().orEmpty() }.distinctBy { it.key }
+        if (found.isEmpty() && attempts.all { it.isFailure }) throw requireNotNull(attempts.first().exceptionOrNull())
+        found
+    }
+
+    private suspend fun search(network: Network): List<DiscoveredCamera> = withContext(Dispatchers.IO) {
+        val descriptions = linkedSetOf<URI>()
+        val wifi = requireNotNull(context.getSystemService(WifiManager::class.java)) { "设备没有可用的 Wi-Fi 服务" }
+        val lock = wifi.createMulticastLock("film-mirror-camera-discovery").apply { setReferenceCounted(false) }
+        try {
+            lock.acquire()
+            DatagramSocket().use { socket ->
+                network.bindSocket(socket)
+                socket.soTimeout = 250
+                val message = ("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\n" +
+                    "MAN: \"ssdp:discover\"\r\nMX: 2\r\nST: urn:schemas-upnp-org:device:MediaServer:1\r\n\r\n")
+                    .toByteArray(Charsets.US_ASCII)
+                val group = InetAddress.getByAddress(byteArrayOf(239.toByte(), 255.toByte(), 255.toByte(), 250.toByte()))
+                val request = DatagramPacket(message, message.size, group, 1900)
+                socket.send(request)
+                val end = SystemClock.elapsedRealtime() + 3_000
+                var repeated = false
+                while (SystemClock.elapsedRealtime() < end) {
+                    currentCoroutineContext().ensureActive()
+                    if (!repeated && end - SystemClock.elapsedRealtime() < 1_500) {
+                        socket.send(request)
+                        repeated = true
+                    }
+                    val response = DatagramPacket(ByteArray(16 * 1024), 16 * 1024)
+                    try { socket.receive(response) } catch (_: SocketTimeoutException) { continue }
+                    val uri = descriptionLocation(response) ?: continue
+                    descriptions += uri
+                }
+            }
+        } catch (_: java.io.IOException) {
+            // A device/network may suppress multicast; still try its directly advertised local gateway.
+        } finally { if (lock.isHeld) lock.release() }
+        // Direct-link cameras may not answer multicast. Probe only advertised local gateway/default camera addresses.
+        manager.getLinkProperties(network)?.routes?.mapNotNull { it.gateway?.hostAddress }?.forEach { host ->
+            if (runCatching { CameraAddress.requireLocalHost(host) }.isSuccess) {
+                descriptions += URI("http://$host:60606/Lumix/Server0/ddd")
+            }
+        }
+        if (manager.getLinkProperties(network)?.linkAddresses?.any {
+                it.address.hostAddress?.startsWith("192.168.54.") == true
+            } == true) descriptions += URI("http://192.168.54.1:60606/Lumix/Server0/ddd")
+        descriptions.mapNotNull { uri ->
+            currentCoroutineContext().ensureActive()
+            try {
+                val http = CameraHttp(network, uri.host)
+                val device = CameraXml.device(http.text(uri), uri)
+                http.validate(device.contentDirectory)
+                DiscoveredCamera(network, device)
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { null }
+        }
+    }
+
+    private fun descriptionLocation(packet: DatagramPacket): URI? = runCatching {
+        val lines = String(packet.data, packet.offset, packet.length, Charsets.UTF_8).split("\r\n")
+        require(Regex("^HTTP/1\\.[01]\\s+200(?:\\s|$)", RegexOption.IGNORE_CASE).containsMatchIn(lines.first()))
+        val fields = lines.drop(1).mapNotNull { line ->
+            val split = line.indexOf(':')
+            if (split > 0) line.substring(0, split).lowercase(Locale.ROOT) to line.substring(split + 1).trim() else null
+        }.toMap()
+        require(fields["st"] == "urn:schemas-upnp-org:device:MediaServer:1")
+        val uri = URI(requireNotNull(fields["location"]))
+        CameraAddress.requireDescription(uri)
+        require(uri.host == packet.address.hostAddress)
+        uri
+    }.getOrNull()
+}

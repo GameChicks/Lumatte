@@ -40,7 +40,7 @@ internal suspend fun downloadCameraResource(
             // An interrupted task may already have received the last byte; fetch afresh once.
             check(!partial.exists() || partial.delete())
             validatorFile.delete()
-            connection.disconnect()
+            http.release(connection)
             return@withContext downloadCameraResource(http, resource, directory, onProgress)
         }
         if (code != 200 && code != 206) throw CameraProtocolException("下载 HTTP $code")
@@ -90,5 +90,5 @@ internal suspend fun downloadCameraResource(
         check(partial.renameTo(finished)) { "无法保存完整的传输文件" }
         validatorFile.delete()
         finished
-    } finally { connection.disconnect() }
+    } finally { http.release(connection) }
 }

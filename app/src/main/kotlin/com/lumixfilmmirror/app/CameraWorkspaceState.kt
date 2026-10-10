@@ -4,11 +4,15 @@ import com.lumixfilmmirror.camera.CameraDevice
 import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.ConnectionStep
 import com.lumixfilmmirror.camera.DownloadProgress
+import com.lumixfilmmirror.camera.DiscoveredCamera
 
 data class CameraFolder(val id: String, val title: String)
 
 data class CameraWorkspaceState(
     val device: CameraDevice? = null,
+    val connected: Boolean = false,
+    val disconnected: Boolean = false,
+    val discovered: List<DiscoveredCamera> = emptyList(),
     val step: ConnectionStep? = null,
     val folders: List<CameraFolder> = listOf(CameraFolder("0", "相机照片")),
     val entries: List<CameraMedia> = emptyList(),

@@ -42,7 +42,8 @@ class LumixCameraSession private constructor(
             CameraXml.browse(response, offset, device.contentDirectory)
         }
 
-    fun close() { http.setSession(null) }
+    fun close() { http.close() }
+    fun interrupt() { http.interrupt() }
 
     private suspend fun commandStatus(mode: String, vararg fields: Pair<String, String>): String {
         repeat(5) { attempt ->
@@ -67,13 +68,15 @@ class LumixCameraSession private constructor(
             host: String,
             clientId: String,
             clientName: String = "Lumix Film Mirror",
+            descriptionUri: URI = URI("http://$host:60606/Lumix/Server0/ddd"),
             onStep: (ConnectionStep) -> Unit = {},
         ): LumixCameraSession {
-            require(host.matches(Regex("[A-Za-z0-9.-]+"))) { "无效的相机地址" }
+            CameraAddress.requireDescription(descriptionUri)
+            require(descriptionUri.host == host)
             require(clientId.isNotBlank() && clientName.isNotBlank())
             val http = CameraHttp(network, host)
             onStep(ConnectionStep.READING_DEVICE)
-            val description = URI("http://$host:60606/Lumix/Server0/ddd")
+            val description = descriptionUri
             val device = CameraXml.device(http.text(description), description)
             http.validate(device.contentDirectory)
             onStep(ConnectionStep.REQUESTING_ACCESS)

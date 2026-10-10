@@ -1,7 +1,6 @@
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
-    <!-- Camera-host HTTP is required by the Panasonic wire protocol. Internet clients use HTTPS. -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">192.168.54.1</domain>
-    </domain-config>
+    <!-- Camera IPs are discovered at runtime; Android domain rules cannot express private subnets.
+         CameraHttp accepts only private/link-local literal addresses on a selected Wi-Fi Network.
+         Internet/LUT clients must enforce HTTPS independently. -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

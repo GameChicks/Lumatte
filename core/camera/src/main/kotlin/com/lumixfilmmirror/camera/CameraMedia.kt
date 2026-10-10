@@ -45,6 +45,14 @@ data class CameraMedia(
             ?: resources.firstOrNull { it.kind == CameraResourceKind.RAW }
     val thumbnail: CameraResource? get() = resources.firstOrNull { it.profile == "CAM_LRGTN" }
         ?: resources.firstOrNull { it.profile == "CAM_TN" }
+
+    /** A reconnect may change URLs, but reused IDs must not silently select different media. */
+    fun matchesPreviousPhoto(previous: CameraMedia): Boolean {
+        val current = editableResource ?: return false
+        val old = previous.editableResource ?: return false
+        return id == previous.id && parentId == previous.parentId && title == previous.title &&
+            current.kind == old.kind && current.originalName == old.originalName && current.bytes == old.bytes
+    }
 }
 
 data class CameraMediaPage(
@@ -59,6 +67,6 @@ data class CameraMediaPage(
     }
 }
 
-enum class ConnectionStep { READING_DEVICE, REQUESTING_ACCESS, WAITING_FOR_CAMERA_APPROVAL, READY }
+enum class ConnectionStep { REQUESTING_WIFI, DISCOVERING, READING_DEVICE, REQUESTING_ACCESS, WAITING_FOR_CAMERA_APPROVAL, READY }
 
 class CameraProtocolException(val status: String) : java.io.IOException("相机返回：$status")

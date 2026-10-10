@@ -21,20 +21,26 @@
 
 `core:camera` 独立实现设备描述、正常相机确认握手、挑战编码、内存会话头、SOAP 分页和 DIDL 资源分类。公开 API 仅包含连接、浏览初始化、浏览和下载；没有遥控拍摄、实时取景、录像或参数控制接口。
 
-`app` 接入已连接相机 Wi-Fi 的基础入口，当前使用默认地址 `192.168.54.1`。优先选择地址为 192.168.54.x 的 Wi-Fi Network；否则仅在只有一个 Wi-Fi Network 时选择。多网络歧义不自动猜测。设备描述中的 ContentDirectory controlURL 优先于固定路径。
+`app` 提供系统 Wi-Fi 设置入口、已连接网络上的相机查找、输入相机 SSID／密码后发起系统确认的连接入口。SSDP 在各 Wi-Fi Network 上发送 MediaServer M-SEARCH（MX=2），读取回应的 LOCATION；设备描述需确认 Panasonic 制造商及相机字段。无组播回应时尝试该网络的本地网关，以及 192.168.54.x 网络的默认相机地址。发现一台时进入连接，多台时交给用户选择。
+
+当前地址支持私有／链路本地 IPv4 字面量，保留 SSDP 描述地址和实际 controlURL；不再仅限 192.168.54.1。IPv6、主机名和其他设备描述结构仍待适配。SSDP 查询不执行相机命令，之后的连接仍通过相机上的正常确认流程。
 
 下载以 64 KB 流式写入私有暂存文件；有 ETag 或 Last-Modified 时使用 Range／If-Range 恢复，无校验依据时重新下载。HTTP 200 重写暂存；206 校验区间和总尺寸；完整接收才改名并交给导入器。取消保留未完成暂存与已导入照片，失败项仍选中可重试。RAW JPEG 资源保留“RAW 内嵌 JPEG”来源说明，不当作传感器数据处理。
 
-相机 HTTP 使用 [Network.openConnection](https://developer.android.com/reference/android/net/Network)，不改变整个应用的网络路由。当前网络安全配置仅允许默认相机地址明文 HTTP，其他互联网请求仍要求 HTTPS。未来加入非默认地址时需一起扩展发现、连接和网络安全配置。
+相机 HTTP 使用 [Network.openConnection](https://developer.android.com/reference/android/net/Network)，SSDP 使用绑定同一 Network 的 UDP socket，不改变整个应用的网络路由。因相机 IP 为运行时发现，Android 静态 domain 配置无法描述这些动态地址，网络安全配置允许明文；CameraHttp 在代码中限制私有／链路本地地址、当前相机同主机、禁止重定向。后续互联网／LUT 客户端必须独立强制 HTTPS，不依赖该全局明文策略。
+
+Wi-Fi 请求使用 [WifiNetworkSpecifier](https://developer.android.com/develop/connectivity/wifi/wifi-bootstrap)，会话期间持有自己的网络请求，断开后释放。界面按系统版本申请 [Wi-Fi 所需权限](https://developer.android.com/develop/connectivity/wifi/wifi-permissions)：Android 13+ 附近 Wi-Fi 设备，Android 11／12 精确定位及系统定位开关。SSID／密码只用于当前输入和连接请求，不写入应用偏好或日志。
+
+断线监听会取消正在进行的相机操作、关闭该会话的活动 HTTP 连接、保留已导入照片与待传选择。手动重连只匹配原相机 UDN（缺失时匹配描述地址和型号），重新握手并重新载入媒体资源后核对项目 ID、父目录、名称、类型及文件尺寸，恢复仍匹配的选中项；缺失或变化项明确提示。这是媒体元数据匹配，不能作为照片内容哈希证明。旧媒体地址不会跨会话直接用于重试。当前恢复只在 ViewModel 存活期间成立，不等于持久任务恢复。
 
 ## 尚未证明或尚未实现
 
 - 没有编译、运行、测试或真机验证；上述是源码实现及参考分析证据。
-- 当前入口依赖用户已连接相机 Wi-Fi；SSDP 发现、BLE 配对和系统 Wi-Fi 连接请求尚未接入。
-- 断线后需用户重新连接；后台前台服务、Room 持久队列、暂停与进程死亡恢复尚未接入。
+- BLE 配对与从蓝牙读取连接资料尚未接入；系统 Wi-Fi 入口当前支持开放网络／WPA2，其他安全类型仍可使用系统设置入口。
+- 当前重连由用户操作，未实现后台自动重连；后台前台服务、Room 持久队列、暂停与进程死亡恢复尚未接入。
 - SOAP 当前接收官方样本的转义 DIDL Result；其他结构、固件差异需后续适配。原图资源缺失时不会自动把缩略图当作原图导出。
 - RAW 提取仍只有 TIFF／RW2 标签快速路径，规划的 LibRaw 缩略图接口尚待加入。
 - 视频资源分类已保留，但当前工作台只导入可编辑照片；视频保存仍待实现。
 - 不以该第三方软件的用户反馈替代本项目的逐型号能力记录。
 
-[官方支持页](https://av.jpn.support.panasonic.com/support/global/cs/soft/lumix_sync/en/index.html) 2026-10-10 读取：现行 Sync 2.0.17；提供 APK 为 2.0.15。机型范围见 `camera-models.csv`，均未真机确认。[Android 系统 Wi-Fi 连接请求说明](https://developer.android.com/develop/connectivity/wifi/wifi-bootstrap) 作为下一步系统连接入口依据。
+[官方支持页](https://av.jpn.support.panasonic.com/support/global/cs/soft/lumix_sync/en/index.html) 2026-10-10 读取：现行 Sync 2.0.17；提供 APK 为 2.0.15。机型范围见 `camera-models.csv`，均未真机确认。

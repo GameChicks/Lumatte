@@ -2,8 +2,9 @@ package com.lumixfilmmirror.app
 
 import android.app.Application
 import android.net.Uri
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
+import android.net.Network
+import android.location.LocationManager
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lumixfilmmirror.media.ExportDestination
@@ -16,7 +17,12 @@ import com.lumixfilmmirror.camera.CameraResourceKind
 import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.ConnectionStep
 import com.lumixfilmmirror.camera.LumixCameraSession
+import com.lumixfilmmirror.camera.CameraDiscovery
+import com.lumixfilmmirror.camera.CameraWifiConnector
+import com.lumixfilmmirror.camera.CameraWifiConnection
+import com.lumixfilmmirror.camera.DiscoveredCamera
 import java.io.File
+import java.io.Closeable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
@@ -57,31 +63,117 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     val cameraState = cameraMutable.asStateFlow()
     private var cameraSession: LumixCameraSession? = null
     private var cameraJob: Job? = null
+    private val discovery = CameraDiscovery(application)
+    private var wifiConnection: CameraWifiConnection? = null
+    private var networkWatch: Closeable? = null
+    private var watchedNetwork: Network? = null
 
     fun connectCamera() = cameraOperation {
+        clearCameraSession()
+        cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.DISCOVERING)
+        findCamera()
+    }
+
+    fun connectCameraWifi(ssid: String, password: String) = cameraOperation {
+        clearCameraSession()
+        wifiConnection?.close()
+        wifiConnection = null
+        cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.REQUESTING_WIFI)
+        if (Build.VERSION.SDK_INT < 33 &&
+            getApplication<Application>().getSystemService(LocationManager::class.java)?.isLocationEnabled != true) {
+            error("当前 Android 版本需要开启系统定位后才能发起 Wi-Fi 连接；也可以先在系统设置中连接")
+        }
+        wifiConnection = CameraWifiConnector.connect(getApplication<Application>(), ssid, password, ::cameraNetworkLost)
+        cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING) }
+        findCamera()
+    }
+
+    fun chooseCamera(key: String) = cameraOperation {
+        val candidate = cameraMutable.value.discovered.firstOrNull { it.key == key } ?: error("请重新查找相机")
+        connectTarget(candidate)
+    }
+
+    fun reconnectCamera() = cameraOperation {
+        val expected = cameraMutable.value.device ?: error("请先查找相机")
+        clearCameraSession()
+        cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING, disconnected = false) }
+        val candidates = discovery.discover(wifiConnection?.let { listOf(it.network) } ?: discovery.wifiNetworks())
+        cameraMutable.update { it.copy(discovered = candidates) }
+        val candidate = candidates.firstOrNull { target ->
+            if (expected.udn.isNotBlank()) target.device.udn == expected.udn
+            else target.device.descriptionUri == expected.descriptionUri && target.device.model == expected.model
+        } ?: error("未找到原相机，请确认 Wi-Fi 连接，或使用连接入口重新连接")
+        connectTarget(candidate, restoreSelection = true)
+    }
+
+    fun cameraPermissionDenied() { cameraMutable.update { it.copy(problem = "未获得 Wi-Fi 连接权限，可在系统设置连接后查找相机") } }
+
+    private suspend fun findCamera() {
+        val candidates = discovery.discover(wifiConnection?.let { listOf(it.network) } ?: discovery.wifiNetworks())
+        cameraMutable.update { it.copy(discovered = candidates) }
+        if (candidates.isEmpty()) error("未发现相机，请开启相机的 Wi-Fi 传输功能并确认连接")
+        if (candidates.size == 1) connectTarget(candidates.single())
+    }
+
+    private suspend fun connectTarget(candidate: DiscoveredCamera, restoreSelection: Boolean = false) {
+        val previous = cameraMutable.value
+        var connected = false
+        try {
+            clearCameraSession()
+            cameraMutable.update { it.copy(disconnected = false, step = ConnectionStep.READING_DEVICE) }
+            val preferences = getApplication<Application>().getSharedPreferences("camera-client", 0)
+            val clientId = preferences.getString("client-id", null) ?: LumixCameraSession.newClientId().also {
+                preferences.edit().putString("client-id", it).apply()
+            }
+            watchedNetwork = candidate.network
+            networkWatch = CameraWifiConnector.watch(getApplication<Application>(), candidate.network) { cameraNetworkLost(candidate.network) }
+            val session = LumixCameraSession.connect(candidate.network, candidate.device.descriptionUri.host, clientId,
+                descriptionUri = candidate.device.descriptionUri) { step ->
+                cameraMutable.update { it.copy(step = step) }
+            }
+            cameraSession = session
+            session.prepareBrowsing()
+            cameraMutable.update { it.copy(device = session.device, entries = emptyList(), selectedIds = emptySet(),
+                folders = if (restoreSelection) previous.folders else listOf(CameraFolder("0", "相机照片"))) }
+            loadCameraFolder()
+            if (restoreSelection && previous.selectedIds.isNotEmpty()) {
+                // Reload the previously viewed pages before restoring IDs; never reuse stale resource URLs.
+                while (cameraMutable.value.nextOffset != null &&
+                    !cameraMutable.value.entries.map { it.id }.toSet().containsAll(previous.selectedIds)) {
+                    loadCameraFolder(append = true)
+                }
+                val previousPhotos = previous.entries.filter { it.id in previous.selectedIds }.associateBy { it.id }
+                val available = cameraMutable.value.entries.filter { entry ->
+                    previousPhotos[entry.id]?.let { entry.matchesPreviousPhoto(it) } == true
+                }.map { it.id }.toSet()
+                cameraMutable.update { it.copy(selectedIds = previous.selectedIds.intersect(available),
+                    problem = if (!available.containsAll(previous.selectedIds)) "部分待传照片缺失或信息已变化，请重新选择" else null) }
+            }
+            cameraMutable.update { it.copy(connected = true) }
+            connected = true
+        } finally {
+            if (restoreSelection && !connected) cameraMutable.update { it.copy(device = previous.device,
+                entries = previous.entries, selectedIds = previous.selectedIds, folders = previous.folders) }
+        }
+    }
+
+    private fun cameraNetworkLost(network: Network) {
+        if (network != watchedNetwork && network != wifiConnection?.network) return
+        cameraMutable.update { it.copy(connected = false, disconnected = true,
+            problem = "相机连接已断开，已传入的照片保留。重新连接后可继续传输。") }
+        cameraJob?.cancel()
+        clearCameraSession()
+        wifiConnection?.close()
+        wifiConnection = null
+    }
+
+    private fun clearCameraSession() {
+        watchedNetwork = null
+        networkWatch?.close()
+        networkWatch = null
         cameraSession?.close()
         cameraSession = null
-        cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.READING_DEVICE)
-        val manager = getApplication<Application>().getSystemService(ConnectivityManager::class.java)
-        val wifi = manager.allNetworks.filter {
-            manager.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-        }
-        val network = wifi.firstOrNull {
-            manager.getLinkProperties(it)?.linkAddresses?.any { link ->
-                link.address.hostAddress?.startsWith("192.168.54.") == true
-            } == true
-        } ?: wifi.singleOrNull() ?: error("请先在系统 Wi-Fi 中连接相机，再回来连接")
-        val preferences = getApplication<Application>().getSharedPreferences("camera-client", 0)
-        val clientId = preferences.getString("client-id", null) ?: LumixCameraSession.newClientId().also {
-            preferences.edit().putString("client-id", it).apply()
-        }
-        val session = LumixCameraSession.connect(network, "192.168.54.1", clientId) { step ->
-            cameraMutable.update { it.copy(step = step) }
-        }
-        cameraSession = session
-        cameraMutable.update { it.copy(device = session.device) }
-        session.prepareBrowsing()
-        loadCameraFolder()
+        cameraMutable.update { it.copy(connected = false) }
     }
 
     fun openCameraFolder(entry: CameraMedia) {
@@ -157,23 +249,27 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         cameraJob = viewModelScope.launch {
             try { block() }
             catch (error: CancellationException) {
-                cameraMutable.update { it.copy(problem = "操作已取消，已传入的照片保留") }
+                cameraMutable.update { if (it.disconnected) it else it.copy(problem = "操作已取消，已传入的照片保留") }
+                if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
             } catch (error: Exception) {
                 cameraMutable.update { it.copy(problem = error.message ?: "相机连接或传输失败") }
+                if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
             } finally { mutable.update { it.copy(cameraBusy = false) } }
         }
     }
 
-    fun cancelCameraOperation() { cameraJob?.cancel() }
+    fun cancelCameraOperation() { cameraJob?.cancel(); cameraSession?.interrupt() }
     fun disconnectCamera() {
         if (mutable.value.cameraBusy) return
-        cameraSession?.close()
-        cameraSession = null
+        clearCameraSession()
+        wifiConnection?.close()
+        wifiConnection = null
         cameraMutable.value = CameraWorkspaceState()
     }
 
     override fun onCleared() {
-        cameraSession?.close()
+        clearCameraSession()
+        wifiConnection?.close()
         super.onCleared()
     }
 

@@ -26,7 +26,7 @@ internal object CameraXml {
                     "service" -> service = mutableMapOf()
                     "serviceType", "controlURL" -> service?.set(name, parser.nextText().trim())
                     "URLBase" -> urlBase = URI(parser.nextText().trim())
-                    "friendlyName", "modelName", "X_FirmVersion", "UDN", "X_CamCapability" ->
+                    "manufacturer", "friendlyName", "modelName", "X_FirmVersion", "UDN", "X_CamCapability", "X_CamCategory" ->
                         values.putIfAbsent(name, parser.nextText().trim())
                 }
             } else if (parser.eventType == XmlPullParser.END_TAG && parser.name == "service") {
@@ -38,6 +38,11 @@ internal object CameraXml {
             parser.next()
         }
         require(values["modelName"]?.isNotBlank() == true) { "未读取到相机型号" }
+        require(values["manufacturer"]?.contains("Panasonic", ignoreCase = true) == true &&
+            (values.containsKey("X_CamCapability") || values.containsKey("X_CamCategory") ||
+                values.getValue("modelName").startsWith("DC-", ignoreCase = true) ||
+                values.getValue("modelName").startsWith("DMC-", ignoreCase = true) ||
+                description.path.startsWith("/Lumix/"))) { "发现的设备不是松下相机" }
         return CameraDevice(description, values["friendlyName"].orEmpty(), values.getValue("modelName"),
             values["X_FirmVersion"].orEmpty(), values["UDN"].orEmpty(),
             values["X_CamCapability"]?.endsWith("1") == true,

@@ -10,10 +10,14 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 /** Camera requests use a selected Wi-Fi Network, never bind the whole app process. */
 internal class CameraHttp(private val network: Network, val host: String) {
+    init { CameraAddress.requireLocalHost(host) }
     @Volatile private var sessionId: String? = null
+    @Volatile private var closed = false
+    private val active = ConcurrentHashMap.newKeySet<HttpURLConnection>()
 
     fun setSession(value: String?) {
         require(value == null || (value.length <= 1024 && value.none { it == '\r' || it == '\n' }))
@@ -27,6 +31,7 @@ internal class CameraHttp(private val network: Network, val host: String) {
     }
 
     fun open(uri: URI): HttpURLConnection {
+        check(!closed) { "相机会话已关闭，请重新连接" }
         validate(uri)
         return (network.openConnection(uri.toURL()) as HttpURLConnection).apply {
             instanceFollowRedirects = false
@@ -35,8 +40,18 @@ internal class CameraHttp(private val network: Network, val host: String) {
             setRequestProperty("User-Agent", "Panasonic MIL DLNA CP UPnP/1.0")
             setRequestProperty("Accept-Encoding", "identity")
             sessionId?.let { setRequestProperty("X-SESSION_ID", it) }
+            active += this
+            if (closed) { release(this); error("相机会话已关闭，请重新连接") }
         }
     }
+
+    fun release(connection: HttpURLConnection) {
+        active.remove(connection)
+        connection.disconnect()
+    }
+
+    fun interrupt() { active.toList().forEach(::release) }
+    fun close() { closed = true; setSession(null); interrupt() }
 
     suspend fun text(uri: URI, body: String? = null, headers: Map<String, String> = emptyMap()): String =
         withContext(Dispatchers.IO) {
@@ -66,7 +81,7 @@ internal class CameraHttp(private val network: Network, val host: String) {
                     }
                 }
                 output.toString(Charsets.UTF_8.name())
-            } finally { connection.disconnect() }
+            } finally { release(connection) }
         }
 
     suspend fun command(mode: String, vararg fields: Pair<String, String>): String {
