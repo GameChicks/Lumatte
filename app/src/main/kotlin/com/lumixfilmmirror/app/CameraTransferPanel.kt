@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lumixfilmmirror.camera.ConnectionStep
 import com.lumixfilmmirror.camera.CameraResourceKind
+import com.lumixfilmmirror.camera.BluetoothConnectionStep
 import com.lumixfilmmirror.design.FilmSpacing
 import com.lumixfilmmirror.design.PaperPanel
 
@@ -20,6 +21,8 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
             Text("从相机传入", style = MaterialTheme.typography.titleMedium)
             if (!camera.connected) {
                 CameraConnectControls(busy, workspace)
+                HorizontalDivider()
+                CameraBluetoothControls(camera, busy, workspace)
                 if (camera.device != null) TextButton(enabled = !busy, onClick = workspace::reconnectCamera) {
                     Text("重新连接 ${camera.device.model}")
                 }
@@ -74,6 +77,11 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
             if (cameraBusy) {
                 val caption = when {
                     camera.cacheBusy -> "正在整理传输缓存"
+                    camera.bluetoothStep == BluetoothConnectionStep.SCANNING -> "正在查找蓝牙相机 · 最多 12 秒"
+                    camera.bluetoothStep == BluetoothConnectionStep.CONNECTING -> "正在连接蓝牙相机，请在相机上确认配对"
+                    camera.bluetoothStep == BluetoothConnectionStep.READING_SERVICES -> "正在读取蓝牙连接能力"
+                    camera.bluetoothStep == BluetoothConnectionStep.IDENTIFYING -> "正在登记本应用，请在相机上确认配对"
+                    camera.bluetoothStep == BluetoothConnectionStep.READING_WIFI -> "正在读取相机 Wi-Fi 资料"
                     camera.transferTotal > 0 -> "${camera.transferPhase.caption()} · 完成 ${camera.transferred} / ${camera.transferTotal} 项"
                     camera.step == ConnectionStep.REQUESTING_WIFI -> "请在系统弹窗中确认连接"
                     camera.step == ConnectionStep.DISCOVERING -> "正在查找相机"

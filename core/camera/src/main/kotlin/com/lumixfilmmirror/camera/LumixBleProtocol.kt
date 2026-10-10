@@ -1,0 +1,62 @@
+package com.lumixfilmmirror.camera
+
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.UUID
+
+/** Connection identity and Wi-Fi information only; no camera control characteristics. */
+internal object LumixBleProtocol {
+    val service: UUID = UUID.fromString("054ac620-3214-11e6-ac0d-0002a5d5c51b")
+    val clientId: UUID = UUID.fromString("8d08a420-3213-11e6-8aca-0002a5d5c51b")
+    val friendlyName: UUID = UUID.fromString("cd7a71a0-3213-11e6-8f56-0002a5d5c51b")
+    val apsClientId: UUID = UUID.fromString("bb5d2a8c-5d3b-43ad-bfc3-470cad55c1ca")
+    val apsFriendlyName: UUID = UUID.fromString("7b61774f-efb4-44c6-a66d-c69e3b384c4a")
+    val challenge: UUID = UUID.fromString("03e23a31-a54c-40fa-a668-de9acdc910bb")
+    val ssid: UUID = UUID.fromString("e206a5c0-3214-11e6-afe4-0002a5d5c51b")
+    val password: UUID = UUID.fromString("c97cf1a5-3c03-4290-8c1b-9e74b9500f54")
+    // Exactly 16 ASCII bytes: the recovered string encoder then has no zero-padding region.
+    val appName: ByteArray get() = "Lumix FilmMirror".toByteArray(Charsets.US_ASCII)
+
+    fun identity(id: String): ByteArray {
+        val uuid = UUID.fromString(id)
+        return ByteBuffer.allocate(16).putLong(uuid.mostSignificantBits).putLong(uuid.leastSignificantBits).array()
+    }
+
+    fun challenge(bytes: ByteArray): Int {
+        require(bytes.size >= 4) { "相机返回的蓝牙连接资料不完整" }
+        return ByteBuffer.wrap(bytes).int
+    }
+
+    private fun key(challenge: Int): Int = if (challenge == 0) -1875740628 else challenge
+
+    fun encode(bytes: ByteArray, challenge: Int): ByteArray {
+        require(bytes.size <= 19)
+        val plain = ByteArray(20) { 0xff.toByte() }
+        plain[0] = bytes.size.toByte()
+        bytes.copyInto(plain, 1)
+        val input = ByteBuffer.wrap(plain).order(ByteOrder.LITTLE_ENDIAN)
+        val output = ByteBuffer.allocate(20)
+        repeat(5) { output.putInt(input.int xor key(challenge)) }
+        plain.fill(0)
+        return output.array()
+    }
+
+    fun decodePassword(bytes: ByteArray, challenge: Int): String {
+        require(bytes.isNotEmpty() && bytes.size <= 512 && bytes.size % 4 == 0) { "相机返回的 Wi-Fi 资料格式暂不支持" }
+        val input = ByteBuffer.wrap(bytes)
+        val plain = ByteBuffer.allocate(bytes.size).order(ByteOrder.LITTLE_ENDIAN)
+        while (input.hasRemaining()) plain.putInt(input.int xor key(challenge))
+        val decoded = plain.array()
+        try {
+            val end = (1 until decoded.size).firstOrNull { decoded[it] == 0xff.toByte() } ?: decoded.size
+            // The source uses byte-to-character conversion and Java trim, including NUL padding.
+            return (1 until end).joinToString("") { (decoded[it].toInt() and 255).toChar().toString() }.trim { it <= ' ' }
+        } finally { decoded.fill(0) }
+    }
+
+    fun decodeSsid(bytes: ByteArray): String {
+        val end = bytes.indexOf(0.toByte()).let { if (it < 0) bytes.size else it }
+        require(end in 1..32) { "相机返回的 Wi-Fi 名称格式暂不支持" }
+        return bytes.copyOfRange(0, end).toString(Charsets.UTF_8)
+    }
+}

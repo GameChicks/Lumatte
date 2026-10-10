@@ -32,6 +32,8 @@ class CameraController(private val application: Application) {
     private var transferJob: Job? = null
     private var pendingStop: TransferStop? = null
     private val discovery = CameraDiscovery(application)
+    private val bluetooth = CameraBluetooth(application)
+    private var bluetoothCredentials: CameraWifiCredentials? = null
     private var wifiConnection: CameraWifiConnection? = null
     private var networkWatch: Closeable? = null
     private var watchedNetwork: Network? = null
@@ -46,26 +48,79 @@ class CameraController(private val application: Application) {
     fun attachUi() { idleRelease?.cancel(); visibleClients++ }
     fun detachUi() { visibleClients = (visibleClients - 1).coerceAtLeast(0); releaseIfIdle() }
     private fun releaseIfIdle() {
-        if (visibleClients == 0 && !cameraMutable.value.busy) {
+        if (visibleClients == 0 && (!cameraMutable.value.busy || cameraMutable.value.bluetoothStep != null)) {
             idleRelease?.cancel()
             idleRelease = scope.launch {
                 delay(500) // Allow an Activity recreation to attach before releasing an idle connection.
-                if (visibleClients == 0 && !cameraMutable.value.busy) {
-                    clearCameraSession()
-                    wifiConnection?.close()
-                    wifiConnection = null
+                if (visibleClients == 0) {
+                    if (cameraMutable.value.bluetoothStep != null)
+                        cameraJob?.cancel(CancellationException("已离开连接界面，蓝牙操作已取消"))
+                    if (!cameraMutable.value.busy) {
+                        clearBluetoothCredentials()
+                        clearCameraSession()
+                        wifiConnection?.close()
+                        wifiConnection = null
+                    }
                 }
             }
         }
     }
 
     fun connectCamera() = cameraOperation {
+        clearBluetoothCredentials()
         clearCameraSession()
         cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.DISCOVERING, operationRunning = true)
         findCamera()
     }
 
     fun connectCameraWifi(ssid: String, password: String) = cameraOperation {
+        clearBluetoothCredentials()
+        connectWifi(ssid, password)
+    }
+
+    fun scanBluetoothCameras() = cameraOperation {
+        clearBluetoothCredentials()
+        cameraMutable.update { it.copy(bluetoothCameras = emptyList(), bluetoothStep = BluetoothConnectionStep.SCANNING) }
+        val cameras = bluetooth.scan { found -> cameraMutable.update { it.copy(bluetoothCameras = found) } }
+        if (cameras.isEmpty()) error("未发现可连接的蓝牙相机，请在相机菜单开启蓝牙配对，或使用 Wi-Fi 入口")
+    }
+
+    fun readBluetoothCamera(address: String) = cameraOperation {
+        val candidate = cameraMutable.value.bluetoothCameras.firstOrNull { it.address == address }
+            ?: error("请重新查找蓝牙相机")
+        clearBluetoothCredentials()
+        val credentials = bluetooth.readWifi(candidate, ownClientId()) { step ->
+            cameraMutable.update { it.copy(bluetoothStep = step) }
+        }
+        bluetoothCredentials = credentials
+        cameraMutable.update { it.copy(bluetoothWifiSsid = credentials.ssid,
+            notice = "已读取相机网络。请在相机上开启 Wi-Fi 传输，然后点击连接。") }
+    }
+
+    fun connectBluetoothWifi() = cameraOperation {
+        val credentials = bluetoothCredentials ?: error("连接资料已释放，请重新从蓝牙相机读取")
+        try { connectWifi(credentials.ssid, credentials.password()) }
+        finally { clearBluetoothCredentials() }
+    }
+
+    fun bluetoothPermissionDenied() {
+        cameraMutable.update { it.copy(problem = "未获得蓝牙权限，可以使用 Wi-Fi 入口连接相机") }
+    }
+
+    private fun clearBluetoothCredentials() {
+        bluetoothCredentials?.close()
+        bluetoothCredentials = null
+        cameraMutable.update { it.copy(bluetoothWifiSsid = null) }
+    }
+
+    private fun ownClientId(): String {
+        val preferences = application.getSharedPreferences("camera-client", 0)
+        return preferences.getString("client-id", null) ?: LumixCameraSession.newClientId().also {
+            preferences.edit().putString("client-id", it).apply()
+        }
+    }
+
+    private suspend fun connectWifi(ssid: String, password: String) {
         clearCameraSession()
         wifiConnection?.close()
         wifiConnection = null
@@ -112,10 +167,7 @@ class CameraController(private val application: Application) {
         try {
             clearCameraSession()
             cameraMutable.update { it.copy(disconnected = false, step = ConnectionStep.READING_DEVICE) }
-            val preferences = application.getSharedPreferences("camera-client", 0)
-            val clientId = preferences.getString("client-id", null) ?: LumixCameraSession.newClientId().also {
-                preferences.edit().putString("client-id", it).apply()
-            }
+            val clientId = ownClientId()
             watchedNetwork = candidate.network
             networkWatch = CameraWifiConnector.watch(application, candidate.network) { cameraNetworkLost(candidate.network) }
             val session = LumixCameraSession.connect(candidate.network, candidate.device.descriptionUri.host, clientId,
@@ -306,7 +358,7 @@ class CameraController(private val application: Application) {
 
     private fun cameraOperation(cache: Boolean = false, block: suspend () -> Unit) {
         if (cameraMutable.value.busy) return
-        cameraMutable.update { it.copy(operationRunning = true, cacheBusy = cache) }
+        cameraMutable.update { it.copy(operationRunning = true, cacheBusy = cache, bluetoothStep = null) }
         cameraMutable.update { it.copy(problem = null, notice = null, transferTotal = 0, transferred = 0, progress = null, transferPhase = null) }
         cameraJob = scope.launch {
             try { block() }
@@ -316,7 +368,7 @@ class CameraController(private val application: Application) {
             } catch (error: Exception) {
                 cameraMutable.update { it.copy(problem = error.message ?: "相机连接或传输失败") }
                 if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
-            } finally { cameraMutable.update { it.copy(operationRunning = false, cacheBusy = false) }; releaseIfIdle() }
+            } finally { cameraMutable.update { it.copy(operationRunning = false, cacheBusy = false, bluetoothStep = null) }; releaseIfIdle() }
         }
     }
 
@@ -327,6 +379,7 @@ class CameraController(private val application: Application) {
     }
     fun disconnectCamera() {
         if (cameraMutable.value.busy) return
+        clearBluetoothCredentials()
         clearCameraSession()
         wifiConnection?.close()
         wifiConnection = null

@@ -139,6 +139,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private fun withCamera(action: () -> Unit) { if (!mutable.value.busy) action() }
     fun connectCamera() = withCamera(camera::connectCamera)
     fun connectCameraWifi(ssid: String, password: String) = withCamera { camera.connectCameraWifi(ssid, password) }
+    fun scanBluetoothCameras() = withCamera(camera::scanBluetoothCameras)
+    fun readBluetoothCamera(address: String) = withCamera { camera.readBluetoothCamera(address) }
+    fun connectBluetoothWifi() = withCamera(camera::connectBluetoothWifi)
+    fun bluetoothPermissionDenied() = camera.bluetoothPermissionDenied()
     fun chooseCamera(key: String) = withCamera { camera.chooseCamera(key) }
     fun reconnectCamera() = withCamera(camera::reconnectCamera)
     fun cameraPermissionDenied() = camera.cameraPermissionDenied()
