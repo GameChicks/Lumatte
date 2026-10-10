@@ -4,6 +4,8 @@ import android.net.Network
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.net.URI
@@ -106,7 +108,7 @@ class LumixCameraSession private constructor(
         val response = http.text(device.contentDirectory, body, mapOf(
             "Content-Type" to "text/xml; charset=\"utf-8\"",
             "SOAPAction" to "urn:schemas-upnp-org:service:ContentDirectory:1#Browse"))
-        return CameraXml.browse(response, offset, device.contentDirectory)
+        return withContext(Dispatchers.Default) { CameraXml.browse(response, offset, device.contentDirectory) }
     }
 
     suspend fun thumbnail(resource: CameraResource): ByteArray = commands.withLock {

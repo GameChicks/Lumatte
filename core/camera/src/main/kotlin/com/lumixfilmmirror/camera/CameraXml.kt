@@ -158,15 +158,10 @@ internal object CameraXml {
                     }
                     "title" -> if (id != null) title = parser.nextText()
                     "res" -> if (id != null) {
-                        val info = parser.getAttributeValue(null, "protocolInfo").orEmpty().split(':', limit = 4)
-                        val properties = info.getOrNull(3).orEmpty().split(';').mapNotNull { entry ->
-                            val parts = entry.split('=', limit = 2)
-                            if (parts.size == 2) parts[0] to parts[1].trim('\'', '"') else null
-                        }.toMap()
+                        val info = CameraProtocolInfo.parse(parser.getAttributeValue(null, "protocolInfo").orEmpty())
                         val bytes = parser.getAttributeValue(null, "size")?.toLongOrNull()?.takeIf { it >= 0 }
                         val resourceUri = base.resolve(parser.nextText().trim())
-                        resources += CameraResource(resourceUri, info.getOrNull(2).orEmpty(),
-                            properties["PANASONIC.COM_PN"], properties["OriginalFileName"], bytes)
+                        resources += CameraResource(resourceUri, info.mimeType, info.profile, info.originalName, bytes)
                     }
                 }
             } else if (parser.eventType == XmlPullParser.END_TAG && parser.name in setOf("item", "container")) {

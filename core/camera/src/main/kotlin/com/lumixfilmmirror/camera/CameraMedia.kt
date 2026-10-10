@@ -1,6 +1,7 @@
 package com.lumixfilmmirror.camera
 
 import java.net.URI
+import java.util.Locale
 import com.lumixfilmmirror.model.VideoContainer
 
 data class CameraDevice(
@@ -22,26 +23,32 @@ data class CameraResource(
     val originalName: String?,
     val bytes: Long?,
 ) {
-    val kind: CameraResourceKind get() = when {
-        (profile == "CAM_ORG" && mimeType.equals("image/jpeg", true)) || profile == "CAM_HSP_JPG" -> CameraResourceKind.ORIGINAL_JPEG
-        profile in setOf("CAM_RAW_JPG", "CAM_HSP_RAW_JPG") -> CameraResourceKind.RAW_PREVIEW_JPEG
-        profile in setOf("CAM_TN", "CAM_LRGTN") -> CameraResourceKind.THUMBNAIL
-        profile in setOf("CAM_RAW", "CAM_HSP_RAW") -> CameraResourceKind.RAW
-        mimeType.startsWith("video/", true) || profile?.startsWith("CAM_AVC_") == true || profile == "CAM_FOCUS_SELECT_MP4" -> CameraResourceKind.VIDEO
-        else -> CameraResourceKind.UNKNOWN
+    private val profileName: String? get() = profile?.trim()?.uppercase(Locale.ROOT)
+    private val contentType: String get() = mimeType.substringBefore(';').trim()
+    val kind: CameraResourceKind get() {
+        val name = profileName
+        return when {
+            (name == "CAM_ORG" && contentType.equals("image/jpeg", true)) || name == "CAM_HSP_JPG" -> CameraResourceKind.ORIGINAL_JPEG
+            name in setOf("CAM_RAW_JPG", "CAM_HSP_RAW_JPG") -> CameraResourceKind.RAW_PREVIEW_JPEG
+            name in setOf("CAM_TN", "CAM_LRGTN") -> CameraResourceKind.THUMBNAIL
+            name in setOf("CAM_RAW", "CAM_HSP_RAW") -> CameraResourceKind.RAW
+            contentType.startsWith("video/", true) || name?.startsWith("CAM_AVC_") == true || name == "CAM_FOCUS_SELECT_MP4" -> CameraResourceKind.VIDEO
+            else -> CameraResourceKind.UNKNOWN
+        }
     }
 
     /** Panasonic may advertise the original video as application/octet-stream. */
     val videoContainer: VideoContainer? get() {
         if (kind != CameraResourceKind.VIDEO) return null
-        if (profile?.contains("IFRAME", true) == true) return null
+        val name = profileName
+        if (name?.contains("IFRAME") == true) return null
         return when {
-            profile?.startsWith("CAM_AVC_MOV_") == true -> VideoContainer.MOV
-            profile?.startsWith("CAM_AVC_TS_HP_") == true -> VideoContainer.MPEG_TS
-            profile?.startsWith("CAM_AVC_MP4_") == true || profile == "CAM_FOCUS_SELECT_MP4" -> VideoContainer.MP4
-            mimeType.equals("video/quicktime", true) -> VideoContainer.MOV
-            mimeType.equals("video/mp4", true) -> VideoContainer.MP4
-            mimeType.equals("video/mp2t", true) || mimeType.equals("video/vnd.dlna.mpeg-tts", true) -> VideoContainer.MPEG_TS
+            name?.startsWith("CAM_AVC_MOV_") == true -> VideoContainer.MOV
+            name?.startsWith("CAM_AVC_TS_HP_") == true -> VideoContainer.MPEG_TS
+            name?.startsWith("CAM_AVC_MP4_") == true || name == "CAM_FOCUS_SELECT_MP4" -> VideoContainer.MP4
+            contentType.equals("video/quicktime", true) -> VideoContainer.MOV
+            contentType.equals("video/mp4", true) -> VideoContainer.MP4
+            contentType.equals("video/mp2t", true) || contentType.equals("video/vnd.dlna.mpeg-tts", true) -> VideoContainer.MPEG_TS
             else -> null
         }
     }
@@ -60,12 +67,12 @@ data class CameraMedia(
             ?: resources.firstOrNull { it.kind == CameraResourceKind.RAW_PREVIEW_JPEG }
             ?: resources.firstOrNull { it.kind == CameraResourceKind.RAW }
     val thumbnailResources: List<CameraResource> get() = listOfNotNull(
-        resources.firstOrNull { it.profile == "CAM_LRGTN" },
-        resources.firstOrNull { it.profile == "CAM_TN" },
+        resources.firstOrNull { it.profile?.trim().equals("CAM_LRGTN", true) },
+        resources.firstOrNull { it.profile?.trim().equals("CAM_TN", true) },
     ).distinctBy { it.uri }
     val thumbnail: CameraResource? get() = thumbnailResources.firstOrNull()
     val videoResource: CameraResource? get() =
-        resources.firstOrNull { it.videoContainer != null && it.profile?.endsWith("_ORG") == true }
+        resources.firstOrNull { it.videoContainer != null && it.profile?.trim()?.endsWith("_ORG", true) == true }
             ?: resources.firstOrNull { it.videoContainer != null }
     val transferResource: CameraResource? get() =
         if (resources.any { it.kind == CameraResourceKind.VIDEO }) videoResource else editableResource

@@ -23,6 +23,8 @@
 
 ## 当前源码实现范围
 
+目录资源说明已补入官方解析的三段式兼容入口、标识忽略大小写以及带引号字段读取，见 [资源标识](../engineering/camera-resource-profiles.md)。仍以已知 profile 分类，不从扩展名猜测原图，不把目录兼容分支的存在当作逐机型验证。
+
 `core:camera` 独立实现设备描述、正常相机确认握手、挑战编码、内存会话头、SOAP 分页和 DIDL 资源分类。公开 API 包含连接、普通／待发送目录初始化、数量读取、浏览、下载、接收保活、单次保存确认与已连接发送模式的 BLE 事件观察；没有遥控拍摄、实时取景、录像或参数控制接口。待发送模式已接入用户发起的前台接收、持久确认及后续照片事件触发、相机通知触发的固定 SoftAP／STA 模式 1／6 初始化，以及模式／资料更新后的显式重新握手，详见 [自动传输记录](../engineering/automatic-transfer.md)、[同路由器连接](../engineering/router-wifi.md)。发送就绪后的可读地址特征可提供本次定点发现地址，见 [连接地址](../engineering/camera-connection-address.md)。各项均为源码证据。
 
 `app` 提供系统 Wi-Fi 设置入口、已连接网络上的相机查找、输入相机 SSID／安全类型／密码后发起系统确认的连接入口。多个已连接 Wi-Fi 明确选择其中一个，见 [已有网络选择](../engineering/wifi-network-selection.md)。另已接入蓝牙扫描、两种身份握手、Wi-Fi 资料读取和显式 SoftAP 传输网络启动源码，流程与证据限制见 [蓝牙连接资料](../engineering/bluetooth-connection.md)。SSDP 在所选 Wi-Fi Network 上发送 MediaServer M-SEARCH（MX=2），读取回应的 LOCATION；设备描述需确认 Panasonic 制造商及相机字段。无组播回应时尝试该网络的本地网关，以及 192.168.54.x 网络的默认相机地址。发现一台时进入连接，多台时交给用户选择。
