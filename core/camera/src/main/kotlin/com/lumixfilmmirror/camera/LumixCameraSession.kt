@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.net.URI
+import java.net.NetworkInterface
 import java.io.File
 import java.util.UUID
 
@@ -149,13 +150,15 @@ class LumixCameraSession private constructor(
             host: String,
             clientId: String,
             clientName: String = "Lumix Film Mirror",
-            descriptionUri: URI = URI("http://$host:60606/Lumix/Server0/ddd"),
+            descriptionUri: URI = CameraAddress.description(host),
+            networkInterfaceName: String? = null,
             onStep: (ConnectionStep) -> Unit = {},
         ): LumixCameraSession {
             CameraAddress.requireDescription(descriptionUri)
-            require(descriptionUri.host == host)
+            require(CameraAddress.literal(descriptionUri.host).bytes.contentEquals(CameraAddress.literal(host).bytes))
             require(clientId.isNotBlank() && clientName.isNotBlank())
-            val http = CameraHttp(network, host)
+            val selectedInterface = networkInterfaceName?.let { NetworkInterface.getByName(it) }
+            val http = CameraHttp(network, host, selectedInterface)
             onStep(ConnectionStep.READING_DEVICE)
             val description = descriptionUri
             val device = CameraXml.device(http.text(description), description)

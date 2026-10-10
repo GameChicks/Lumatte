@@ -13,12 +13,31 @@ import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLEncoder
+import java.net.NetworkInterface
+import java.net.Proxy
+import java.net.UnknownHostException
+import java.net.InetAddress
+import okhttp3.OkHttpClient
+import okhttp3.ConnectionPool
+import okhttp3.Dns
+import java.util.concurrent.TimeUnit
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 /** Camera requests use a selected Wi-Fi Network, never bind the whole app process. */
-internal class CameraHttp(private val network: Network, val host: String) {
-    init { CameraAddress.requireLocalHost(host) }
+internal class CameraHttp(private val network: Network, val host: String, private val selectedInterface: NetworkInterface? = null) {
+    private val endpoint = CameraAddress.literal(host)
+    private val address = endpoint.address(selectedInterface)
+    private val ipv6Client = if (endpoint.ipv6) OkHttpClient.Builder()
+        .socketFactory(network.socketFactory)
+        .dns(object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                if (hostname != CameraIpv6Connection.ROUTE_HOST) throw UnknownHostException("相机请求不允许 DNS 查找")
+                return listOf(address)
+            }
+        })
+        .proxy(Proxy.NO_PROXY).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
+        .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS)).build() else null
     @Volatile private var sessionId: String? = null
     @Volatile private var closed = false
     private val active = ConcurrentHashMap.newKeySet<HttpURLConnection>()
@@ -29,7 +48,10 @@ internal class CameraHttp(private val network: Network, val host: String) {
     }
 
     fun validate(uri: URI) {
-        require(uri.scheme == "http" && uri.host.equals(host, ignoreCase = true) && uri.userInfo == null) {
+        CameraAddress.requireDescription(uri)
+        val target = CameraAddress.literal(uri.host)
+        target.address(selectedInterface)
+        require(target.bytes.contentEquals(endpoint.bytes)) {
             "相机资源地址不属于当前相机"
         }
     }
@@ -37,7 +59,11 @@ internal class CameraHttp(private val network: Network, val host: String) {
     fun open(uri: URI): HttpURLConnection {
         check(!closed) { "相机会话已关闭，请重新连接" }
         validate(uri)
-        return (network.openConnection(uri.toURL()) as HttpURLConnection).apply {
+        val transport = ipv6Client?.let { client ->
+            val header = endpoint.httpHost + if (uri.port >= 0 && uri.port != 80) ":${uri.port}" else ""
+            CameraIpv6Connection(uri, client, header)
+        } ?: (network.openConnection(CameraAddress.withAuthority(uri, endpoint.httpHost).toURL()) as HttpURLConnection)
+        return transport.apply {
             instanceFollowRedirects = false
             connectTimeout = 5_000
             readTimeout = 10_000
@@ -55,7 +81,11 @@ internal class CameraHttp(private val network: Network, val host: String) {
     }
 
     fun interrupt() { active.toList().forEach(::release) }
-    fun close() { closed = true; setSession(null); interrupt() }
+    fun close() {
+        closed = true; setSession(null); interrupt()
+        ipv6Client?.dispatcher?.cancelAll()
+        ipv6Client?.connectionPool?.evictAll()
+    }
 
     /** A preview cancels its own socket, never the session's transfer/command sockets. */
     suspend fun thumbnailBytes(uri: URI, limit: Int): ByteArray = withContext(Dispatchers.IO) {
@@ -124,7 +154,7 @@ internal class CameraHttp(private val network: Network, val host: String) {
         val query = (listOf("mode" to mode) + fields).joinToString("&") { (key, value) ->
             "$key=${encode(value)}"
         }
-        return text(URI("http://$host/cam.cgi?$query"))
+        return text(URI("http://${endpoint.httpHost}/cam.cgi?$query"))
     }
 
     companion object {

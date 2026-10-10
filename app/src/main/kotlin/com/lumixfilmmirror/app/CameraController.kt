@@ -488,7 +488,7 @@ class CameraController(private val application: Application) {
             watchedNetwork = candidate.network
             networkWatch = CameraWifiConnector.watch(application, candidate.network) { cameraNetworkLost(candidate.network) }
             val session = LumixCameraSession.connect(candidate.network, candidate.device.descriptionUri.host, clientId,
-                descriptionUri = candidate.device.descriptionUri) { step ->
+                descriptionUri = candidate.device.descriptionUri, networkInterfaceName = candidate.networkInterfaceName) { step ->
                 cameraMutable.update { it.copy(step = step) }
             }
             cameraSession = session

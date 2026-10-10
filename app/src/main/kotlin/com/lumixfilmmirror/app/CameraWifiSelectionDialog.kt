@@ -22,8 +22,9 @@ fun CameraWifiSelectionDialog(selection: CameraWifiSelection, workspace: Workspa
                             modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.fillMaxWidth()) {
                                 Text("Wi-Fi ${index + 1}${if (option.isSystemDefault) " · 系统默认" else ""}")
-                                Text(if (option.localIpv4.isEmpty()) "暂未获取到本机 IPv4 地址" else
-                                    "本机地址 · ${option.localIpv4.joinToString(" / ")}",
+                                val addresses = option.localIpv4 + option.localIpv6
+                                Text(if (addresses.isEmpty()) "暂未获取到本机 IP 地址" else
+                                    "本机地址 · ${addresses.joinToString(" / ")}",
                                     style = MaterialTheme.typography.labelSmall)
                             }
                         }

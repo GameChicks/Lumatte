@@ -29,7 +29,7 @@
 
 `app` 提供系统 Wi-Fi 设置入口、已连接网络上的相机查找、输入相机 SSID／安全类型／密码后发起系统确认的连接入口。多个已连接 Wi-Fi 明确选择其中一个，见 [已有网络选择](../engineering/wifi-network-selection.md)。另已接入蓝牙扫描、两种身份握手、Wi-Fi 资料读取和显式 SoftAP 传输网络启动源码，流程与证据限制见 [蓝牙连接资料](../engineering/bluetooth-connection.md)。SSDP 在所选 Wi-Fi Network 上发送 MediaServer M-SEARCH（MX=2），读取回应的 LOCATION；设备描述需确认 Panasonic 制造商及相机字段。无组播回应时尝试该网络的本地网关，以及 192.168.54.x 网络的默认相机地址。发现一台时进入连接，多台时交给用户选择。
 
-当前地址支持私有／链路本地 IPv4 字面量，保留 SSDP 描述地址和实际 controlURL；不再仅限 192.168.54.1。IPv6、主机名和其他设备描述结构仍待适配。SSDP 查询不执行相机命令，之后的连接仍通过相机上的正常确认流程。
+当前地址源码接入私有／链路本地 IPv4 与 ULA／链路本地 IPv6 字面量，保留 SSDP 描述地址和实际 controlURL；不再仅限 192.168.54.1。IPv6 显式绑定所选接口，传输路径及尚未验证的限制见 [IPv6 记录](../engineering/camera-ipv6.md)。主机名和其他设备描述结构仍待适配。SSDP 查询不执行相机命令，之后的连接仍通过相机上的正常确认流程。
 
 下载以 64 KB 流式写入私有暂存文件；有 ETag 或 Last-Modified 时使用 Range／If-Range 恢复，无校验依据时重新下载。HTTP 200 重写暂存；206 校验区间和总尺寸；完整接收才改名并交给导入器或视频保存器。取消保留未完成暂存与已完成结果，失败项留在持久队列中可重试。RAW JPEG 资源保留“RAW 内嵌 JPEG”来源说明，不当作传感器数据处理。
 
