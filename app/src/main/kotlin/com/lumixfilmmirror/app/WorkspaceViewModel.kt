@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.lumixfilmmirror.media.ExportDestination
 import com.lumixfilmmirror.media.ImageImporter
 import com.lumixfilmmirror.media.JpegOutputWriter
+import com.lumixfilmmirror.media.JpegExportCacheSnapshot
 import com.lumixfilmmirror.media.SourceImage
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.PhotoId
@@ -37,6 +38,8 @@ data class WorkspaceState(
     val destination: ExportDestination = ExportDestination.Gallery,
     val importing: Boolean = false,
     val exporting: Boolean = false,
+    val exportCacheBusy: Boolean = false,
+    val exportCache: JpegExportCacheSnapshot? = null,
     val cameraBusy: Boolean = false,
     val recovering: Boolean = true,
     val storageFailure: String? = null,
@@ -48,7 +51,7 @@ data class WorkspaceState(
     val notice: String? = null,
 ) {
     val current: SourceImage? get() = photos.firstOrNull { it.id == selected }
-    val busy: Boolean get() = importing || exporting || cameraBusy || recovering || storageFailure != null
+    val busy: Boolean get() = importing || exporting || exportCacheBusy || cameraBusy || recovering || storageFailure != null
 }
 
 class WorkspaceViewModel(application: Application) : AndroidViewModel(application) {
@@ -83,9 +86,14 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val problems = store.initialize(importer, recoverTransfers = !camera.isTransferring)
                 val settings = store.readPreferences()
+                val cleanup = writer.cleanCache()
+                val cleanupProblems = (cleanup.problems + cleanup.remaining.problems).distinct()
+                val cleanupNotice = if (cleanup.temporaryFilesRemoved + cleanup.pendingImagesRemoved > 0)
+                    "已整理上次导出的 ${cleanup.temporaryFilesRemoved} 个中间文件、${cleanup.pendingImagesRemoved} 个未发布 JPG" else null
                 mutable.update { it.copy(output = settings.output, selected = settings.selectedId?.let(::PhotoId),
                     destination = settings.folderUri?.let { uri -> ExportDestination.Folder(Uri.parse(uri)) } ?: ExportDestination.Gallery,
-                    notice = problems.takeIf { it.isNotEmpty() }?.joinToString("\n")) }
+                    exportCache = cleanup.remaining.copy(problems = cleanupProblems),
+                    notice = (problems + listOfNotNull(cleanupNotice)).takeIf { it.isNotEmpty() }?.joinToString("\n")) }
                 observingStorage = true
                 observeStorage()
             } catch (error: CancellationException) { throw error }
@@ -171,6 +179,28 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun inspectTransferCache() = withCamera(camera::inspectTransferCache)
     fun clearTransferCache() = withCamera(camera::clearTransferCache)
 
+    fun inspectExportCache() = exportCacheOperation(clean = false)
+    fun clearExportCache() = exportCacheOperation(clean = true)
+    private fun exportCacheOperation(clean: Boolean) {
+        if (mutable.value.busy || camera.cameraState.value.busy) return
+        mutable.update { it.copy(exportCacheBusy = true) }
+        viewModelScope.launch {
+            try {
+                if (clean) {
+                    val result = writer.cleanCache()
+                    mutable.update { it.copy(exportCache = result.remaining.copy(
+                        problems = (result.problems + result.remaining.problems).distinct()),
+                        notice = "已整理 ${result.temporaryFilesRemoved} 个导出中间文件、${result.pendingImagesRemoved} 个未发布 JPG") }
+                } else {
+                    val result = writer.inspectCache()
+                    mutable.update { it.copy(exportCache = result) }
+                }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { mutable.update { it.copy(notice = error.message ?: "无法整理导出中间文件") } }
+            finally { mutable.update { it.copy(exportCacheBusy = false) } }
+        }
+    }
+
     fun importImages(uris: List<Uri>) {
         if (mutable.value.busy || camera.cameraState.value.busy || uris.isEmpty()) return
         mutable.update { it.copy(importing = true, failures = emptyList(), notice = null) }
@@ -210,22 +240,24 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         val photos = if (retryOnly) snapshot.photos.filter { it.id in retryIds } else snapshot.photos
         if (photos.isEmpty()) return
         mutable.update { it.copy(exporting = true, completed = 0, total = photos.size,
-            exported = if (retryOnly) it.exported else emptyList(), failures = emptyList(), notice = null) }
+            exported = if (retryOnly) it.exported else emptyList(), failures = emptyList(), notice = null, exportCache = null) }
         exportJob = viewModelScope.launch {
             try {
                 for (photo in photos) {
                     coroutineContext.ensureActive()
                     try {
-                        val uri = writer.write(photo, snapshot.output, snapshot.destination)
-                        mutable.update { it.copy(exported = it.exported + ExportedPhoto(photo.id, photo.name, uri)) }
+                        writer.write(photo, snapshot.output, snapshot.destination) { uri ->
+                            mutable.update { it.copy(exported = it.exported + ExportedPhoto(photo.id, photo.name, uri),
+                                completed = it.completed + 1) }
+                        }
                     } catch (error: CancellationException) { throw error }
                     catch (error: OutOfMemoryError) {
                         mutable.update { it.copy(failures = it.failures + FailedPhoto(photo.id, photo.name,
-                            "当前尺寸所需内存不足，请降低 JPG 尺寸后重试")) }
+                            "当前尺寸所需内存不足，请降低 JPG 尺寸后重试"), completed = it.completed + 1) }
                     } catch (error: Exception) {
-                        mutable.update { it.copy(failures = it.failures + FailedPhoto(photo.id, photo.name, error.message ?: "导出失败")) }
+                        mutable.update { it.copy(failures = it.failures + FailedPhoto(photo.id, photo.name, error.message ?: "导出失败"),
+                            completed = it.completed + 1) }
                     }
-                    mutable.update { it.copy(completed = it.completed + 1) }
                 }
                 mutable.update { it.copy(notice = "已保存 ${it.exported.size} 张照片") }
             } catch (error: CancellationException) {

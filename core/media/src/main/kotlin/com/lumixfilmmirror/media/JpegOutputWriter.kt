@@ -9,16 +9,20 @@ import android.graphics.ColorSpace
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.net.Uri
-import android.os.Environment
+import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
 import androidx.exifinterface.media.ExifInterface
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.PixelSize
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
 import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.coroutines.coroutineContext
@@ -31,28 +35,35 @@ sealed interface ExportDestination {
 /** Shared by local import and future camera/engine output. Default dimensions are never capped. */
 class JpegOutputWriter(context: Context) {
     private val context = context.applicationContext
-    private val temporary = File(this.context.cacheDir, "jpeg-export").apply { mkdirs() }
+    private val cache = JpegExportCache(this.context)
 
-    suspend fun write(source: SourceImage, settings: JpegOutput, destination: ExportDestination): Uri = withContext(Dispatchers.IO) {
-        val size = settings.contentSize(source.size)
-        val temp = File.createTempFile("output-", ".jpg", temporary)
-        try {
-            val pixels = decode(source, size)
+    suspend fun inspectCache(): JpegExportCacheSnapshot = cache.inspect()
+    suspend fun cleanCache(): JpegExportCleanup = cache.clean()
+
+    suspend fun write(source: SourceImage, settings: JpegOutput, destination: ExportDestination,
+        onPublished: suspend (Uri) -> Unit = {}): Uri = withContext(Dispatchers.IO) {
+        JpegExportAccess.mutex.withLock {
+            val size = settings.contentSize(source.size)
+            val temp = cache.newTemporaryFile()
             try {
-                temp.outputStream().buffered().use { output ->
-                    check(pixels.compress(Bitmap.CompressFormat.JPEG, settings.compressionQuality, output)) { "无法写入 JPG" }
+                val pixels = decode(source, size)
+                try {
+                    temp.outputStream().buffered().use { output ->
+                        check(pixels.compress(Bitmap.CompressFormat.JPEG, settings.compressionQuality, output)) { "无法写入 JPG" }
+                    }
+                } finally { pixels.recycle() }
+                coroutineContext.ensureActive()
+                writeExif(source, temp, size)
+                FileOutputStream(temp, true).use { it.fd.sync() }
+                coroutineContext.ensureActive()
+                val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))
+                val name = "LFM-$stamp-${UUID.randomUUID()}.jpg"
+                when (destination) {
+                    ExportDestination.Gallery -> publishGallery(temp, name, onPublished)
+                    is ExportDestination.Folder -> publishFolder(temp, name, destination.treeUri, onPublished)
                 }
-            } finally { pixels.recycle() }
-            coroutineContext.ensureActive()
-            writeExif(source, temp, size)
-            coroutineContext.ensureActive()
-            val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))
-            val name = "LFM-$stamp-${source.id.value.take(8)}.jpg"
-            when (destination) {
-                ExportDestination.Gallery -> publishGallery(temp, name)
-                is ExportDestination.Folder -> publishFolder(temp, name, destination.treeUri)
-            }
-        } finally { temp.delete() }
+            } finally { temp.delete() }
+        }
     }
 
     fun preview(source: SourceImage, longEdge: Int = 1280): Bitmap {
@@ -114,37 +125,82 @@ class JpegOutputWriter(context: Context) {
         context.contentResolver.openOutputStream(uri, "w")?.use { output ->
             file.inputStream().buffered().use { input ->
                 val bytes = ByteArray(64 * 1024)
+                var copied = 0L
+                val expected = file.length()
                 while (true) {
                     coroutineContext.ensureActive()
                     val count = input.read(bytes)
                     if (count < 0) break
                     output.write(bytes, 0, count)
+                    copied += count
                 }
+                check(copied == expected && expected > 0) { "JPG 副本未完整写入" }
+                output.flush()
             }
         } ?: error("无法打开导出目标")
     }
 
-    private suspend fun publishGallery(file: File, name: String): Uri {
+    private suspend fun copyGallery(file: File, uri: Uri) {
+        val descriptor = context.contentResolver.openFileDescriptor(uri, "rwt") ?: error("无法打开相册 JPG")
+        ParcelFileDescriptor.AutoCloseOutputStream(descriptor).use { output ->
+            file.inputStream().buffered().use { input ->
+                val buffer = ByteArray(64 * 1024)
+                val expected = file.length()
+                var copied = 0L
+                while (true) {
+                    coroutineContext.ensureActive()
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                    copied += count
+                }
+                check(copied == expected && expected > 0) { "相册 JPG 尚未完整" }
+                output.fd.sync()
+            }
+        }
+        val stored = context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
+        check(stored == file.length()) { "相册 JPG 尺寸不一致" }
+    }
+
+    private suspend fun publishGallery(file: File, name: String, onPublished: suspend (Uri) -> Unit): Uri {
         val resolver = context.contentResolver
-        val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val details = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/LumixFilmMirror")
+            put(MediaStore.Images.Media.RELATIVE_PATH, cache.galleryPath)
             put(MediaStore.Images.Media.IS_PENDING, 1)
         }
-        val uri = resolver.insert(collection, details) ?: error("无法创建相册文件")
+        val uri = resolver.insert(cache.collection, details) ?: error("无法创建相册文件")
         try {
-            copy(file, uri)
-            check(resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null) == 1)
+            copyGallery(file, uri)
+            coroutineContext.ensureActive()
+            // Publication and the caller's success record survive cancellation at the IO return boundary.
+            withContext(NonCancellable) {
+                check(resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null) == 1) {
+                    "无法完成相册 JPG 发布"
+                }
+                onPublished(uri)
+            }
             return uri
-        } catch (error: Throwable) { resolver.delete(uri, null, null); throw error }
+        } catch (error: Throwable) {
+            runCatching { cache.discardPending(uri, name) }.exceptionOrNull()?.let { error.addSuppressed(it) }
+            throw error
+        }
     }
 
-    private suspend fun publishFolder(file: File, name: String, tree: Uri): Uri {
+    private suspend fun publishFolder(file: File, name: String, tree: Uri, onPublished: suspend (Uri) -> Unit): Uri {
         val folder = DocumentFile.fromTreeUri(context, tree) ?: error("导出文件夹不可用")
         val target = folder.createFile("image/jpeg", name) ?: error("无法创建导出文件")
-        try { copy(file, target.uri); return target.uri }
-        catch (error: Throwable) { target.delete(); throw error }
+        var committed = false
+        try {
+            copy(file, target.uri)
+            coroutineContext.ensureActive()
+            withContext(NonCancellable) { committed = true; onPublished(target.uri) }
+            return target.uri
+        } catch (error: Throwable) {
+            if (!committed) runCatching { check(target.delete()) { "无法移除未完成的文件夹导出" } }
+                .exceptionOrNull()?.let { error.addSuppressed(it) }
+            throw error
+        }
     }
 }
