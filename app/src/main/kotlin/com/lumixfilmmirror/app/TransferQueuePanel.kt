@@ -64,6 +64,9 @@ fun TransferQueuePanel(tasks: List<TransferTask>, state: WorkspaceState, workspa
                           Text("${photo.originalName ?: photo.title} · ${transferLabel(photo.state)}",
                               style = MaterialTheme.typography.bodySmall)
                           photo.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
+                          photo.cameraAcknowledgement?.let { ack ->
+                              Text("相机：${acknowledgementLabel(ack)}", style = MaterialTheme.typography.labelSmall)
+                          }
                           if (photo.state == "SAVED" && photo.savedUri != null) TextButton(onClick = {
                               try {
                                   context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(photo.savedUri),
@@ -79,6 +82,15 @@ fun TransferQueuePanel(tasks: List<TransferTask>, state: WorkspaceState, workspa
             if (displayed.isEmpty()) Text("暂无待传任务", style = MaterialTheme.typography.bodySmall)
         }
     }
+}
+
+private fun acknowledgementLabel(state: String): String = when (state) {
+    "READY" -> "文件已保存，待核对"
+    "IN_FLIGHT" -> "等待确认响应"
+    "UNKNOWN" -> "确认响应未知，不自动重发"
+    "CONFIRMED" -> "确认成功"
+    "ADVANCED" -> "无需单独确认，或原文件已离开发送首项"
+    else -> state
 }
 
 private fun transferLabel(state: String): String = when (state) {

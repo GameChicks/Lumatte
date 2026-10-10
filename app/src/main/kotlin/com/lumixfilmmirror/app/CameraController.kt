@@ -10,7 +10,11 @@ import com.lumixfilmmirror.media.VideoPublisher
 import com.lumixfilmmirror.storage.WorkspaceStore
 import com.lumixfilmmirror.storage.completed
 import com.lumixfilmmirror.storage.terminal
+import com.lumixfilmmirror.storage.accessMode
+import com.lumixfilmmirror.storage.TransferTask
 import com.lumixfilmmirror.transfer.TransferRunner
+import com.lumixfilmmirror.transfer.IncomingTransferReceiver
+import com.lumixfilmmirror.transfer.TransferPhase
 import com.lumixfilmmirror.transfer.TransferStop
 import com.lumixfilmmirror.transfer.TransferCacheManager
 import java.io.Closeable
@@ -23,6 +27,7 @@ class CameraController(private val application: Application) {
     private val store = WorkspaceStore(application)
     private val videoPublisher = VideoPublisher(application)
     private val transferRunner = TransferRunner(store, ImageImporter(application), videoPublisher)
+    private val incomingReceiver = IncomingTransferReceiver(store, transferRunner)
     private val transferCache = TransferCacheManager(store, videoPublisher)
     private val cameraMutable = MutableStateFlow(CameraWorkspaceState())
     val cameraState = cameraMutable.asStateFlow()
@@ -269,6 +274,13 @@ class CameraController(private val application: Application) {
         requestTransfer(batchId)
     }
 
+    fun receiveIncomingPhotos() = cameraOperation {
+        val session = cameraSession ?: error("请先连接相机")
+        check(session.accessMode.incoming) { "请先在相机上进入发送模式" }
+        val receiving = store.startIncoming(session.device, session.preparedIncomingDirectory())
+        requestTransfer(receiving.id)
+    }
+
     fun resumeTransferBatch(batchId: String) = cameraOperation { requestTransfer(batchId) }
     fun cancelTransferBatch(batchId: String) = cameraOperation {
         store.stopBatch(batchId, cancel = true, reason = "已取消后续传输，已导入照片和已保存视频保留")
@@ -297,19 +309,28 @@ class CameraController(private val application: Application) {
 
     private suspend fun requestTransfer(batchId: String) {
         check(cameraMutable.value.activeTransferBatch == null) { "已有正在执行的传输" }
-        check(cameraSession?.accessMode?.incoming != true) { "待发送模式暂不执行普通队列；请结束该模式后重新连接" }
+        val incoming = store.incoming(batchId)
+        val session = cameraSession
+        if (incoming != null) {
+            check(!incoming.terminal) { "此接收记录已结束，已保存结果保留" }
+            check(session != null && incoming.belongsTo(session.device) && incoming.accessMode == session.accessMode &&
+                incoming.directoryId == session.preparedIncomingDirectory().objectId) {
+                "请连接此记录对应的相机并进入相同发送模式后继续"
+            }
+        } else check(session?.accessMode?.incoming != true) { "普通队列请在结束相机发送模式后继续" }
         val tasks = store.batch(batchId)
-        if (tasks.all { it.terminal }) {
+        if (incoming == null && tasks.all { it.terminal }) {
             cameraMutable.update { it.copy(notice = "此批没有未完成的任务") }
             return
         }
         pendingStop = null
         cameraMutable.update { it.copy(activeTransferBatch = batchId, notice = null, transferCache = null,
+            receiving = incoming != null, transferPhase = if (incoming != null) TransferPhase.RESOLVING else null,
             transferTotal = tasks.size, transferred = tasks.count { task -> task.completed }) }
         try {
             application.startForegroundService(CameraTransferService.startIntent(application, batchId))
         } catch (error: Exception) {
-            cameraMutable.update { it.copy(activeTransferBatch = null,
+            cameraMutable.update { it.copy(activeTransferBatch = null, receiving = false,
                 problem = "无法启动后台传输：${error.message ?: "请在工作台重试"}") }
         }
     }
@@ -321,11 +342,11 @@ class CameraController(private val application: Application) {
         val job = serviceScope.launch(start = CoroutineStart.LAZY) {
             try {
                 pendingStop?.let { throw it }
-                check(session?.accessMode?.incoming != true) { "待发送模式尚未接入队列执行" }
                 var currentTask: String? = null
                 var lastProgressAt = 0L
-                val result = transferRunner.run(batchId, session,
-                    onPhase = { _, phase -> cameraMutable.update { it.copy(transferPhase = phase, progress = null) } }) { task, progress ->
+                val phase: (TransferTask, TransferPhase) -> Unit =
+                    { _, value -> cameraMutable.update { it.copy(transferPhase = value, progress = null) } }
+                val progress: (TransferTask, DownloadProgress) -> Unit = { task, progress ->
                     val now = android.os.SystemClock.elapsedRealtime()
                     if (currentTask != task.id || now - lastProgressAt >= 100 || progress.bytes == progress.totalBytes) {
                         currentTask = task.id
@@ -333,6 +354,14 @@ class CameraController(private val application: Application) {
                         cameraMutable.update { it.copy(progress = progress) }
                     }
                 }
+                val result = if (store.incoming(batchId) != null) {
+                    incomingReceiver.run(batchId, requireNotNull(session) { "请连接相机后继续接收" },
+                        onCount = { count -> cameraMutable.update { it.copy(incomingCount = count,
+                            entries = if (count == 0) emptyList() else it.entries,
+                            nextOffset = if (count == 0) null else it.nextOffset,
+                            total = if (count == 0) 0 else it.total) } },
+                        onPhase = phase, onProgress = progress)
+                } else transferRunner.run(batchId, session, onPhase = phase, onProgress = progress)
                 cameraMutable.update { it.copy(notice = "本次传入 ${result.imported} 张照片、保存 ${result.savedVideos} 个视频；失败 ${result.failed} 项、待连接 ${result.waiting} 项") }
             } catch (error: CancellationException) {
                 withContext(NonCancellable) {
@@ -346,7 +375,7 @@ class CameraController(private val application: Application) {
             } finally {
                 transferJob = null
                 pendingStop = null
-                cameraMutable.update { it.copy(activeTransferBatch = null, progress = null, transferPhase = null) }
+                cameraMutable.update { it.copy(activeTransferBatch = null, receiving = false, progress = null, transferPhase = null) }
                 releaseIfIdle()
             }
         }
@@ -359,7 +388,7 @@ class CameraController(private val application: Application) {
         cameraMutable.update { it.copy(problem = message) }
         if (transferJob != null) stopTransfer(false, message)
         else {
-            cameraMutable.update { it.copy(activeTransferBatch = null, problem = message) }
+            cameraMutable.update { it.copy(activeTransferBatch = null, receiving = false, problem = message) }
             pendingStop = null
             releaseIfIdle()
         }

@@ -63,6 +63,25 @@ class LumixCameraSession private constructor(
         require(directory == incomingDirectory && directory.mode == accessMode) { "待发送目录尚未由此相机会话确认" }
     }
 
+    fun preparedIncomingDirectory(): CameraIncomingDirectory =
+        requireNotNull(incomingDirectory) { "相机发送目录尚未准备" }
+
+    /** Transfer keep-alive intentionally runs beside a streaming GET, as in the reference service. */
+    suspend fun keepTransferAlive() {
+        check(accessMode.incoming)
+        CameraXml.requireOk(commandReply("getstate", "type" to "keep_alive"))
+    }
+
+    /** One attempt only: a lost directory-level confirmation response must never be blindly retried. */
+    suspend fun confirmSavedIncoming(directory: CameraIncomingDirectory, saved: CameraMedia): Boolean = commands.withLock {
+        requireIncomingDirectory(directory)
+        check(accessMode == CameraAccessMode.MARKED_TRANSFER) { "拍后自动发送不使用 transfer 确认" }
+        val first = browseLocked(directory.objectId, 0, 1).entries.firstOrNull()
+        if (first == null || !first.matchesPreviousMedia(saved)) return@withLock false
+        CameraXml.requireOk(http.command("notify", "type" to "transfer", "value" to "ok", "value2" to directory.objectId))
+        true
+    }
+
     private suspend fun prepareRawResources(includeRaw: Boolean) {
         val status = commandStatus("setsetting", "type" to "raw_img_send",
             "value" to if (includeRaw) "enable" else "disable")
@@ -70,23 +89,25 @@ class LumixCameraSession private constructor(
     }
 
     suspend fun browse(objectId: String = "0", offset: Int = 0, count: Int = 50): CameraMediaPage =
-        commands.withLock {
-            require(offset >= 0 && count in 1..100)
-            if (accessMode.incoming) {
-                require(objectId == incomingDirectory?.objectId) { "待发送模式只读取相机指定的发送目录" }
-            }
-            val body = """<?xml version="1.0" encoding="utf-8"?>
-                <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-                <s:Body><u:Browse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1" xmlns:pana="urn:schemas-panasonic-com:pana">
-                <ObjectID>${CameraXml.escape(objectId)}</ObjectID><BrowseFlag>BrowseDirectChildren</BrowseFlag>
-                <Filter>*</Filter><StartingIndex>$offset</StartingIndex><RequestedCount>$count</RequestedCount>
-                <SortCriteria></SortCriteria><pana:X_FromCP>LumixLink2.0</pana:X_FromCP>
-                </u:Browse></s:Body></s:Envelope>""".trimIndent()
-            val response = http.text(device.contentDirectory, body, mapOf(
-                "Content-Type" to "text/xml; charset=\"utf-8\"",
-                "SOAPAction" to "urn:schemas-upnp-org:service:ContentDirectory:1#Browse"))
-            CameraXml.browse(response, offset, device.contentDirectory)
+        commands.withLock { browseLocked(objectId, offset, count) }
+
+    private suspend fun browseLocked(objectId: String, offset: Int, count: Int): CameraMediaPage {
+        require(offset >= 0 && count in 1..100)
+        if (accessMode.incoming) {
+            require(objectId == incomingDirectory?.objectId) { "待发送模式只读取相机指定的发送目录" }
         }
+        val body = """<?xml version="1.0" encoding="utf-8"?>
+            <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+            <s:Body><u:Browse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1" xmlns:pana="urn:schemas-panasonic-com:pana">
+            <ObjectID>${CameraXml.escape(objectId)}</ObjectID><BrowseFlag>BrowseDirectChildren</BrowseFlag>
+            <Filter>*</Filter><StartingIndex>$offset</StartingIndex><RequestedCount>$count</RequestedCount>
+            <SortCriteria></SortCriteria><pana:X_FromCP>LumixLink2.0</pana:X_FromCP>
+            </u:Browse></s:Body></s:Envelope>""".trimIndent()
+        val response = http.text(device.contentDirectory, body, mapOf(
+            "Content-Type" to "text/xml; charset=\"utf-8\"",
+            "SOAPAction" to "urn:schemas-upnp-org:service:ContentDirectory:1#Browse"))
+        return CameraXml.browse(response, offset, device.contentDirectory)
+    }
 
     fun close() { http.close() }
     fun interrupt() { http.interrupt() }

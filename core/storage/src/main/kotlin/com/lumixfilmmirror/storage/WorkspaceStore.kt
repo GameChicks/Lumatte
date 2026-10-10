@@ -6,6 +6,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.lumixfilmmirror.camera.CameraDevice
 import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.CameraResource
+import com.lumixfilmmirror.camera.CameraIncomingDirectory
 import com.lumixfilmmirror.media.*
 import com.lumixfilmmirror.model.*
 import kotlinx.coroutines.Dispatchers
@@ -30,9 +31,10 @@ class WorkspaceStore(context: Context) {
     private val preferences = this.context.workspacePreferences
     val photos = dao.photos().map { rows -> rows.map(::source) }
     val transfers = dao.transfers()
+    val incomingTransfers = dao.incomingTransfers()
 
     suspend fun initialize(importer: ImageImporter, recoverTransfers: Boolean = true): List<String> {
-        if (recoverTransfers) dao.recoverInterrupted()
+        if (recoverTransfers) { dao.recoverInterrupted(); dao.recoverReceivers() }
         val recovery = importer.recoverImports()
         recovery.photos.forEach { dao.savePhoto(row(it)) }
         return recovery.problems
@@ -45,10 +47,26 @@ class WorkspaceStore(context: Context) {
     suspend fun finishVideo(task: TransferTask, uri: String, bytes: Long) = dao.finishVideo(task.id, uri, bytes)
     suspend fun batch(id: String): List<TransferTask> = dao.batch(id)
     suspend fun transferSnapshot(): List<TransferTask> = dao.transferSnapshot()
+    suspend fun task(id: String): TransferTask? = dao.task(id)
+    suspend fun incoming(id: String): IncomingTransfer? = dao.incoming(id)
+    suspend fun saveIncoming(run: IncomingTransfer) = dao.saveIncomingState(run)
+    suspend fun incomingSavedTasks(run: IncomingTransfer): List<TransferTask> =
+        dao.savedIncomingTasks(run.cameraKey, run.directoryId, run.mode)
+    suspend fun startIncoming(device: CameraDevice, directory: CameraIncomingDirectory): IncomingTransfer =
+        dao.getOrCreateIncoming(IncomingTransfer(UUID.randomUUID().toString(), device.incomingKey(),
+            device.model, directory.mode.name, directory.objectId))
+    suspend fun appendIncoming(run: IncomingTransfer, device: CameraDevice, media: CameraMedia): TransferTask {
+        require(run.belongsTo(device))
+        val resource = requireNotNull(media.transferResource) { "待发送文件没有支持的原始资源" }
+        val task = TransferTask(UUID.randomUUID().toString(), run.id, 0, device.udn, device.model,
+            device.descriptionUri.toString(), media.id, media.parentId, media.title, resource.mimeType,
+            resource.profile, resource.originalName, resource.bytes, resource.uri.toString())
+        return dao.appendIncomingTask(run.id, task)
+    }
     suspend fun checkpoint(task: TransferTask, state: TransferState, bytes: Long, error: String? = null) =
         dao.checkpoint(task.id, state.name, bytes, error)
     suspend fun stopBatch(id: String, cancel: Boolean, reason: String) =
-        dao.stopBatch(id, if (cancel) "CANCELLED" else "PAUSED", reason)
+        dao.stopTransfer(id, if (cancel) "CANCELLED" else "PAUSED", reason)
 
     suspend fun enqueue(device: CameraDevice, photos: List<CameraMedia>): String {
         require(photos.isNotEmpty())

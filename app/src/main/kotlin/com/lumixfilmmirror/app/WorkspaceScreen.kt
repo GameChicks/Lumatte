@@ -40,12 +40,17 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
     val state by workspace.state.collectAsStateWithLifecycle()
     val camera by workspace.cameraState.collectAsStateWithLifecycle()
     val transfers by workspace.transferTasks.collectAsStateWithLifecycle()
+    val incoming by workspace.incomingTransfers.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val tones = LocalFilmMaterials.current
     var notificationPrompted by rememberSaveable { mutableStateOf(false) }
     var pendingTransfer by rememberSaveable { mutableStateOf<String?>(null) }
     val executeTransfer: (String) -> Unit = { target ->
-        if (target == "import") workspace.importCameraPhotos() else workspace.resumeTransferBatch(target)
+        when (target) {
+            "import" -> workspace.importCameraPhotos()
+            "receive" -> workspace.receiveIncomingPhotos()
+            else -> workspace.resumeTransferBatch(target)
+        }
     }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) workspace.notice("通知权限关闭，可在工作台查看并暂停传输")
@@ -98,7 +103,8 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                 }
             } }
             item { CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null,
-                onImport = { startTransfer("import") }, workspace = workspace) }
+                onImport = { startTransfer(if (camera.accessMode.incoming) "receive" else "import") }, workspace = workspace) }
+            if (incoming.isNotEmpty()) item { IncomingQueuePanel(incoming, transfers, state, workspace, startTransfer) }
             if (transfers.isNotEmpty()) item { TransferQueuePanel(transfers, state, workspace,
                 onResume = startTransfer) }
             if (transfers.isNotEmpty()) item { TransferCachePanel(camera, state.busy,

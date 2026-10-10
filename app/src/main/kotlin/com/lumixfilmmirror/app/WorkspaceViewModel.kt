@@ -14,6 +14,7 @@ import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.storage.WorkspaceStore
 import com.lumixfilmmirror.storage.WorkspacePreferences
 import com.lumixfilmmirror.storage.TransferTask
+import com.lumixfilmmirror.storage.IncomingTransfer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -59,6 +60,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     val state = mutable.asStateFlow()
     private val tasksMutable = MutableStateFlow<List<TransferTask>>(emptyList())
     val transferTasks = tasksMutable.asStateFlow()
+    private val incomingMutable = MutableStateFlow<List<IncomingTransfer>>(emptyList())
+    val incomingTransfers = incomingMutable.asStateFlow()
     private var restoreJob: Job? = null
     private var observingStorage = false
     private val storageObservers = mutableListOf<Job>()
@@ -114,6 +117,11 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { storageFailed(error.message ?: "无法读取传输记录") }
         }
+        storageObservers += viewModelScope.launch {
+            try { store.incomingTransfers.collect { incomingMutable.value = it } }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { storageFailed(error.message ?: "无法读取接收确认记录") }
+        }
     }
 
     private fun storageFailed(message: String) {
@@ -152,6 +160,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun refreshCameraPhotos() = withCamera(camera::refreshCameraPhotos)
     fun selectCameraPhoto(id: String) = withCamera { camera.selectCameraPhoto(id) }
     fun importCameraPhotos() = withCamera(camera::importCameraPhotos)
+    fun receiveIncomingPhotos() = withCamera(camera::receiveIncomingPhotos)
     fun resumeTransferBatch(id: String) = withCamera { camera.resumeTransferBatch(id) }
     fun cancelTransferBatch(id: String) = withCamera { camera.cancelTransferBatch(id) }
     fun pauseTransfer() = camera.stopTransfer(false, "传输已暂停，可继续未完成的任务")

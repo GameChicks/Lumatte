@@ -40,6 +40,7 @@ data class CameraWorkspaceState(
     val cacheBusy: Boolean = false,
     val transferCache: TransferCacheSnapshot? = null,
     val activeTransferBatch: String? = null,
+    val receiving: Boolean = false,
     val notice: String? = null,
 ) {
     val busy: Boolean get() = operationRunning || activeTransferBatch != null

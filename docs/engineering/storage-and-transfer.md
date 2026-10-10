@@ -49,7 +49,13 @@ files/camera-transfers/<task UUID>/complete.download
 
 `core:storage` 管理数据库与设置；`core:transfer` 管理顺序执行和文件提交；`core:camera` 只管理协议与网络；`core:media` 管理 JPEG 导入、完成记录及原视频保存。研究资料不加入构建。
 
-Room 当前数据库版本为 2，1 → 2 仅新增可为空的 `savedUri` 列，保留照片及队列。未启用破坏性迁移。已配置 schema 导出目录 `core/storage/schemas`，但各版本都未运行编译，因此尚无生成的 schema JSON；首次获准编译后保留真实生成的当前版本文件，不伪造历史 schema。[迁移 API 依据](https://developer.android.com/training/data-storage/room/migrating-db-versions)
+Room 当前数据库版本为 3。1 → 2 新增可为空的 `savedUri` 列；2 → 3 新增 `incoming_transfers` 接收记录表及 `transfers.cameraAcknowledgement` 可空列，保留照片、原队列和已保存 URI。未启用破坏性迁移。已配置 schema 导出目录 `core/storage/schemas`，但各版本都未运行编译，因此尚无生成的 schema JSON；首次获准编译后保留真实生成的当前版本文件，不伪造历史 schema。[迁移 API 依据](https://developer.android.com/training/data-storage/room/migrating-db-versions)
+
+## 待发送接收记录
+
+待发送接收有独立的轮次记录，UUID 同时作为文件任务的 batchId。每次登记目录首项，并在同一事务里绑定当前任务 ID；单项保存仍使用已有的照片／视频提交流程。相机确认状态同事务写入轮次及当前文件，旧文件的确认状态不随下一项登记而丢失。文件完成不等于相机确认完成；即使本批文件全部标记 IMPORTED／SAVED，接收记录仍可显示待确认、响应未知或暂停。
+
+恢复将 IN_FLIGHT 确认改为 UNKNOWN，不自动重发目录级确认。继续核对只对尚在首项的同一文件保留歧义；原文件已不再为首项时记录目录前进，但不虚构确认成功。停止接收保留已保存文件及确认历史，不自动退出相机发送模式。完整流程及限制见 [待发送接收](automatic-transfer.md)。
 
 ## 原视频保存与恢复
 
@@ -95,4 +101,4 @@ MediaStore 与 Room 无法共用事务。为覆盖“相册已创建，但 URI �
 
 服务使用 `START_NOT_STICKY`。任务从最近列表移走时允许当前前台服务继续；系统终止进程、强制停止或网络断开时保留未完成任务，不能保证系统限制下无限后台运行。服务销毁与超时入口暂停任务；若进程没有机会执行清理，下次启动恢复遗留 RUNNING／PUBLISHING 状态。已导入照片和已保存视频继续保留。
 
-剩余工作包括自动传输、BLE 配对、特殊视频资源适配、导出临时文件及其他缓存生命周期、持久导出／显影队列，以及逐机型兼容性。当前实现不证明缓存清理、视频保存、后台传输、进程恢复、断点续传或任何相机型号已通过实际验证。
+剩余工作包括 BLE 拍后自动触发与更多配对差异、特殊视频资源适配、导出临时文件及其他缓存生命周期、持久导出／显影队列，以及逐机型兼容性。当前实现不证明缓存清理、视频保存、待发送接收、后台传输、进程恢复、断点续传或任何相机型号已通过实际验证。

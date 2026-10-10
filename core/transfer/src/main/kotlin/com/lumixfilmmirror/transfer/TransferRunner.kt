@@ -17,7 +17,7 @@ import java.io.File
 
 class TransferStop(val cancelRemaining: Boolean, message: String) : CancellationException(message)
 data class TransferResult(val imported: Int, val failed: Int, val waiting: Int, val savedVideos: Int)
-enum class TransferPhase { RESOLVING, DOWNLOADING, IMPORTING_PHOTO, SAVING_VIDEO }
+enum class TransferPhase { RESOLVING, DOWNLOADING, IMPORTING_PHOTO, SAVING_VIDEO, CONFIRMING_CAMERA }
 
 /** One runner owns a batch. Files and queue state survive its process; network/session objects do not. */
 class TransferRunner(private val store: WorkspaceStore, private val importer: ImageImporter,
@@ -25,7 +25,36 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
     suspend fun run(batchId: String, session: LumixCameraSession?,
         onPhase: (TransferTask, TransferPhase) -> Unit = { _, _ -> },
         onProgress: (TransferTask, DownloadProgress) -> Unit = {}): TransferResult {
-        val tasks = store.batch(batchId).filter { !it.terminal }
+        check(store.incoming(batchId) == null && session?.accessMode?.incoming != true) {
+            "待发送任务必须通过接收器执行，不能跳过相机确认记录"
+        }
+        return execute(batchId, session, null, null, onPhase, onProgress)
+    }
+
+    suspend fun runIncomingItem(run: IncomingTransfer, task: TransferTask, session: LumixCameraSession,
+        onPhase: (TransferTask, TransferPhase) -> Unit,
+        onProgress: (TransferTask, DownloadProgress) -> Unit): TransferResult {
+        val directory = session.preparedIncomingDirectory()
+        require(run.belongsTo(session.device) && run.accessMode == session.accessMode &&
+            run.directoryId == directory.objectId && task.batchId == run.id && run.currentTaskId == task.id)
+        return execute(run.id, session, task.id, directory.objectId, onPhase, onProgress)
+    }
+
+    suspend fun requireSavedResult(task: TransferTask) {
+        check(task.completed) { "文件尚未保存" }
+        val format = task.expectedMedia().transferResource?.videoContainer
+        if (format == null) {
+            val photo = requireNotNull(store.source(task.id)) { "已保存照片记录缺失" }
+            require(withContext(Dispatchers.IO) { photo.jpeg.isFile && photo.jpeg.length() > 0 }) { "已保存照片副本缺失" }
+        } else require(videoPublisher.published(task.id, format, task.savedUri, task.bytesReceived) != null) {
+            "已保存视频暂不可访问，未发送相机确认"
+        }
+    }
+
+    private suspend fun execute(batchId: String, session: LumixCameraSession?, onlyTaskId: String?,
+        receivingObjectId: String?, onPhase: (TransferTask, TransferPhase) -> Unit,
+        onProgress: (TransferTask, DownloadProgress) -> Unit): TransferResult {
+        val tasks = store.batch(batchId).filter { !it.terminal && (onlyTaskId == null || it.id == onlyTaskId) }
         val resolved = mutableMapOf<String, Map<String, CameraMedia>>()
         var imported = 0
         var failed = 0
@@ -69,7 +98,8 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
                         }
                         onPhase(task, TransferPhase.RESOLVING)
                         val candidates = resolved[task.parentId] ?: run {
-                            resolveFolder(session, tasks.filter { it.parentId == task.parentId }).also { resolved[task.parentId] = it }
+                            resolveFolder(session, tasks.filter { it.parentId == task.parentId },
+                                receivingObjectId ?: task.parentId).also { resolved[task.parentId] = it }
                         }
                         val media = candidates[task.itemId]
                         require(media != null && media.matchesPreviousMedia(task.expectedMedia())) { "相机中的媒体缺失或已变化，请重新选择" }
@@ -121,13 +151,13 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
         return TransferResult(imported, failed, waiting, savedVideos)
     }
 
-    private suspend fun resolveFolder(session: LumixCameraSession, tasks: List<TransferTask>): Map<String, CameraMedia> {
+    private suspend fun resolveFolder(session: LumixCameraSession, tasks: List<TransferTask>, objectId: String): Map<String, CameraMedia> {
         val wanted = tasks.map { it.itemId }.toSet()
         val found = mutableMapOf<String, CameraMedia>()
         var offset = 0
         var updateId: String? = null
         while (true) {
-            val page = session.browse(tasks.first().parentId, offset)
+            val page = session.browse(objectId, offset)
             if (offset != 0) require(page.updateId == updateId) { "相机列表在读取时发生变化，请刷新后重试" }
             updateId = page.updateId
             page.entries.filter { it.id in wanted }.forEach { found[it.id] = it }

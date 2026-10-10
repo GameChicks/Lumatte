@@ -113,10 +113,11 @@ class CameraTransferService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val detail = if (state.transferTotal > 0) "${state.transferPhase.caption()} · 已完成 ${state.transferred} / ${state.transferTotal} 项" else "正在准备传输"
+        val detail = if (state.receiving) "${state.transferPhase.caption()} · 已保存 ${state.transferred} 项 · 待发送 ${state.incomingCount ?: 0} 项"
+            else if (state.transferTotal > 0) "${state.transferPhase.caption()} · 已完成 ${state.transferred} / ${state.transferTotal} 项" else "正在准备传输"
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_transfer_notification)
-            .setContentTitle("Lumix Film Mirror · 相机传输")
+            .setContentTitle(if (state.receiving) "Lumix Film Mirror · 相机待发接收" else "Lumix Film Mirror · 相机传输")
             .setContentText(detail)
             .setSubText(state.device?.model)
             .setContentIntent(open)
@@ -124,7 +125,7 @@ class CameraTransferService : Service() {
             .setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_PROGRESS)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
-            .setProgress(state.transferTotal.coerceAtLeast(1), state.transferred, state.transferTotal == 0)
+            .setProgress(state.transferTotal.coerceAtLeast(1), state.transferred, state.receiving || state.transferTotal == 0)
             .addAction(Notification.Action.Builder(null, "暂停", action(PAUSE, 1)).build())
             .addAction(Notification.Action.Builder(null, "取消余下", action(CANCEL, 2)).build())
             .build()

@@ -39,7 +39,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 if (camera.accessMode.incoming) {
                     Text(if (camera.accessMode == CameraAccessMode.AUTO_UPLOAD) "相机已进入拍后自动发送模式"
                         else "相机已进入选定文件发送模式", style = MaterialTheme.typography.titleSmall)
-                    Text("当前可以查看待发送目录；自动接收和传输确认尚在接入。要传入照片，请在相机上结束此模式，然后重新连接使用普通传输。",
+                    Text("接收相机当前待发送的文件；目录清空后结束本轮。后续新照片可再发起接收。",
                         style = MaterialTheme.typography.bodySmall)
                     camera.incomingCount?.let { Text("相机报告待发送 $it 项", style = MaterialTheme.typography.labelSmall) }
                 }
@@ -80,6 +80,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 if (!camera.accessMode.incoming) Button(enabled = !busy && camera.selectedIds.isNotEmpty(), onClick = onImport) {
                     Text("传入选中文件 · ${camera.selectedIds.size} 项")
                 }
+                if (camera.accessMode.incoming) Button(enabled = !busy, onClick = onImport) { Text("接收待发送文件") }
                 if (!camera.accessMode.incoming) Text("照片进入工作台；视频直接保存到 Movies/LumixFilmMirror，保持原文件内容。",
                     style = MaterialTheme.typography.labelSmall)
             }
@@ -92,6 +93,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                     camera.bluetoothStep == BluetoothConnectionStep.IDENTIFYING -> "正在登记本应用，请在相机上确认配对"
                     camera.bluetoothStep == BluetoothConnectionStep.READING_WIFI -> "正在读取相机 Wi-Fi 资料"
                     camera.bluetoothStep == BluetoothConnectionStep.STARTING_WIFI -> "正在启动相机的传输 Wi-Fi"
+                    camera.receiving -> "${camera.transferPhase.caption()} · 已保存 ${camera.transferred} 项 · 待发送 ${camera.incomingCount ?: 0} 项"
                     camera.transferTotal > 0 -> "${camera.transferPhase.caption()} · 完成 ${camera.transferred} / ${camera.transferTotal} 项"
                     camera.step == ConnectionStep.REQUESTING_WIFI -> "请在系统弹窗中确认连接"
                     camera.step == ConnectionStep.DISCOVERING -> "正在查找相机"
