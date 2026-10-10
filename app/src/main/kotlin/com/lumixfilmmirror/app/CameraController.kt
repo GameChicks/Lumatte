@@ -132,11 +132,12 @@ class CameraController(private val application: Application) {
     fun connectBluetoothRouterWifi(routerSsid: String) = cameraOperation {
         val target = bluetoothTarget ?: error("请重新查找蓝牙相机")
         check(bluetoothCredentials?.canStartRouterWifi == true) { "请重新读取相机连接资料" }
-        val network = selectRouterNetwork(routerSsid)
+        val router = CameraRouterSsid.parse(routerSsid)
+        val network = selectRouterNetwork()
         clearSendingReconnect()
         prepareRouterNetwork(network)
         try {
-            bluetooth.withRouterWifi(target, ownClientId(), routerSsid,
+            bluetooth.withRouterWifi(target, ownClientId(), router,
                 onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) {
                 discoverRouterCamera(network, target, routerSsid, routerSsid, canObserve = false,
                     expectedMode = CameraAccessMode.BROWSING)
@@ -152,11 +153,12 @@ class CameraController(private val application: Application) {
         check(bluetoothCredentials?.let { it.canStartRouterWifi && it.canObserveIncoming } == true) {
             "请重新读取相机连接资料，或使用直连发送入口"
         }
-        val network = selectRouterNetwork(routerSsid)
+        val router = CameraRouterSsid.parse(routerSsid)
+        val network = selectRouterNetwork()
         clearSendingReconnect()
         prepareRouterNetwork(network)
         try {
-            bluetooth.withRouterSendingWifi(target, ownClientId(), routerSsid,
+            bluetooth.withRouterSendingWifi(target, ownClientId(), router,
                 onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh, mode, address ->
                 discoverRouterCamera(network, target, routerSsid, fresh.ssid, fresh.canObserveIncoming, mode,
                     address = address)
@@ -169,12 +171,9 @@ class CameraController(private val application: Application) {
         }
     }
 
-    private fun selectRouterNetwork(routerSsid: String): Network {
-        // Validate before any network changes or BLE writes. Do not silently choose
-        // between concurrent Wi-Fi networks, or pretend this input is the OS SSID.
-        check(routerSsid.isNotBlank() && routerSsid.length <= 32 && routerSsid.all { it.code in 32..126 }) {
-            "当前入口支持 1–32 位英文、数字或符号的路由器 Wi-Fi 名称"
-        }
+    private fun selectRouterNetwork(): Network {
+        // Do not silently choose between concurrent Wi-Fi networks, or pretend
+        // the user-entered router name is an SSID read from Android.
         val networks = discovery.wifiNetworks()
         check(networks.size == 1) { "请在系统设置连接一个路由器 Wi-Fi；多个 Wi-Fi 网络时请使用手动查找入口" }
         return networks.single()
@@ -245,9 +244,10 @@ class CameraController(private val application: Application) {
         try {
             val routerSsid = pending.routerSsid
             if (routerSsid != null) {
-                val network = selectRouterNetwork(routerSsid)
+                val router = CameraRouterSsid.parse(routerSsid)
+                val network = selectRouterNetwork()
                 prepareRouterNetwork(network)
-                bluetooth.withRouterSendingWifi(pending.camera, ownClientId(), routerSsid,
+                bluetooth.withRouterSendingWifi(pending.camera, ownClientId(), router,
                     onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } },
                     reconnect = pending.request) { fresh, mode, address ->
                     discoverRouterCamera(network, pending.camera, routerSsid, fresh.ssid, fresh.canObserveIncoming,

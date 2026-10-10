@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.lumixfilmmirror.camera.CameraRouterSsid
 
 @Composable
 fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspace: WorkspaceViewModel) {
@@ -24,6 +25,11 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
     var pendingSending by rememberSaveable { mutableStateOf(false) }
     // Router SSID is an optional input, not a password or a value read from Android.
     var routerSsid by remember { mutableStateOf("") }
+    val routerError = remember(routerSsid) {
+        if (routerSsid.isEmpty()) null
+        else runCatching { CameraRouterSsid.parse(routerSsid) }.exceptionOrNull()?.message
+    }
+    val routerValid = routerSsid.isNotBlank() && routerError == null
     var pendingRouter by remember { mutableStateOf(false) }
     var pendingRouterSending by remember { mutableStateOf(false) }
     val wifiPermissions = if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES)
@@ -118,15 +124,15 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
                 Text("先在手机系统设置连接路由器，并在相机上保存该网络。输入与手机当前 Wi-Fi 相同的名称；此入口用于浏览和下载。",
                     style = MaterialTheme.typography.labelSmall)
                 OutlinedTextField(value = routerSsid, onValueChange = { routerSsid = it }, enabled = !busy,
-                    singleLine = true, label = { Text("路由器 Wi-Fi 名称") },
-                    supportingText = { Text("当前支持英文、数字和符号；密码在相机上设置。") })
-                TextButton(enabled = !busy && routerSsid.isNotBlank(), onClick = { connectRouter(false) }) {
+                    singleLine = true, isError = routerError != null, label = { Text("路由器 Wi-Fi 名称") },
+                    supportingText = { Text(routerError ?: "${routerSsid.toByteArray(Charsets.UTF_8).size}/32 字节 · 可输入中文，保留空格和大小写；密码在相机上设置。") })
+                TextButton(enabled = !busy && routerValid, onClick = { connectRouter(false) }) {
                     Text("让相机连接此路由器")
                 }
                 if (camera.bluetoothCanStartSendingWifi) {
                     Text("需要拍后或选定发送时，先点下方入口；提示等待后再在相机上开启发送。等待最多 90 秒。",
                         style = MaterialTheme.typography.labelSmall)
-                    TextButton(enabled = !busy && routerSsid.isNotBlank(), onClick = { connectRouter(true) }) {
+                    TextButton(enabled = !busy && routerValid, onClick = { connectRouter(true) }) {
                         Text("通过此路由器等待相机发送")
                     }
                 }

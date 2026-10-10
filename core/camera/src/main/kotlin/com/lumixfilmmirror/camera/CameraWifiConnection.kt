@@ -31,7 +31,7 @@ object CameraWifiConnector {
 
     suspend fun connect(context: Context, ssid: String, password: String,
         onLost: (Network) -> Unit): CameraWifiConnection {
-        require(ssid.isNotBlank() && ssid.toByteArray(Charsets.UTF_8).size <= 32) { "请输入相机显示的 Wi-Fi 名称" }
+        CameraSsidCodec.validate(ssid)
         require(password.isEmpty() || (password.length in 8..63 && password.all { it.code in 32..126 })) {
             "Wi-Fi 密码需要 8–63 位英文字符、数字或符号，请按相机屏幕输入"
         }

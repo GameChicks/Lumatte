@@ -65,20 +65,9 @@ internal object LumixBleProtocol {
         } finally { decoded.fill(0) }
     }
 
-    fun decodeSsid(bytes: ByteArray): String {
-        val end = bytes.indexOf(0.toByte()).let { if (it < 0) bytes.size else it }
-        require(end in 1..32) { "相机返回的 Wi-Fi 名称格式暂不支持" }
-        return bytes.copyOfRange(0, end).toString(Charsets.UTF_8)
-    }
+    fun decodeSsid(bytes: ByteArray): String = CameraSsidCodec.decode(bytes)
 
-    // The recovered encoder pads 32 characters before getBytes(). Limit this first
-    // STA path to ASCII so character count and the characteristic byte count agree.
-    fun routerSsid(value: String): ByteArray {
-        require(value.isNotBlank() && value.length <= 32 && value.all { it.code in 32..126 }) {
-            "当前路由器连接入口支持 1–32 位英文、数字或符号的 Wi-Fi 名称；其他名称请在相机上手动连接后查找"
-        }
-        return value.toByteArray(Charsets.US_ASCII).copyOf(32)
-    }
+    fun routerSsid(value: CameraRouterSsid): ByteArray = value.bluetoothBytes()
 
     fun decodeConnectionAddress(bytes: ByteArray): CameraConnectionAddress {
         require(bytes.isNotEmpty() && bytes.size <= 64 && bytes.all { (it.toInt() and 255) <= 127 }) {

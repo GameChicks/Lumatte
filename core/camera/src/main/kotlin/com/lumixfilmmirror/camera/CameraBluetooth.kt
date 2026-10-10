@@ -92,7 +92,7 @@ class CameraBluetooth(private val context: Context) {
     }
 
     /** Existing router credentials belong to the camera. Only its SSID is sent. */
-    suspend fun <T> withRouterWifi(camera: BluetoothCamera, clientId: String, routerSsid: String,
+    suspend fun <T> withRouterWifi(camera: BluetoothCamera, clientId: String, routerSsid: CameraRouterSsid,
         onStep: (BluetoothConnectionStep) -> Unit, block: suspend () -> T): T {
         val bytes = LumixBleProtocol.routerSsid(routerSsid)
         try {
@@ -107,7 +107,7 @@ class CameraBluetooth(private val context: Context) {
     }
 
     /** Sending mode is obtained from a current camera event or its captured reconnect request. */
-    suspend fun <T> withRouterSendingWifi(camera: BluetoothCamera, clientId: String, routerSsid: String,
+    suspend fun <T> withRouterSendingWifi(camera: BluetoothCamera, clientId: String, routerSsid: CameraRouterSsid,
         onStep: (BluetoothConnectionStep) -> Unit, reconnect: CameraSendingReconnectRequest? = null,
         block: suspend (CameraWifiCredentials, CameraAccessMode, CameraConnectionAddress?) -> T): T {
         val bytes = LumixBleProtocol.routerSsid(routerSsid)
@@ -434,8 +434,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
         write(protocol.connectionMode, byteArrayOf(3))
     }
     suspend fun startRouterWifi(ssid: ByteArray) {
-        check(canStartRouterWifi() && ssid.size == 32)
-        prepareRouterMtu()
+        check(canStartRouterWifi() && ssid.size in 32..64)
+        prepareRouterMtu(ssid.size)
         val protocol = LumixBleProtocol
         routerStartup.set(true)
         startupActive.set(true)
@@ -445,11 +445,12 @@ private class ConnectionGatt(private val context: Context, private val device: B
         write(protocol.wifiConnectionType, byteArrayOf(2), protocol.wifiService)
         write(protocol.connectionMode, byteArrayOf(3))
     }
-    private suspend fun prepareRouterMtu() {
-        // Do not silently truncate the fixed 32-byte SSID on the default ATT MTU.
+    private suspend fun prepareRouterMtu(payloadSize: Int) {
+        // The recovered character-padding rule can make UTF-8 payloads exceed 32 bytes.
+        require(payloadSize in 32..64)
         mutex.withLock {
-            check(requireGatt().requestMtu(64)) { "无法协商路由器连接资料长度，请使用手动连接入口" }
-            check(await(Kind.MTU).mtu >= 35) { "相机蓝牙资料长度不足，请在相机上手动连接路由器" }
+            check(requireGatt().requestMtu(maxOf(64, payloadSize + 3))) { "无法协商路由器连接资料长度，请使用手动连接入口" }
+            check(await(Kind.MTU).mtu >= payloadSize + 3) { "相机蓝牙资料长度不足，请在相机上手动连接路由器" }
         }
     }
     private suspend fun requestRouterChoice(ssid: ByteArray) {
@@ -473,8 +474,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
         reconnect: CameraSendingReconnectRequest? = null, routerSsid: ByteArray? = null): CameraAccessMode {
         check(canStartTransferWifi() && canObserveIncoming()) { "相机发送启动暂不支持，请使用 Wi-Fi 入口" }
         if (routerSsid != null) {
-            check(canStartRouterWifi() && routerSsid.size == 32) { "此相机的路由器发送启动暂不支持" }
-            prepareRouterMtu()
+            check(canStartRouterWifi() && routerSsid.size in 32..64) { "此相机的路由器发送启动暂不支持" }
+            prepareRouterMtu(routerSsid.size)
             routerStartup.set(true)
         }
         val protocol = LumixBleProtocol
