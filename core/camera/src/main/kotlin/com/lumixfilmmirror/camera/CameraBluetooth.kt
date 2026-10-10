@@ -106,6 +106,26 @@ class CameraBluetooth(private val context: Context) {
         } finally { bytes.fill(0) }
     }
 
+    /** Sending mode is obtained from a current camera event or its captured reconnect request. */
+    suspend fun <T> withRouterSendingWifi(camera: BluetoothCamera, clientId: String, routerSsid: String,
+        onStep: (BluetoothConnectionStep) -> Unit, reconnect: CameraSendingReconnectRequest? = null,
+        block: suspend (CameraWifiCredentials, CameraAccessMode) -> T): T {
+        val bytes = LumixBleProtocol.routerSsid(routerSsid)
+        try {
+            return withConnection(camera, onStep) { session ->
+                val credentials = identifyAndRead(session, clientId, onStep)
+                try {
+                    check(credentials.canStartRouterWifi && credentials.canObserveIncoming) {
+                        "此相机缺少路由器发送能力，请使用直连或手动连接入口"
+                    }
+                    credentials.close() // STA uses no camera access-point password.
+                    val mode = session.startSendingWifi(onStep, reconnect, bytes)
+                    session.sendingHandoff { block(credentials, mode) }
+                } finally { credentials.close() }
+            }
+        } finally { bytes.fill(0) }
+    }
+
     /** An already established sending Wi-Fi session only. No mode or Wi-Fi startup writes. */
     suspend fun <T> withIncomingEvents(camera: BluetoothCamera, clientId: String, expectedSsid: String,
         mode: CameraAccessMode, onStep: (BluetoothConnectionStep) -> Unit,
@@ -408,21 +428,31 @@ private class ConnectionGatt(private val context: Context, private val device: B
     }
     suspend fun startRouterWifi(ssid: ByteArray) {
         check(canStartRouterWifi() && ssid.size == 32)
-        // Do not silently truncate the fixed 32-byte SSID on the default ATT MTU.
-        mutex.withLock {
-            check(requireGatt().requestMtu(64)) { "无法协商路由器连接资料长度，请使用手动连接入口" }
-            check(await(Kind.MTU).mtu >= 35) { "相机蓝牙资料长度不足，请在相机上手动连接路由器" }
-        }
+        prepareRouterMtu()
         val protocol = LumixBleProtocol
         routerStartup.set(true)
         startupActive.set(true)
         subscribe(protocol.wifiChoiceReply, protocol.wifiService)
         subscribe(protocol.connectionStatus, protocol.service)
+        requestRouterChoice(ssid)
+        write(protocol.wifiConnectionType, byteArrayOf(2), protocol.wifiService)
+        write(protocol.connectionMode, byteArrayOf(3))
+    }
+    private suspend fun prepareRouterMtu() {
+        // Do not silently truncate the fixed 32-byte SSID on the default ATT MTU.
+        mutex.withLock {
+            check(requireGatt().requestMtu(64)) { "无法协商路由器连接资料长度，请使用手动连接入口" }
+            check(await(Kind.MTU).mtu >= 35) { "相机蓝牙资料长度不足，请在相机上手动连接路由器" }
+        }
+    }
+    private suspend fun requestRouterChoice(ssid: ByteArray) {
+        val protocol = LumixBleProtocol
         routerChoicePending.set(true)
         write(protocol.routerSsid, ssid, protocol.wifiService)
         try {
             withTimeout(20_000L) {
                 select<Unit> {
+                    if (sendingStartupActive.get()) incomingEvents.ended.onAwait { throw it }
                     startupRejected.onAwait { throw it }
                     routerAccepted.onAwait { }
                 }
@@ -431,12 +461,15 @@ private class ConnectionGatt(private val context: Context, private val device: B
             currentCoroutineContext().ensureActive()
             error("相机未确认路由器，请检查相机保存的网络名称和密码后重试")
         }
-        write(protocol.wifiConnectionType, byteArrayOf(2), protocol.wifiService)
-        write(protocol.connectionMode, byteArrayOf(3))
     }
     suspend fun startSendingWifi(onStep: (BluetoothConnectionStep) -> Unit,
-        reconnect: CameraSendingReconnectRequest? = null): CameraAccessMode {
+        reconnect: CameraSendingReconnectRequest? = null, routerSsid: ByteArray? = null): CameraAccessMode {
         check(canStartTransferWifi() && canObserveIncoming()) { "相机发送启动暂不支持，请使用 Wi-Fi 入口" }
+        if (routerSsid != null) {
+            check(canStartRouterWifi() && routerSsid.size == 32) { "此相机的路由器发送启动暂不支持" }
+            prepareRouterMtu()
+            routerStartup.set(true)
+        }
         val protocol = LumixBleProtocol
         startupActive.set(true)
         sendingStartupActive.set(true)
@@ -462,7 +495,11 @@ private class ConnectionGatt(private val context: Context, private val device: B
         }
         ensureSendingActive()
         onStep(BluetoothConnectionStep.STARTING_WIFI)
-        write(protocol.wifiConnectionType, byteArrayOf(1), protocol.wifiService)
+        if (routerSsid != null) {
+            requestRouterChoice(routerSsid)
+            ensureSendingActive()
+            write(protocol.wifiConnectionType, byteArrayOf(2), protocol.wifiService)
+        } else write(protocol.wifiConnectionType, byteArrayOf(1), protocol.wifiService)
         ensureSendingActive()
         val command = when (mode) {
             CameraAccessMode.AUTO_UPLOAD -> byteArrayOf(1)

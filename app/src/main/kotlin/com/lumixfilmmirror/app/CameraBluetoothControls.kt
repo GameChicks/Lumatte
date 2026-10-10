@@ -25,17 +25,33 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
     // Router SSID is an optional input, not a password or a value read from Android.
     var routerSsid by remember { mutableStateOf("") }
     var pendingRouter by remember { mutableStateOf(false) }
+    var pendingRouterSending by remember { mutableStateOf(false) }
     val wifiPermissions = if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES)
     else arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
     val bluetoothLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         val required = if (Build.VERSION.SDK_INT >= 31) bluetoothPermissions.toList()
             else listOf(Manifest.permission.ACCESS_FINE_LOCATION)
         val router = pendingRouter
+        val routerSending = pendingRouterSending
         pendingRouter = false
+        pendingRouterSending = false
         if (required.all { permission -> context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED }) {
-            if (router) workspace.connectBluetoothRouterWifi(routerSsid) else workspace.scanBluetoothCameras()
+            if (router) {
+                if (routerSending) workspace.connectBluetoothRouterSendingWifi(routerSsid)
+                else workspace.connectBluetoothRouterWifi(routerSsid)
+            } else workspace.scanBluetoothCameras()
         }
         else workspace.bluetoothPermissionDenied()
+    }
+    fun connectRouter(sending: Boolean) {
+        if (bluetoothPermissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
+            if (sending) workspace.connectBluetoothRouterSendingWifi(routerSsid)
+            else workspace.connectBluetoothRouterWifi(routerSsid)
+        } else {
+            pendingRouter = true
+            pendingRouterSending = sending
+            bluetoothLauncher.launch(bluetoothPermissions)
+        }
     }
     val wifiLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         val required = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
@@ -104,11 +120,16 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
                 OutlinedTextField(value = routerSsid, onValueChange = { routerSsid = it }, enabled = !busy,
                     singleLine = true, label = { Text("路由器 Wi-Fi 名称") },
                     supportingText = { Text("当前支持英文、数字和符号；密码在相机上设置。") })
-                TextButton(enabled = !busy && routerSsid.isNotBlank(), onClick = {
-                    if (bluetoothPermissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
-                        workspace.connectBluetoothRouterWifi(routerSsid)
-                    else { pendingRouter = true; bluetoothLauncher.launch(bluetoothPermissions) }
-                }) { Text("让相机连接此路由器") }
+                TextButton(enabled = !busy && routerSsid.isNotBlank(), onClick = { connectRouter(false) }) {
+                    Text("让相机连接此路由器")
+                }
+                if (camera.bluetoothCanStartSendingWifi) {
+                    Text("需要拍后或选定发送时，先点下方入口；提示等待后再在相机上开启发送。等待最多 90 秒。",
+                        style = MaterialTheme.typography.labelSmall)
+                    TextButton(enabled = !busy && routerSsid.isNotBlank(), onClick = { connectRouter(true) }) {
+                        Text("通过此路由器等待相机发送")
+                    }
+                }
             }
         }
     }

@@ -160,6 +160,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun connectBluetoothWifi(startOnCamera: Boolean = false) = withCamera { camera.connectBluetoothWifi(startOnCamera) }
     fun connectBluetoothSendingWifi() = withCamera(camera::connectBluetoothSendingWifi)
     fun connectBluetoothRouterWifi(ssid: String) = withCamera { camera.connectBluetoothRouterWifi(ssid) }
+    fun connectBluetoothRouterSendingWifi(ssid: String) = withCamera { camera.connectBluetoothRouterSendingWifi(ssid) }
     fun reconnectSendingCamera() = withCamera(camera::reconnectSendingCamera)
     fun bluetoothPermissionDenied() = camera.bluetoothPermissionDenied()
     fun chooseCamera(key: String) = withCamera { camera.chooseCamera(key) }
