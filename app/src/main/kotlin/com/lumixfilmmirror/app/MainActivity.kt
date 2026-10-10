@@ -8,6 +8,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lumixfilmmirror.design.FilmMirrorTheme
 
 class MainActivity : ComponentActivity() {
+    private val camera get() = (application as FilmMirrorApplication).camera
+
+    override fun onStart() { super.onStart(); camera.attachUi() }
+    override fun onStop() { camera.detachUi(); super.onStop() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

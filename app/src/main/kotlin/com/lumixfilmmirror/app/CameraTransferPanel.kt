@@ -14,7 +14,7 @@ import com.lumixfilmmirror.design.PaperPanel
 
 @Composable
 fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy: Boolean,
-    transferring: Boolean, workspace: WorkspaceViewModel) {
+    transferring: Boolean, onImport: () -> Unit, workspace: WorkspaceViewModel) {
     PaperPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("从相机传入", style = MaterialTheme.typography.titleMedium)
@@ -63,7 +63,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 }
                 Text("已载入 ${camera.entries.size} / ${camera.total} 项", style = MaterialTheme.typography.labelSmall)
                 if (camera.nextOffset != null) TextButton(enabled = !busy, onClick = workspace::loadMoreCameraPhotos) { Text("加载更多") }
-                Button(enabled = !busy && camera.selectedIds.isNotEmpty(), onClick = workspace::importCameraPhotos) {
+                Button(enabled = !busy && camera.selectedIds.isNotEmpty(), onClick = onImport) {
                     Text("传入选中照片 · ${camera.selectedIds.size} 张")
                 }
             }
@@ -91,6 +91,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 }
             }
             camera.problem?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            camera.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
     }
 }

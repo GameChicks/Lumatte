@@ -14,7 +14,8 @@ import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun TransferQueuePanel(tasks: List<TransferTask>, state: WorkspaceState, workspace: WorkspaceViewModel) {
+fun TransferQueuePanel(tasks: List<TransferTask>, state: WorkspaceState, workspace: WorkspaceViewModel,
+    onResume: (String) -> Unit) {
     val batches = tasks.groupBy { it.batchId }.entries.sortedByDescending { it.value.first().createdAt }
     var showHistory by remember { mutableStateOf(false) }
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
@@ -22,7 +23,7 @@ fun TransferQueuePanel(tasks: List<TransferTask>, state: WorkspaceState, workspa
     PaperPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("传输队列", style = MaterialTheme.typography.titleMedium)
-            Text("暂停或退出后保留记录；重新连接相机后可继续。已下载的照片可直接完成导入。",
+            Text("切到后台后由传输服务继续；暂停或进程结束后保留记录。已下载的照片可直接完成导入。",
                 style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = { showHistory = !showHistory }) { Text(if (showHistory) "隐藏已完成记录" else "显示已完成记录") }
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -38,7 +39,7 @@ fun TransferQueuePanel(tasks: List<TransferTask>, state: WorkspaceState, workspa
                         Text("已传入 $imported / ${photos.size} 张 · 失败 $failed 张", style = MaterialTheme.typography.bodySmall)
                         Row {
                             if (pending > 0 && !active) {
-                                TextButton(enabled = !state.busy, onClick = { workspace.resumeTransferBatch(id) }) { Text("继续／重试") }
+                                TextButton(enabled = !state.busy, onClick = { onResume(id) }) { Text("继续／重试") }
                                 TextButton(enabled = !state.busy, onClick = { workspace.cancelTransferBatch(id) }) { Text("取消余下任务") }
                             }
                             if (active) TextButton(onClick = workspace::pauseTransfer) { Text("暂停") }

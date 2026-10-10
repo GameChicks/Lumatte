@@ -1,6 +1,9 @@
 package com.lumixfilmmirror.app
 
 import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
@@ -38,6 +42,25 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
     val transfers by workspace.transferTasks.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val tones = LocalFilmMaterials.current
+    var notificationPrompted by rememberSaveable { mutableStateOf(false) }
+    var pendingTransfer by rememberSaveable { mutableStateOf<String?>(null) }
+    val executeTransfer: (String) -> Unit = { target ->
+        if (target == "import") workspace.importCameraPhotos() else workspace.resumeTransferBatch(target)
+    }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) workspace.notice("通知权限关闭，可在工作台查看并暂停传输")
+        val target = pendingTransfer
+        pendingTransfer = null
+        target?.let(executeTransfer)
+    }
+    val startTransfer: (String) -> Unit = { target ->
+        if (Build.VERSION.SDK_INT >= 33 && !notificationPrompted &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            notificationPrompted = true
+            pendingTransfer = target
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else executeTransfer(target)
+    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { workspace.importImages(it) }
     val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
@@ -74,8 +97,10 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                     TextButton(enabled = !state.recovering, onClick = workspace::restoreWorkspace) { Text("重试恢复") }
                 }
             } }
-            item { CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null, workspace) }
-            if (transfers.isNotEmpty()) item { TransferQueuePanel(transfers, state, workspace) }
+            item { CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null,
+                onImport = { startTransfer("import") }, workspace = workspace) }
+            if (transfers.isNotEmpty()) item { TransferQueuePanel(transfers, state, workspace,
+                onResume = startTransfer) }
             item {
                 PaperPanel(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(12.dp)) {

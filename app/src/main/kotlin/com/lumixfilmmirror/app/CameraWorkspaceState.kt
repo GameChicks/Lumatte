@@ -24,4 +24,9 @@ data class CameraWorkspaceState(
     val transferred: Int = 0,
     val transferTotal: Int = 0,
     val problem: String? = null,
-)
+    val operationRunning: Boolean = false,
+    val activeTransferBatch: String? = null,
+    val notice: String? = null,
+) {
+    val busy: Boolean get() = operationRunning || activeTransferBatch != null
+}
