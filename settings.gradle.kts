@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "LumixFilmMirror"
-include(":core:model", ":core:design")
+include(":app", ":core:model", ":core:design", ":core:media", ":core:camera")

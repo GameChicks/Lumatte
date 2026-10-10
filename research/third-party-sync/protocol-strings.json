@@ -1,0 +1,87 @@
+{
+  "entry": "lib/arm64-v8a/libapp.so",
+  "entrySha256": "22882a63133af2f2774ea97f7296567ce2626a34b42bdf311c01907e591075c5",
+  "evidence": "Printable constants only; not recovered Dart source or verified behavior",
+  "matches": [
+    {
+      "offset": 147613,
+      "text": "</StartingIndex>"
+    },
+    {
+      "offset": 147630,
+      "text": "      <RequestedCount>"
+    },
+    {
+      "offset": 213220,
+      "text": "/Server0/CDS_control"
+    },
+    {
+      "offset": 240167,
+      "text": "X-SESSION_ID"
+    },
+    {
+      "offset": 242623,
+      "text": "CAM_RAW_JPG"
+    },
+    {
+      "offset": 246810,
+      "text": "/cam.cgi"
+    },
+    {
+      "offset": 255876,
+      "text": "CAM_RAW"
+    },
+    {
+      "offset": 264213,
+      "text": "    <u:Browse xmlns:u=\"urn:schemas-upnp-org:service:ContentDirectory:1\" xmlns:pana=\"urn:schemas-panasonic-com:pana\">"
+    },
+    {
+      "offset": 293291,
+      "text": "</RequestedCount>"
+    },
+    {
+      "offset": 293345,
+      "text": "      <pana:X_FromCP>LumixLink2.0</pana:X_FromCP>"
+    },
+    {
+      "offset": 304696,
+      "text": "CAM_ORG"
+    },
+    {
+      "offset": 325940,
+      "text": "urn:schemas-upnp-org:service:ContentDirectory:1#Browse"
+    },
+    {
+      "offset": 327264,
+      "text": "req_acc_e"
+    },
+    {
+      "offset": 332995,
+      "text": ":60606/Lumix/Server0/ddd"
+    },
+    {
+      "offset": 343525,
+      "text": "req_acc"
+    },
+    {
+      "offset": 357105,
+      "text": "      <BrowseFlag>BrowseDirectChildren</BrowseFlag>"
+    },
+    {
+      "offset": 357182,
+      "text": "      <StartingIndex>"
+    },
+    {
+      "offset": 403974,
+      "text": "req_acc_g"
+    },
+    {
+      "offset": 406666,
+      "text": "?mode=accctrl&type=req_acc_g"
+    },
+    {
+      "offset": 439587,
+      "text": "raw_img_send"
+    }
+  ]
+}

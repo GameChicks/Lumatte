@@ -29,11 +29,23 @@ data class BatchExportOptions(
 )
 
 data class FrameOptions(
-    val presetId: String = "none",
+    val preset: FramePreset = FramePreset.NONE,
     val borderFraction: Float = .045f,
     val signature: String = "",
     val showPhotoMetadata: Boolean = true,
     val fixedColorArgb: Int? = null,
+    val ratio: FrameRatio = FrameRatio.ORIGINAL,
+    val title: String? = null,
+    val subtitle: String? = null,
+    val footer: String? = null,
+    val titleFont: FrameFont? = null,
+    val subtitleFont: FrameFont? = null,
+    val footerFont: FrameFont? = null,
+    val signatureFont: FrameFont = FrameFont.SCRIPT,
+    val filmBrand: String = "LUMIX",
+    val filmName: String = "FILM MIRROR",
+    val filmNotes: String = "NOTES",
+    val roll120: Boolean = false,
 )
 
 sealed interface InputOrigin {

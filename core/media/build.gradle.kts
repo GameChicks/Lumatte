@@ -1,0 +1,22 @@
+plugins {
+    id("com.android.library")
+    kotlin("android")
+}
+android {
+    namespace = "com.lumixfilmmirror.media"
+    compileSdk = 36
+    defaultConfig { minSdk = 30 }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+kotlin { jvmToolchain(17) }
+dependencies {
+    api(project(":core:model"))
+    implementation("androidx.exifinterface:exifinterface:1.4.2")
+    implementation("androidx.palette:palette-ktx:1.0.0")
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.documentfile:documentfile:1.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+}

@@ -9,7 +9,13 @@ local.properties
 tools/.cache/
 research/filmtool/raw/
 research/filmtool/decompiled/
+research/lumix-sync/raw/
+research/lumix-sync/decompiled/
+research/lumix-lab/raw/
+research/lumix-lab/decompiled/
 artifacts/
 __pycache__/
 *.pyc
 .idea/
+research/third-party-sync/decompiled/
+research/third-party-sync/raw/
