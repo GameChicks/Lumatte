@@ -22,6 +22,6 @@
 
 RAW 导入先尝试 TIFF／RW2 JPEG 标签，再使用固定 LibRaw 的 JPEG 预览接口补充；仅提取内嵌 JPEG，不显影传感器数据。原生源码和构建配置已接入，尚未编译或以真实 RAW 验证，详见 [RAW 预览记录](docs/engineering/raw-preview.md)。
 
-蓝牙查找、旧／APS 身份握手及 Wi-Fi 资料读取已加入工作台源码。读到的密码只临时用于连接；当前需在相机上开启 Wi-Fi，再通过系统确认进入传输。真实配对及机型差异尚未验证，见 [蓝牙连接记录](docs/engineering/bluetooth-connection.md)。
+蓝牙查找、旧／APS 身份握手、Wi-Fi 资料读取及显式启动传输网络已加入工作台源码。读到的密码只临时用于连接；按实际特征显示蓝牙启动入口，也保留在相机上手动开启 Wi-Fi 后连接。真实配对及机型差异尚未验证，见 [蓝牙连接记录](docs/engineering/bluetooth-connection.md)。
 
 新应用代码采用 [GNU GPLv3](LICENSE)，许可正文来自 [GNU gnulib 的 COPYINGv3](https://github.com/coreutils/gnulib/blob/master/doc/COPYINGv3)。第三方依赖和恢复素材按各自的来源、COPYRIGHT 与许可清单管理，不由应用许可替代。

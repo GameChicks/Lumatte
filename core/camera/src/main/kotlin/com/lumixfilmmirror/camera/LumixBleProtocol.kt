@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
 
-/** Connection identity and Wi-Fi information only; no camera control characteristics. */
+/** Identity, Wi-Fi information and ordinary transfer connection only. */
 internal object LumixBleProtocol {
     val service: UUID = UUID.fromString("054ac620-3214-11e6-ac0d-0002a5d5c51b")
     val clientId: UUID = UUID.fromString("8d08a420-3213-11e6-8aca-0002a5d5c51b")
@@ -14,6 +14,12 @@ internal object LumixBleProtocol {
     val challenge: UUID = UUID.fromString("03e23a31-a54c-40fa-a668-de9acdc910bb")
     val ssid: UUID = UUID.fromString("e206a5c0-3214-11e6-afe4-0002a5d5c51b")
     val password: UUID = UUID.fromString("c97cf1a5-3c03-4290-8c1b-9e74b9500f54")
+    val wifiService: UUID = UUID.fromString("5ae57260-3214-11e6-979e-0002a5d5c51b")
+    val wifiConnectionType: UUID = UUID.fromString("0d6f1880-3217-11e6-a4cb-0002a5d5c51b")
+    val wifiChoiceReply: UUID = UUID.fromString("18345be1-3217-11e6-b56c-0002a5d5c51b")
+    val connectionMode: UUID = UUID.fromString("e182ec40-3213-11e6-ab07-0002a5d5c51b")
+    val connectionStatus: UUID = UUID.fromString("e182ec41-3213-11e6-ab07-0002a5d5c51b")
+    val cccd: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     // Exactly 16 ASCII bytes: the recovered string encoder then has no zero-padding region.
     val appName: ByteArray get() = "Lumix FilmMirror".toByteArray(Charsets.US_ASCII)
 

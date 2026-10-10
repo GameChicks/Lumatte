@@ -34,6 +34,7 @@ class CameraController(private val application: Application) {
     private val discovery = CameraDiscovery(application)
     private val bluetooth = CameraBluetooth(application)
     private var bluetoothCredentials: CameraWifiCredentials? = null
+    private var bluetoothTarget: BluetoothCamera? = null
     private var wifiConnection: CameraWifiConnection? = null
     private var networkWatch: Closeable? = null
     private var watchedNetwork: Network? = null
@@ -93,13 +94,23 @@ class CameraController(private val application: Application) {
             cameraMutable.update { it.copy(bluetoothStep = step) }
         }
         bluetoothCredentials = credentials
-        cameraMutable.update { it.copy(bluetoothWifiSsid = credentials.ssid,
-            notice = "已读取相机网络。请在相机上开启 Wi-Fi 传输，然后点击连接。") }
+        bluetoothTarget = candidate
+        cameraMutable.update { it.copy(bluetoothWifiSsid = credentials.ssid, bluetoothCanStartWifi = credentials.canStartTransferWifi,
+            notice = if (credentials.canStartTransferWifi) "已读取相机网络，可以启动传输 Wi-Fi 后连接。"
+                else "已读取相机网络。请在相机上开启 Wi-Fi 传输，然后点击连接。") }
     }
 
-    fun connectBluetoothWifi() = cameraOperation {
+    fun connectBluetoothWifi(startOnCamera: Boolean = false) = cameraOperation {
         val credentials = bluetoothCredentials ?: error("连接资料已释放，请重新从蓝牙相机读取")
-        try { connectWifi(credentials.ssid, credentials.password()) }
+        try {
+            if (startOnCamera) {
+                val target = bluetoothTarget ?: error("请重新查找蓝牙相机")
+                bluetooth.withTransferWifi(target, ownClientId(), credentials.ssid,
+                    onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh ->
+                    connectWifi(fresh.ssid, fresh.password())
+                }
+            } else connectWifi(credentials.ssid, credentials.password())
+        }
         finally { clearBluetoothCredentials() }
     }
 
@@ -110,7 +121,8 @@ class CameraController(private val application: Application) {
     private fun clearBluetoothCredentials() {
         bluetoothCredentials?.close()
         bluetoothCredentials = null
-        cameraMutable.update { it.copy(bluetoothWifiSsid = null) }
+        bluetoothTarget = null
+        cameraMutable.update { it.copy(bluetoothWifiSsid = null, bluetoothCanStartWifi = false) }
     }
 
     private fun ownClientId(): String {
