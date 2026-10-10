@@ -1,6 +1,7 @@
 package com.lumixfilmmirror.camera
 
 import java.net.URI
+import com.lumixfilmmirror.model.VideoContainer
 
 data class CameraDevice(
     val descriptionUri: URI,
@@ -22,12 +23,27 @@ data class CameraResource(
     val bytes: Long?,
 ) {
     val kind: CameraResourceKind get() = when {
-        (profile == "CAM_ORG" && mimeType == "image/jpeg") || profile == "CAM_HSP_JPG" -> CameraResourceKind.ORIGINAL_JPEG
+        (profile == "CAM_ORG" && mimeType.equals("image/jpeg", true)) || profile == "CAM_HSP_JPG" -> CameraResourceKind.ORIGINAL_JPEG
         profile in setOf("CAM_RAW_JPG", "CAM_HSP_RAW_JPG") -> CameraResourceKind.RAW_PREVIEW_JPEG
         profile in setOf("CAM_TN", "CAM_LRGTN") -> CameraResourceKind.THUMBNAIL
         profile in setOf("CAM_RAW", "CAM_HSP_RAW") -> CameraResourceKind.RAW
-        mimeType.startsWith("video/") || profile?.startsWith("CAM_AVC_") == true -> CameraResourceKind.VIDEO
+        mimeType.startsWith("video/", true) || profile?.startsWith("CAM_AVC_") == true || profile == "CAM_FOCUS_SELECT_MP4" -> CameraResourceKind.VIDEO
         else -> CameraResourceKind.UNKNOWN
+    }
+
+    /** Panasonic may advertise the original video as application/octet-stream. */
+    val videoContainer: VideoContainer? get() {
+        if (kind != CameraResourceKind.VIDEO) return null
+        if (profile?.contains("IFRAME", true) == true) return null
+        return when {
+            profile?.startsWith("CAM_AVC_MOV_") == true -> VideoContainer.MOV
+            profile?.startsWith("CAM_AVC_TS_HP_") == true -> VideoContainer.MPEG_TS
+            profile?.startsWith("CAM_AVC_MP4_") == true || profile == "CAM_FOCUS_SELECT_MP4" -> VideoContainer.MP4
+            mimeType.equals("video/quicktime", true) -> VideoContainer.MOV
+            mimeType.equals("video/mp4", true) -> VideoContainer.MP4
+            mimeType.equals("video/mp2t", true) || mimeType.equals("video/vnd.dlna.mpeg-tts", true) -> VideoContainer.MPEG_TS
+            else -> null
+        }
     }
 }
 
@@ -45,13 +61,29 @@ data class CameraMedia(
             ?: resources.firstOrNull { it.kind == CameraResourceKind.RAW }
     val thumbnail: CameraResource? get() = resources.firstOrNull { it.profile == "CAM_LRGTN" }
         ?: resources.firstOrNull { it.profile == "CAM_TN" }
+    val videoResource: CameraResource? get() =
+        resources.firstOrNull { it.videoContainer != null && it.profile?.endsWith("_ORG") == true }
+            ?: resources.firstOrNull { it.videoContainer != null }
+    val transferResource: CameraResource? get() =
+        if (resources.any { it.kind == CameraResourceKind.VIDEO }) videoResource else editableResource
 
     /** A reconnect may change URLs, but reused IDs must not silently select different media. */
     fun matchesPreviousPhoto(previous: CameraMedia): Boolean {
         val current = editableResource ?: return false
         val old = previous.editableResource ?: return false
+        return matchesResource(previous, current, old)
+    }
+
+    fun matchesPreviousMedia(previous: CameraMedia): Boolean {
+        val current = transferResource ?: return false
+        val old = previous.transferResource ?: return false
+        return matchesResource(previous, current, old)
+    }
+
+    private fun matchesResource(previous: CameraMedia, current: CameraResource, old: CameraResource): Boolean {
         return id == previous.id && parentId == previous.parentId && title == previous.title &&
-            current.kind == old.kind && current.originalName == old.originalName && current.bytes == old.bytes
+            current.kind == old.kind && current.videoContainer == old.videoContainer &&
+            current.originalName == old.originalName && current.bytes == old.bytes
     }
 }
 

@@ -4,7 +4,7 @@
 
 ## 数据归属
 
-- Room `film-mirror-workspace.db`：照片目录、原始 EXIF 文本、稳定照片顺序、传输批次与各项状态。
+- Room `film-mirror-workspace.db`：照片目录、原始 EXIF 文本、稳定照片顺序、传输批次与各项状态，以及视频保存目标 URI。
 - DataStore `workspace-settings`：JPG 尺寸百分比、压缩质量、导出目录 URI、当前照片 ID。默认 100%／95／系统相册。
 - 原图只读。仅应用私有目录保存输入副本、下载中间文件及内嵌 JPEG；不读取其他应用的数据库、密码、签名或身份。
 - 相机 UDN、型号、目录对象 ID 和资源描述保存在队列中，用于重连核对。会话令牌、Wi-Fi 密码、系统 Network 对象不保存。
@@ -31,13 +31,15 @@ files/camera-transfers/<task UUID>/complete.download
 |---|---|
 | QUEUED | 待执行 |
 | RUNNING | 正在下载，进度最多每 500 ms 写入一次 |
-| DOWNLOADED | 完整文件已落盘，待导入 |
+| DOWNLOADED | 完整文件已落盘，待导入照片或保存视频 |
+| PUBLISHING | 视频正在写入系统相册，目标 URI 已保存 |
 | PAUSED | 用户暂停、网络断开或上次进程中断，可继续 |
 | FAILED | 保留原因和文件，继续／重试只处理未完成项 |
 | IMPORTED | 照片目录已提交，后续不重复导入 |
-| CANCELLED | 用户取消余下任务，已导入照片不受影响 |
+| SAVED | 原视频已发布到系统相册，后续不重复复制 |
+| CANCELLED | 用户取消余下任务，已导入照片和已保存视频不受影响 |
 
-暂停保留部分下载和任务。取消结束本批尚未完成的任务，包括失败项；不撤销已导入照片，也不自动删除可恢复文件。启动把遗留 RUNNING 状态改成 PAUSED，不自动连接相机。
+暂停保留部分下载和任务。取消结束本批尚未完成的任务，包括失败项；不撤销已导入照片或已保存视频，也不自动删除可恢复文件。启动把遗留 RUNNING／PUBLISHING 状态改成 PAUSED，不自动连接相机。
 
 重新连接后按 UDN 核对相机，重新读取目录并核对对象 ID、名称、父目录、资源类型和已知文件长度。下载使用新会话及最新资源地址。HTTP Range 仅在服务器返回 ETag／Last-Modified 时启用；没有验证标记或资源地址变化时重新下载，不拼接不确定的旧片段。
 
@@ -45,9 +47,23 @@ files/camera-transfers/<task UUID>/complete.download
 
 ## 模块与迁移
 
-`core:storage` 管理数据库与设置；`core:transfer` 管理顺序执行和文件提交；`core:camera` 只管理协议与网络；`core:media` 管理 JPEG 导入与完成记录。研究资料不加入构建。
+`core:storage` 管理数据库与设置；`core:transfer` 管理顺序执行和文件提交；`core:camera` 只管理协议与网络；`core:media` 管理 JPEG 导入、完成记录及原视频保存。研究资料不加入构建。
 
-Room 初始数据库版本为 1，未启用破坏性迁移。已配置 schema 导出目录 `core/storage/schemas`，但未运行编译，因此尚无生成的 schema JSON；首次获准编译后应保留真实生成文件，后续结构升级必须提供明确迁移。
+Room 当前数据库版本为 2，1 → 2 仅新增可为空的 `savedUri` 列，保留照片及队列。未启用破坏性迁移。已配置 schema 导出目录 `core/storage/schemas`，但各版本都未运行编译，因此尚无生成的 schema JSON；首次获准编译后保留真实生成的当前版本文件，不伪造历史 schema。[迁移 API 依据](https://developer.android.com/training/data-storage/room/migrating-db-versions)
+
+## 原视频保存与恢复
+
+视频沿用同一持久队列和前台服务，但不创建照片目录记录。相机广告资源按 MIME 与 Panasonic profile 共同识别 MP4、MOV 和 AVCHD／TS，不从文件名猜测陌生格式，也不下载 IFRAME 独立资源替代完整视频。
+
+64 KB 流式复制到系统相册 `Movies/LumixFilmMirror`，不解码、不改尺寸、不转码，保持下载文件的字节内容。JPG 尺寸、胶片配方和画框均不作用于视频。手机是否能播放具体编码由播放器和设备决定，保存成功不等于播放兼容。
+
+发布先创建 `IS_PENDING=1` 的本应用视频记录，再将目标 URI 与完整字节数写入任务。复制并同步文件后，核对文件长度，再设置 `IS_PENDING=0`；随后在不可取消的提交段中标记 SAVED，避免刚发布就被取消操作标成未完成。下载副本仅在确认提交后清理。
+
+MediaStore 与 Room 无法共用事务。为覆盖“相册已创建，但 URI 还未写入 Room”的中断位置，文件名使用任务完整 UUID：`LFM-<task UUID>.mp4/mov/mts`。继续时按已存 URI，或本应用拥有的同名、同目录记录查找。未完成记录可重写；已发布文件长度匹配则补记完成，不再复制，已发布但不匹配的文件不覆盖。原相机文件名仍保存在队列并显示在界面。
+
+查询只针对本应用记录，可包含本应用 pending 项；不申请读取整库视频权限，也不枚举其他应用的视频。[Android 媒体存储说明](https://developer.android.com/training/data-storage/shared/media) 与 [MediaColumns 字段](https://developer.android.com/reference/android/provider/MediaStore.MediaColumns) 提供相应 API 依据。文件长度和元数据匹配不构成内容哈希或视频解码验证。
+
+取消或失败后的未发布相册记录和私有下载副本暂保留，供重试／后续清理；系统 pending 过期回收可能移除未发布记录。已完成视频可从队列明细交给外部播放器打开。用户手动删除、编辑、移动或还原相册、系统供应商差异及存储空间不足的实际行为仍待验证。
 
 ## 前台服务与页面生命周期
 
@@ -61,6 +77,6 @@ Room 初始数据库版本为 1，未启用破坏性迁移。已配置 schema �
 
 实际传输期间持有带超时续期的 partial wake lock 和 Wi-Fi lock。结束、取消、启动失败或服务销毁时释放；通知刷新每秒一次，UI 字节进度最多每 100 ms 一次，Room 字节检查点最多每 500 ms 一次。
 
-服务使用 `START_NOT_STICKY`。任务从最近列表移走时允许当前前台服务继续；系统终止进程、强制停止或网络断开时保留未完成任务，不能保证系统限制下无限后台运行。服务销毁与超时入口暂停任务；若进程没有机会执行清理，下次启动恢复遗留 RUNNING 状态。已导入照片继续保留。
+服务使用 `START_NOT_STICKY`。任务从最近列表移走时允许当前前台服务继续；系统终止进程、强制停止或网络断开时保留未完成任务，不能保证系统限制下无限后台运行。服务销毁与超时入口暂停任务；若进程没有机会执行清理，下次启动恢复遗留 RUNNING／PUBLISHING 状态。已导入照片和已保存视频继续保留。
 
-剩余工作包括视频与自动传输、BLE 配对、缓存清理策略、持久导出／显影队列，以及逐机型兼容性。当前实现不证明后台传输、进程恢复、断点续传或任何相机型号已通过实际验证。
+剩余工作包括自动传输、BLE 配对、特殊视频资源适配、缓存清理策略、持久导出／显影队列，以及逐机型兼容性。当前实现不证明视频保存、后台传输、进程恢复、断点续传或任何相机型号已通过实际验证。

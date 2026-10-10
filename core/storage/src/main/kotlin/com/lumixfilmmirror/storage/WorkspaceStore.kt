@@ -41,6 +41,8 @@ class WorkspaceStore(context: Context) {
     suspend fun source(id: String): SourceImage? = dao.photo(id)?.let(::source)
     suspend fun save(photo: SourceImage) = dao.savePhoto(row(photo))
     suspend fun finish(task: TransferTask, photo: SourceImage, bytes: Long) = dao.finish(task.id, row(photo), bytes)
+    suspend fun reserveVideo(task: TransferTask, uri: String, bytes: Long) = dao.reserveVideo(task.id, uri, bytes)
+    suspend fun finishVideo(task: TransferTask, uri: String, bytes: Long) = dao.finishVideo(task.id, uri, bytes)
     suspend fun batch(id: String): List<TransferTask> = dao.batch(id)
     suspend fun checkpoint(task: TransferTask, state: TransferState, bytes: Long, error: String? = null) =
         dao.checkpoint(task.id, state.name, bytes, error)
@@ -52,7 +54,7 @@ class WorkspaceStore(context: Context) {
         val batchId = UUID.randomUUID().toString()
         val created = System.currentTimeMillis()
         val tasks = photos.mapIndexed { index, photo ->
-            val resource = requireNotNull(photo.editableResource)
+            val resource = requireNotNull(photo.transferResource)
             TransferTask(UUID.randomUUID().toString(), batchId, index, device.udn, device.model,
                 device.descriptionUri.toString(), photo.id, photo.parentId, photo.title,
                 resource.mimeType, resource.profile, resource.originalName, resource.bytes,
@@ -114,3 +116,6 @@ fun TransferTask.expectedMedia(): CameraMedia = CameraMedia(itemId, parentId, ti
 fun TransferTask.belongsTo(device: CameraDevice): Boolean =
     if (cameraUdn.isNotBlank()) cameraUdn == device.udn
     else cameraModel == device.model && descriptionUri == device.descriptionUri.toString()
+
+val TransferTask.completed: Boolean get() = state in setOf("IMPORTED", "SAVED")
+val TransferTask.terminal: Boolean get() = completed || state == "CANCELLED"

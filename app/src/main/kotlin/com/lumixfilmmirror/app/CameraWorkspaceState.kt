@@ -5,6 +5,7 @@ import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.ConnectionStep
 import com.lumixfilmmirror.camera.DownloadProgress
 import com.lumixfilmmirror.camera.DiscoveredCamera
+import com.lumixfilmmirror.transfer.TransferPhase
 
 data class CameraFolder(val id: String, val title: String)
 
@@ -14,7 +15,7 @@ data class CameraWorkspaceState(
     val disconnected: Boolean = false,
     val discovered: List<DiscoveredCamera> = emptyList(),
     val step: ConnectionStep? = null,
-    val folders: List<CameraFolder> = listOf(CameraFolder("0", "相机照片")),
+    val folders: List<CameraFolder> = listOf(CameraFolder("0", "相机媒体")),
     val entries: List<CameraMedia> = emptyList(),
     val selectedIds: Set<String> = emptySet(),
     val nextOffset: Int? = null,
@@ -23,6 +24,7 @@ data class CameraWorkspaceState(
     val progress: DownloadProgress? = null,
     val transferred: Int = 0,
     val transferTotal: Int = 0,
+    val transferPhase: TransferPhase? = null,
     val problem: String? = null,
     val operationRunning: Boolean = false,
     val activeTransferBatch: String? = null,

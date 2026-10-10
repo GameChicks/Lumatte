@@ -4,6 +4,7 @@ import android.net.Uri
 import android.os.SystemClock
 import com.lumixfilmmirror.camera.*
 import com.lumixfilmmirror.media.ImageImporter
+import com.lumixfilmmirror.media.VideoPublisher
 import com.lumixfilmmirror.model.PhotoId
 import com.lumixfilmmirror.storage.*
 import kotlinx.coroutines.CancellationException
@@ -15,17 +16,21 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class TransferStop(val cancelRemaining: Boolean, message: String) : CancellationException(message)
-data class TransferResult(val imported: Int, val failed: Int, val waiting: Int)
+data class TransferResult(val imported: Int, val failed: Int, val waiting: Int, val savedVideos: Int)
+enum class TransferPhase { RESOLVING, DOWNLOADING, IMPORTING_PHOTO, SAVING_VIDEO }
 
 /** One runner owns a batch. Files and queue state survive its process; network/session objects do not. */
-class TransferRunner(private val store: WorkspaceStore, private val importer: ImageImporter) {
+class TransferRunner(private val store: WorkspaceStore, private val importer: ImageImporter,
+    private val videoPublisher: VideoPublisher) {
     suspend fun run(batchId: String, session: LumixCameraSession?,
+        onPhase: (TransferTask, TransferPhase) -> Unit = { _, _ -> },
         onProgress: (TransferTask, DownloadProgress) -> Unit = {}): TransferResult {
-        val tasks = store.batch(batchId).filter { it.state !in setOf("IMPORTED", "CANCELLED") }
+        val tasks = store.batch(batchId).filter { !it.terminal }
         val resolved = mutableMapOf<String, Map<String, CameraMedia>>()
         var imported = 0
         var failed = 0
         var waiting = 0
+        var savedVideos = 0
         try {
             for (task in tasks) {
                 currentCoroutineContext().ensureActive()
@@ -33,14 +38,28 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
                 val directory = store.taskDirectory(task)
                 var finished = File(directory, "complete.download")
                 try {
-                    val recovered = store.source(task.id) ?: importer.recoverImport(PhotoId(task.id))
-                    if (recovered != null) {
-                        require(withContext(Dispatchers.IO) { recovered.jpeg.isFile }) { "已导入照片文件缺失" }
-                        received = withContext(Dispatchers.IO) { if (finished.isFile) finished.length() else received }
-                        withContext(NonCancellable) { store.finish(task, recovered, received) }
-                        withContext(Dispatchers.IO) { finished.delete() }
-                        imported++
-                        continue
+                    val expected = requireNotNull(task.expectedMedia().transferResource)
+                    val videoFormat = expected.videoContainer
+                    if (videoFormat != null) {
+                        onPhase(task, TransferPhase.SAVING_VIDEO)
+                        val published = videoPublisher.published(task.id, videoFormat, task.savedUri, received)
+                        if (published != null) {
+                            withContext(NonCancellable) { store.finishVideo(task, published.toString(), received) }
+                            withContext(Dispatchers.IO) { finished.delete() }
+                            savedVideos++
+                            continue // Published before process exit; never copy a second video.
+                        }
+                    } else {
+                        onPhase(task, TransferPhase.IMPORTING_PHOTO)
+                        val recovered = store.source(task.id) ?: importer.recoverImport(PhotoId(task.id))
+                        if (recovered != null) {
+                            require(withContext(Dispatchers.IO) { recovered.jpeg.isFile }) { "已导入照片文件缺失" }
+                            received = withContext(Dispatchers.IO) { if (finished.isFile) finished.length() else received }
+                            withContext(NonCancellable) { store.finish(task, recovered, received) }
+                            withContext(Dispatchers.IO) { finished.delete() }
+                            imported++
+                            continue
+                        }
                     }
                     if (!withContext(Dispatchers.IO) { finished.isFile && finished.length() > 0 }) {
                         if (session == null || !task.belongsTo(session.device)) {
@@ -48,13 +67,15 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
                             waiting++
                             continue
                         }
+                        onPhase(task, TransferPhase.RESOLVING)
                         val candidates = resolved[task.parentId] ?: run {
                             resolveFolder(session, tasks.filter { it.parentId == task.parentId }).also { resolved[task.parentId] = it }
                         }
                         val media = candidates[task.itemId]
-                        require(media != null && media.matchesPreviousPhoto(task.expectedMedia())) { "相机中的照片缺失或已变化，请重新选择" }
-                        val resource = requireNotNull(media.editableResource)
+                        require(media != null && media.matchesPreviousMedia(task.expectedMedia())) { "相机中的媒体缺失或已变化，请重新选择" }
+                        val resource = requireNotNull(media.transferResource)
                         store.checkpoint(task, TransferState.RUNNING, received)
+                        onPhase(task, TransferPhase.DOWNLOADING)
                         var checkpointAt = 0L
                         finished = session.download(resource, directory, durable = true) { progress ->
                             received = progress.bytes
@@ -68,15 +89,25 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
                         received = withContext(Dispatchers.IO) { finished.length() }
                         store.checkpoint(task, TransferState.DOWNLOADED, received)
                     } else received = withContext(Dispatchers.IO) { finished.length() }
-                    val photo = importer.importImage(Uri.fromFile(finished), task.originalName ?: task.title,
-                        rawEmbeddedPreview = task.expectedMedia().editableResource?.kind == CameraResourceKind.RAW_PREVIEW_JPEG,
-                        photoId = PhotoId(task.id))
-                    withContext(NonCancellable) { store.finish(task, photo, received) }
+                    if (videoFormat != null) {
+                        onPhase(task, TransferPhase.SAVING_VIDEO)
+                        videoPublisher.publish(task.id, videoFormat, finished, task.savedUri,
+                            onReserved = { reserved, bytes ->
+                                withContext(NonCancellable) { store.reserveVideo(task, reserved.toString(), bytes) }
+                            }, onPublished = { uri, bytes -> store.finishVideo(task, uri.toString(), bytes) })
+                        savedVideos++
+                    } else {
+                        onPhase(task, TransferPhase.IMPORTING_PHOTO)
+                        val photo = importer.importImage(Uri.fromFile(finished), task.originalName ?: task.title,
+                            rawEmbeddedPreview = expected.kind == CameraResourceKind.RAW_PREVIEW_JPEG,
+                            photoId = PhotoId(task.id))
+                        withContext(NonCancellable) { store.finish(task, photo, received) }
+                        imported++
+                    }
                     withContext(Dispatchers.IO) { finished.delete() }
-                    imported++
                 } catch (error: CancellationException) { throw error }
                 catch (error: Exception) {
-                    store.checkpoint(task, TransferState.FAILED, received, error.message ?: "传输或导入失败")
+                    store.checkpoint(task, TransferState.FAILED, received, error.message ?: "传输或保存失败")
                     failed++
                 }
             }
@@ -87,7 +118,7 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
             }
             throw error
         }
-        return TransferResult(imported, failed, waiting)
+        return TransferResult(imported, failed, waiting, savedVideos)
     }
 
     private suspend fun resolveFolder(session: LumixCameraSession, tasks: List<TransferTask>): Map<String, CameraMedia> {

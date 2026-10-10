@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.IBinder
 import android.os.PowerManager
 import com.lumixfilmmirror.storage.WorkspaceStore
+import com.lumixfilmmirror.storage.completed
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.sample
@@ -34,7 +35,7 @@ class CameraTransferService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, "相机照片传输", NotificationManager.IMPORTANCE_LOW).apply {
+        manager.createNotificationChannel(NotificationChannel(CHANNEL, "相机媒体传输", NotificationManager.IMPORTANCE_LOW).apply {
             description = "相机传输进度、暂停和取消"
             setShowBadge(false)
         })
@@ -85,7 +86,7 @@ class CameraTransferService : Service() {
                         try {
                             WorkspaceStore(this@CameraTransferService).transfers.collect { tasks ->
                                 val batch = tasks.filter { it.batchId == id }
-                                controller.updateTransferCounts(id, batch.size, batch.count { it.state == "IMPORTED" })
+                                controller.updateTransferCounts(id, batch.size, batch.count { it.completed })
                             }
                         } catch (error: CancellationException) { throw error }
                         catch (error: Exception) { controller.serviceUnavailable(error.message ?: "无法读取传输记录") }
@@ -112,7 +113,7 @@ class CameraTransferService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val detail = if (state.transferTotal > 0) "已传入 ${state.transferred} / ${state.transferTotal} 张" else "正在准备传输"
+        val detail = if (state.transferTotal > 0) "${state.transferPhase.caption()} · 已完成 ${state.transferred} / ${state.transferTotal} 项" else "正在准备传输"
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_transfer_notification)
             .setContentTitle("Lumix Film Mirror · 相机传输")

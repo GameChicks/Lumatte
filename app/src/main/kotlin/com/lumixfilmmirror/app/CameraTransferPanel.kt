@@ -33,7 +33,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
             } else {
                 Text("${camera.device?.model.orEmpty()} · ${camera.device?.friendlyName.orEmpty()}", style = MaterialTheme.typography.bodySmall)
                 Row {
-                    TextButton(enabled = !busy, onClick = workspace::refreshCameraPhotos) { Text("刷新照片") }
+                    TextButton(enabled = !busy, onClick = workspace::refreshCameraPhotos) { Text("刷新列表") }
                     TextButton(enabled = !busy, onClick = workspace::disconnectCamera) { Text("断开") }
                 }
                 Text(camera.folders.last().title, style = MaterialTheme.typography.titleSmall)
@@ -43,7 +43,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                         if (entry.isFolder) {
                             TextButton(enabled = !busy, onClick = { workspace.openCameraFolder(entry) }) { Text("文件夹 · ${entry.title}") }
                         } else {
-                            val resource = entry.editableResource
+                            val resource = entry.transferResource
                             Row {
                                 Checkbox(checked = entry.id in camera.selectedIds, enabled = !busy && resource != null,
                                     onCheckedChange = { workspace.selectCameraPhoto(entry.id) })
@@ -53,7 +53,9 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                                         CameraResourceKind.RAW -> "RAW · 传入后仅提取内嵌 JPEG"
                                         CameraResourceKind.RAW_PREVIEW_JPEG -> "RAW 内嵌 JPEG"
                                         CameraResourceKind.ORIGINAL_JPEG -> "原尺寸 JPEG"
-                                        else -> "当前没有可编辑的 JPEG 或 RAW 资源"
+                                        CameraResourceKind.VIDEO -> "${resource?.videoContainer?.label.orEmpty()} · 保存原视频到相册"
+                                        else -> if (entry.resources.any { it.kind == CameraResourceKind.VIDEO })
+                                            "此视频格式暂不支持传输" else "当前没有可传输的原图资源"
                                     }
                                     Text(label, style = MaterialTheme.typography.labelSmall)
                                 }
@@ -64,12 +66,14 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 Text("已载入 ${camera.entries.size} / ${camera.total} 项", style = MaterialTheme.typography.labelSmall)
                 if (camera.nextOffset != null) TextButton(enabled = !busy, onClick = workspace::loadMoreCameraPhotos) { Text("加载更多") }
                 Button(enabled = !busy && camera.selectedIds.isNotEmpty(), onClick = onImport) {
-                    Text("传入选中照片 · ${camera.selectedIds.size} 张")
+                    Text("传入选中文件 · ${camera.selectedIds.size} 项")
                 }
+                Text("照片进入工作台；视频直接保存到 Movies/LumixFilmMirror，保持原文件内容。",
+                    style = MaterialTheme.typography.labelSmall)
             }
             if (cameraBusy) {
                 val caption = when {
-                    camera.transferTotal > 0 -> "传输 ${camera.transferred} / ${camera.transferTotal} 张"
+                    camera.transferTotal > 0 -> "${camera.transferPhase.caption()} · 完成 ${camera.transferred} / ${camera.transferTotal} 项"
                     camera.step == ConnectionStep.REQUESTING_WIFI -> "请在系统弹窗中确认连接"
                     camera.step == ConnectionStep.DISCOVERING -> "正在查找相机"
                     camera.step == ConnectionStep.WAITING_FOR_CAMERA_APPROVAL -> "请在相机上确认连接"

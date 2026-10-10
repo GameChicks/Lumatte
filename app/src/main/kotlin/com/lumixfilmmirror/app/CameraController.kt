@@ -6,7 +6,10 @@ import android.location.LocationManager
 import android.os.Build
 import com.lumixfilmmirror.camera.*
 import com.lumixfilmmirror.media.ImageImporter
+import com.lumixfilmmirror.media.VideoPublisher
 import com.lumixfilmmirror.storage.WorkspaceStore
+import com.lumixfilmmirror.storage.completed
+import com.lumixfilmmirror.storage.terminal
 import com.lumixfilmmirror.transfer.TransferRunner
 import com.lumixfilmmirror.transfer.TransferStop
 import java.io.Closeable
@@ -17,7 +20,7 @@ import kotlinx.coroutines.flow.*
 class CameraController(private val application: Application) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val store = WorkspaceStore(application)
-    private val transferRunner = TransferRunner(store, ImageImporter(application))
+    private val transferRunner = TransferRunner(store, ImageImporter(application), VideoPublisher(application))
     private val cameraMutable = MutableStateFlow(CameraWorkspaceState())
     val cameraState = cameraMutable.asStateFlow()
     val isTransferring: Boolean get() = cameraMutable.value.activeTransferBatch != null
@@ -119,7 +122,7 @@ class CameraController(private val application: Application) {
             cameraSession = session
             session.prepareBrowsing()
             cameraMutable.update { it.copy(device = session.device, entries = emptyList(), selectedIds = emptySet(),
-                folders = if (restoreSelection) previous.folders else listOf(CameraFolder("0", "相机照片"))) }
+                folders = if (restoreSelection) previous.folders else listOf(CameraFolder("0", "相机媒体"))) }
             loadCameraFolder()
             if (restoreSelection && previous.selectedIds.isNotEmpty()) {
                 // Reload the previously viewed pages before restoring IDs; never reuse stale resource URLs.
@@ -129,10 +132,10 @@ class CameraController(private val application: Application) {
                 }
                 val previousPhotos = previous.entries.filter { it.id in previous.selectedIds }.associateBy { it.id }
                 val available = cameraMutable.value.entries.filter { entry ->
-                    previousPhotos[entry.id]?.let { entry.matchesPreviousPhoto(it) } == true
+                    previousPhotos[entry.id]?.let { entry.matchesPreviousMedia(it) } == true
                 }.map { it.id }.toSet()
                 cameraMutable.update { it.copy(selectedIds = previous.selectedIds.intersect(available),
-                    problem = if (!available.containsAll(previous.selectedIds)) "部分待传照片缺失或信息已变化，请重新选择" else null) }
+                    problem = if (!available.containsAll(previous.selectedIds)) "部分待传文件缺失或信息已变化，请重新选择" else null) }
             }
             cameraMutable.update { it.copy(connected = true) }
             connected = true
@@ -185,7 +188,7 @@ class CameraController(private val application: Application) {
 
     fun importCameraPhotos() = cameraOperation {
         val session = cameraSession ?: error("请先连接相机")
-        val photos = cameraMutable.value.entries.filter { it.id in cameraMutable.value.selectedIds && it.editableResource != null }
+        val photos = cameraMutable.value.entries.filter { it.id in cameraMutable.value.selectedIds && it.transferResource != null }
         val batchId = store.enqueue(session.device, photos)
         cameraMutable.update { it.copy(selectedIds = it.selectedIds - photos.map { photo -> photo.id }.toSet()) }
         requestTransfer(batchId)
@@ -205,13 +208,13 @@ class CameraController(private val application: Application) {
     private suspend fun requestTransfer(batchId: String) {
         check(cameraMutable.value.activeTransferBatch == null) { "已有正在执行的传输" }
         val tasks = store.batch(batchId)
-        if (tasks.none { it.state !in setOf("IMPORTED", "CANCELLED") }) {
+        if (tasks.all { it.terminal }) {
             cameraMutable.update { it.copy(notice = "此批没有未完成的任务") }
             return
         }
         pendingStop = null
         cameraMutable.update { it.copy(activeTransferBatch = batchId, notice = null,
-            transferTotal = tasks.size, transferred = tasks.count { task -> task.state == "IMPORTED" }) }
+            transferTotal = tasks.size, transferred = tasks.count { task -> task.completed }) }
         try {
             application.startForegroundService(CameraTransferService.startIntent(application, batchId))
         } catch (error: Exception) {
@@ -229,7 +232,8 @@ class CameraController(private val application: Application) {
                 pendingStop?.let { throw it }
                 var currentTask: String? = null
                 var lastProgressAt = 0L
-                val result = transferRunner.run(batchId, session) { task, progress ->
+                val result = transferRunner.run(batchId, session,
+                    onPhase = { _, phase -> cameraMutable.update { it.copy(transferPhase = phase, progress = null) } }) { task, progress ->
                     val now = android.os.SystemClock.elapsedRealtime()
                     if (currentTask != task.id || now - lastProgressAt >= 100 || progress.bytes == progress.totalBytes) {
                         currentTask = task.id
@@ -237,7 +241,7 @@ class CameraController(private val application: Application) {
                         cameraMutable.update { it.copy(progress = progress) }
                     }
                 }
-                cameraMutable.update { it.copy(notice = "本次传入 ${result.imported} 张，失败 ${result.failed} 张，待连接 ${result.waiting} 张") }
+                cameraMutable.update { it.copy(notice = "本次传入 ${result.imported} 张照片、保存 ${result.savedVideos} 个视频；失败 ${result.failed} 项、待连接 ${result.waiting} 项") }
             } catch (error: CancellationException) {
                 withContext(NonCancellable) {
                     store.stopBatch(batchId, (error as? TransferStop)?.cancelRemaining == true,
@@ -250,7 +254,7 @@ class CameraController(private val application: Application) {
             } finally {
                 transferJob = null
                 pendingStop = null
-                cameraMutable.update { it.copy(activeTransferBatch = null, progress = null) }
+                cameraMutable.update { it.copy(activeTransferBatch = null, progress = null, transferPhase = null) }
                 releaseIfIdle()
             }
         }
@@ -285,7 +289,7 @@ class CameraController(private val application: Application) {
     private fun cameraOperation(block: suspend () -> Unit) {
         if (cameraMutable.value.busy) return
         cameraMutable.update { it.copy(operationRunning = true) }
-        cameraMutable.update { it.copy(problem = null, notice = null, transferTotal = 0, transferred = 0, progress = null) }
+        cameraMutable.update { it.copy(problem = null, notice = null, transferTotal = 0, transferred = 0, progress = null, transferPhase = null) }
         cameraJob = scope.launch {
             try { block() }
             catch (error: CancellationException) {

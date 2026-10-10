@@ -15,3 +15,5 @@
 批量规则、RAW 内嵌 JPEG、导出尺寸及系统主题见 [产品决策](docs/product/decisions.md)。
 
 相机范围不包含实时取景、遥控拍摄或参数控制。当前实施进展与剩余任务见 [实施状态](docs/engineering/progress.md)。
+
+相机多选也可保存已识别的 MP4／MOV／AVCHD 原视频到 `Movies/LumixFilmMirror`，沿用持久队列和前台通知。视频保持原内容，不进入胶片或 JPG 导出设置；各机型传输与手机播放兼容性尚未验证。

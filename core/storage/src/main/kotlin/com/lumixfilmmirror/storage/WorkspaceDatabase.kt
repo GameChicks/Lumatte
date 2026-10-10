@@ -2,6 +2,8 @@ package com.lumixfilmmirror.storage
 
 import android.content.Context
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "photos")
@@ -42,9 +44,10 @@ data class TransferTask(
     val bytesReceived: Long = 0,
     val error: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "NULL") val savedUri: String? = null,
 )
 
-enum class TransferState { QUEUED, RUNNING, DOWNLOADED, PAUSED, FAILED, IMPORTED, CANCELLED }
+enum class TransferState { QUEUED, RUNNING, DOWNLOADED, PUBLISHING, PAUSED, FAILED, IMPORTED, SAVED, CANCELLED }
 
 @Dao
 internal abstract class WorkspaceDao {
@@ -65,12 +68,16 @@ internal abstract class WorkspaceDao {
     abstract suspend fun batch(batchId: String): List<TransferTask>
     @Insert
     abstract suspend fun enqueue(tasks: List<TransferTask>)
-    @Query("UPDATE transfers SET state = :state, bytesReceived = :bytes, error = :error WHERE id = :id AND state != 'IMPORTED'")
+    @Query("UPDATE transfers SET state = :state, bytesReceived = :bytes, error = :error WHERE id = :id AND state NOT IN ('IMPORTED', 'SAVED')")
     abstract suspend fun checkpoint(id: String, state: String, bytes: Long, error: String?)
-    @Query("UPDATE transfers SET state = 'PAUSED', error = '上次传输中断，请连接相机后继续' WHERE state = 'RUNNING'")
+    @Query("UPDATE transfers SET state = 'PAUSED', error = '上次传输或保存中断，可继续未完成的任务' WHERE state IN ('RUNNING', 'PUBLISHING')")
     abstract suspend fun recoverInterrupted()
-    @Query("UPDATE transfers SET state = :state, error = :reason WHERE batchId = :batchId AND (state IN ('QUEUED', 'RUNNING', 'DOWNLOADED', 'PAUSED') OR (state = 'FAILED' AND :state = 'CANCELLED'))")
+    @Query("UPDATE transfers SET state = :state, error = :reason WHERE batchId = :batchId AND (state IN ('QUEUED', 'RUNNING', 'DOWNLOADED', 'PUBLISHING', 'PAUSED') OR (state = 'FAILED' AND :state = 'CANCELLED'))")
     abstract suspend fun stopBatch(batchId: String, state: String, reason: String)
+    @Query("UPDATE transfers SET savedUri = :uri, state = 'PUBLISHING', bytesReceived = :bytes, error = NULL WHERE id = :id AND state NOT IN ('IMPORTED', 'SAVED')")
+    abstract suspend fun reserveVideo(id: String, uri: String, bytes: Long)
+    @Query("UPDATE transfers SET savedUri = :uri, state = 'SAVED', bytesReceived = :bytes, error = NULL WHERE id = :id AND state NOT IN ('IMPORTED', 'SAVED')")
+    abstract suspend fun finishVideo(id: String, uri: String, bytes: Long)
 
     @Transaction
     open suspend fun finish(id: String, photo: PhotoRow, bytes: Long) {
@@ -79,14 +86,19 @@ internal abstract class WorkspaceDao {
     }
 }
 
-@Database(entities = [PhotoRow::class, TransferTask::class], version = 1, exportSchema = true)
+@Database(entities = [PhotoRow::class, TransferTask::class], version = 2, exportSchema = true)
 internal abstract class WorkspaceDatabase : RoomDatabase() {
     abstract fun workspace(): WorkspaceDao
     companion object {
+        private val version1To2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transfers ADD COLUMN savedUri TEXT DEFAULT NULL")
+            }
+        }
         @Volatile private var instance: WorkspaceDatabase? = null
         fun get(context: Context): WorkspaceDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, WorkspaceDatabase::class.java,
-                "film-mirror-workspace.db").build().also { instance = it }
+                "film-mirror-workspace.db").addMigrations(version1To2).build().also { instance = it }
         }
     }
 }
