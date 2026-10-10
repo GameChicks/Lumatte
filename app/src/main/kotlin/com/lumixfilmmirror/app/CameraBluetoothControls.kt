@@ -21,6 +21,7 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
         arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
     else arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
     var pendingStartup by rememberSaveable { mutableStateOf(false) }
+    var pendingSending by rememberSaveable { mutableStateOf(false) }
     val wifiPermissions = if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES)
     else arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
     val bluetoothLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -33,19 +34,25 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
     val wifiLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         val required = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
         val startup = pendingStartup
+        val sending = pendingSending
         pendingStartup = false
+        pendingSending = false
         val hasBluetooth = !startup || bluetoothPermissions.all { permission ->
             context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED }
         if (!hasBluetooth) workspace.bluetoothPermissionDenied()
-        else if (context.checkSelfPermission(required) == PackageManager.PERMISSION_GRANTED) workspace.connectBluetoothWifi(startup)
+        else if (context.checkSelfPermission(required) == PackageManager.PERMISSION_GRANTED) {
+            if (sending) workspace.connectBluetoothSendingWifi() else workspace.connectBluetoothWifi(startup)
+        }
         else workspace.cameraPermissionDenied()
     }
-    fun connect(startup: Boolean) {
+    fun connect(startup: Boolean, sending: Boolean = false) {
         val permissions = if (startup) (wifiPermissions + bluetoothPermissions).distinct().toTypedArray() else wifiPermissions
-        if (permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
-            workspace.connectBluetoothWifi(startup)
+        if (permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
+            if (sending) workspace.connectBluetoothSendingWifi() else workspace.connectBluetoothWifi(startup)
+        }
         else {
             pendingStartup = startup
+            pendingSending = sending
             wifiLauncher.launch(permissions)
         }
     }
@@ -71,6 +78,13 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             if (camera.bluetoothCanStartWifi) {
                 Text("启动相机的传输网络，随后在系统弹窗确认连接。", style = MaterialTheme.typography.labelSmall)
                 Button(enabled = !busy, onClick = { connect(true) }) { Text("启动传输 Wi-Fi 并连接") }
+                if (camera.bluetoothCanStartSendingWifi) {
+                    Text("先点下方入口；提示等待后，在相机上开启拍后发送或选定文件发送。等待最多 90 秒。",
+                        style = MaterialTheme.typography.labelSmall)
+                    TextButton(enabled = !busy, onClick = { connect(true, sending = true) }) {
+                        Text("等待相机发送并连接")
+                    }
+                }
                 TextButton(enabled = !busy, onClick = { connect(false) }) { Text("已在相机上开启 · 直接连接") }
             } else {
                 Text("在相机上开启 Wi-Fi 传输后连接，随后在系统弹窗确认。", style = MaterialTheme.typography.labelSmall)

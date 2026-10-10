@@ -97,6 +97,8 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                     camera.bluetoothStep == BluetoothConnectionStep.READING_SERVICES -> "正在读取蓝牙连接能力"
                     camera.bluetoothStep == BluetoothConnectionStep.IDENTIFYING -> "正在登记本应用，请在相机上确认配对"
                     camera.bluetoothStep == BluetoothConnectionStep.READING_WIFI -> "正在读取相机 Wi-Fi 资料"
+                    camera.bluetoothStep == BluetoothConnectionStep.WAITING_FOR_SEND -> "等待相机发送请求 · 请在相机上开启拍后发送或选定文件发送"
+                    camera.step == ConnectionStep.REQUESTING_WIFI && camera.bluetoothStep == BluetoothConnectionStep.STARTING_WIFI -> "请在系统弹窗中确认连接相机 Wi-Fi"
                     camera.bluetoothStep == BluetoothConnectionStep.STARTING_WIFI -> "正在启动相机的传输 Wi-Fi"
                     camera.receiving -> "${camera.transferPhase.caption()} · 已保存 ${camera.transferred} 项 · 待发送 ${camera.incomingCount ?: 0} 项"
                     camera.transferTotal > 0 -> "${camera.transferPhase.caption()} · 完成 ${camera.transferred} / ${camera.transferTotal} 项"

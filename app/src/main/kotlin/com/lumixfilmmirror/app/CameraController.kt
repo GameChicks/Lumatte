@@ -41,7 +41,7 @@ class CameraController(private val application: Application) {
     private var bluetoothCredentials: CameraWifiCredentials? = null
     private var bluetoothTarget: BluetoothCamera? = null
     private data class BluetoothWifiBinding(val network: Network, val camera: BluetoothCamera,
-        val ssid: String, val canObserve: Boolean)
+        val ssid: String, val canObserve: Boolean, val expectedMode: CameraAccessMode? = null)
     private var bluetoothWifiBinding: BluetoothWifiBinding? = null
     private var followBinding: BluetoothWifiBinding? = null
     private var wifiConnection: CameraWifiConnection? = null
@@ -108,15 +108,30 @@ class CameraController(private val application: Application) {
         bluetoothCredentials = credentials
         bluetoothTarget = candidate
         cameraMutable.update { it.copy(bluetoothWifiSsid = credentials.ssid, bluetoothCanStartWifi = credentials.canStartTransferWifi,
+            bluetoothCanStartSendingWifi = credentials.canStartTransferWifi && credentials.canObserveIncoming,
             notice = if (credentials.canStartTransferWifi) "已读取相机网络，可以启动传输 Wi-Fi 后连接。"
                 else "已读取相机网络。请在相机上开启 Wi-Fi 传输，然后点击连接。") }
     }
 
     fun connectBluetoothWifi(startOnCamera: Boolean = false) = cameraOperation {
+        connectBluetoothWifiInternal(startOnCamera)
+    }
+
+    fun connectBluetoothSendingWifi() = cameraOperation {
+        connectBluetoothWifiInternal(startOnCamera = true, waitForSending = true)
+    }
+
+    private suspend fun connectBluetoothWifiInternal(startOnCamera: Boolean, waitForSending: Boolean = false) {
         val credentials = bluetoothCredentials ?: error("连接资料已释放，请重新从蓝牙相机读取")
         val target = bluetoothTarget ?: error("请重新查找蓝牙相机")
         try {
-            if (startOnCamera) {
+            if (waitForSending) {
+                bluetooth.withSendingWifi(target, ownClientId(), credentials.ssid,
+                    onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh, mode ->
+                    connectWifi(fresh.ssid, fresh.password(), expectedMode = mode)
+                    bindBluetoothWifi(target, fresh, expectedMode = mode)
+                }
+            } else if (startOnCamera) {
                 bluetooth.withTransferWifi(target, ownClientId(), credentials.ssid,
                     onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh ->
                     connectWifi(fresh.ssid, fresh.password())
@@ -126,6 +141,14 @@ class CameraController(private val application: Application) {
                 connectWifi(credentials.ssid, credentials.password())
                 bindBluetoothWifi(target, credentials)
             }
+        } catch (error: Exception) {
+            if (startOnCamera) {
+                bluetoothWifiBinding = null
+                clearCameraSession()
+                wifiConnection?.close()
+                wifiConnection = null
+            }
+            throw error
         }
         finally { clearBluetoothCredentials() }
     }
@@ -138,7 +161,8 @@ class CameraController(private val application: Application) {
         bluetoothCredentials?.close()
         bluetoothCredentials = null
         bluetoothTarget = null
-        cameraMutable.update { it.copy(bluetoothWifiSsid = null, bluetoothCanStartWifi = false) }
+        cameraMutable.update { it.copy(bluetoothWifiSsid = null, bluetoothCanStartWifi = false,
+            bluetoothCanStartSendingWifi = false) }
     }
 
     private fun ownClientId(): String {
@@ -148,24 +172,26 @@ class CameraController(private val application: Application) {
         }
     }
 
-    private suspend fun connectWifi(ssid: String, password: String) {
+    private suspend fun connectWifi(ssid: String, password: String, expectedMode: CameraAccessMode? = null) {
         bluetoothWifiBinding = null
         clearCameraSession()
         wifiConnection?.close()
         wifiConnection = null
-        cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.REQUESTING_WIFI, operationRunning = true)
+        cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.REQUESTING_WIFI, operationRunning = true,
+            bluetoothStep = cameraMutable.value.bluetoothStep)
         if (Build.VERSION.SDK_INT < 33 &&
             application.getSystemService(LocationManager::class.java)?.isLocationEnabled != true) {
             error("当前 Android 版本需要开启系统定位后才能发起 Wi-Fi 连接；也可以先在系统设置中连接")
         }
         wifiConnection = CameraWifiConnector.connect(application, ssid, password, ::cameraNetworkLost)
         cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING) }
-        findCamera()
+        findCamera(expectedMode)
     }
 
-    private fun bindBluetoothWifi(target: BluetoothCamera, credentials: CameraWifiCredentials) {
+    private fun bindBluetoothWifi(target: BluetoothCamera, credentials: CameraWifiCredentials,
+        expectedMode: CameraAccessMode? = null) {
         val network = wifiConnection?.network ?: return
-        bluetoothWifiBinding = BluetoothWifiBinding(network, target, credentials.ssid, credentials.canObserveIncoming)
+        bluetoothWifiBinding = BluetoothWifiBinding(network, target, credentials.ssid, credentials.canObserveIncoming, expectedMode)
         cameraMutable.update { it.copy(bluetoothCanFollowIncoming = credentials.canObserveIncoming &&
             cameraSession?.accessMode?.incoming == true && watchedNetwork == network) }
     }
@@ -190,14 +216,15 @@ class CameraController(private val application: Application) {
 
     fun cameraPermissionDenied() { cameraMutable.update { it.copy(problem = "未获得 Wi-Fi 连接权限，可在系统设置连接后查找相机") } }
 
-    private suspend fun findCamera() {
+    private suspend fun findCamera(expectedMode: CameraAccessMode? = null) {
         val candidates = discovery.discover(wifiConnection?.let { listOf(it.network) } ?: discovery.wifiNetworks())
         cameraMutable.update { it.copy(discovered = candidates) }
         if (candidates.isEmpty()) error("未发现相机，请开启相机的 Wi-Fi 传输功能并确认连接")
-        if (candidates.size == 1) connectTarget(candidates.single())
+        if (candidates.size == 1) connectTarget(candidates.single(), expectedMode = expectedMode)
     }
 
-    private suspend fun connectTarget(candidate: DiscoveredCamera, restoreSelection: Boolean = false) {
+    private suspend fun connectTarget(candidate: DiscoveredCamera, restoreSelection: Boolean = false,
+        expectedMode: CameraAccessMode? = bluetoothWifiBinding?.takeIf { it.network == candidate.network }?.expectedMode) {
         val previous = cameraMutable.value
         var connected = false
         try {
@@ -211,6 +238,9 @@ class CameraController(private val application: Application) {
                 cameraMutable.update { it.copy(step = step) }
             }
             cameraSession = session
+            check(expectedMode == null || session.accessMode == expectedMode) {
+                "相机 HTTP 发送模式与蓝牙请求不一致，请重新发起发送连接"
+            }
             val incoming = if (session.accessMode.incoming) session.prepareIncoming()
                 else { session.prepareBrowsing(); null }
             val restoreBrowsing = restoreSelection && incoming == null && previous.accessMode == CameraAccessMode.BROWSING

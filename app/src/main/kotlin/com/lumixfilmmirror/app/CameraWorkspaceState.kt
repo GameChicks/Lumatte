@@ -24,6 +24,7 @@ data class CameraWorkspaceState(
     val bluetoothStep: BluetoothConnectionStep? = null,
     val bluetoothWifiSsid: String? = null,
     val bluetoothCanStartWifi: Boolean = false,
+    val bluetoothCanStartSendingWifi: Boolean = false,
     val bluetoothCanFollowIncoming: Boolean = false,
     val step: ConnectionStep? = null,
     val folders: List<CameraFolder> = listOf(CameraFolder("0", "相机媒体")),

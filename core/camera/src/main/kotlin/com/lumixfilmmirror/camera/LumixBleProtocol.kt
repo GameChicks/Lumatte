@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
 
-/** Identity, Wi-Fi information and ordinary transfer connection only. */
+/** Identity, Wi-Fi connection and camera-initiated sending only. */
 internal object LumixBleProtocol {
     val service: UUID = UUID.fromString("054ac620-3214-11e6-ac0d-0002a5d5c51b")
     val clientId: UUID = UUID.fromString("8d08a420-3213-11e6-8aca-0002a5d5c51b")

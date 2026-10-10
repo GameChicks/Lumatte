@@ -19,7 +19,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.selects.select
 
 data class BluetoothCamera(val address: String, val name: String, val signal: Int, val pairing: Boolean)
-enum class BluetoothConnectionStep { SCANNING, CONNECTING, READING_SERVICES, IDENTIFYING, READING_WIFI, STARTING_WIFI }
+enum class BluetoothConnectionStep { SCANNING, CONNECTING, READING_SERVICES, IDENTIFYING, READING_WIFI, WAITING_FOR_SEND, STARTING_WIFI }
 
 /** Deliberately not a data class: generated toString must never reveal a Wi-Fi password. */
 class CameraWifiCredentials(val ssid: String, private var secret: String?, val canStartTransferWifi: Boolean,
@@ -118,6 +118,21 @@ class CameraBluetooth(private val context: Context) {
             } finally { credentials.close() }
         }
 
+    /** The camera requests its sending mode. The caller cannot select an arbitrary mode byte. */
+    suspend fun <T> withSendingWifi(camera: BluetoothCamera, clientId: String, expectedSsid: String,
+        onStep: (BluetoothConnectionStep) -> Unit,
+        block: suspend (CameraWifiCredentials, CameraAccessMode) -> T): T = withConnection(camera, onStep) { session ->
+        val credentials = identifyAndRead(session, clientId, onStep)
+        try {
+            check(credentials.ssid == expectedSsid) { "相机网络名称已变化，请重新读取连接资料" }
+            check(credentials.canStartTransferWifi && credentials.canObserveIncoming) {
+                "此相机缺少已识别的发送启动能力，请在相机上开启 Wi-Fi 后连接"
+            }
+            val mode = session.startSendingWifi(onStep)
+            session.sendingHandoff { block(credentials, mode) }
+        } finally { credentials.close() }
+    }
+
     @SuppressLint("MissingPermission")
     private suspend fun <T> withConnection(camera: BluetoothCamera, onStep: (BluetoothConnectionStep) -> Unit,
         block: suspend (ConnectionGatt) -> T): T {
@@ -172,6 +187,9 @@ private class ConnectionGatt(private val context: Context, private val device: B
     private val startupRejected = CompletableDeferred<IllegalStateException>()
     private val incomingMode = AtomicReference<CameraAccessMode?>(null)
     private val incomingEvents = IncomingCameraEvents()
+    private val sendingStartupActive = AtomicBoolean(false)
+    private val sendingStartupMode = AtomicReference<CameraAccessMode?>(null)
+    private val sendingRequested = CompletableDeferred<CameraAccessMode>()
     private var gatt: BluetoothGatt? = null
     private val callback = object : BluetoothGattCallback() {
         private fun fail(message: String) {
@@ -214,6 +232,24 @@ private class ConnectionGatt(private val context: Context, private val device: B
         private fun connectionReply(uuid: UUID, value: ByteArray) {
             if (closed.get()) return
             val protocol = LumixBleProtocol
+            if (sendingStartupActive.get() && (uuid == protocol.imageTransferEvent || uuid == protocol.sendingModeEvent)) {
+                if (value.isEmpty()) { incomingEvents.stop(IllegalStateException("相机发送事件不完整，请重新连接")); return }
+                val state = value[0].toInt() and 255
+                if (uuid == protocol.imageTransferEvent) {
+                    if (state == 3) incomingEvents.stop(CameraSendingStopped("相机停止发送，连接已取消"))
+                } else when (state) {
+                    1, 4 -> {
+                        val requested = if (state == 1) CameraAccessMode.AUTO_UPLOAD else CameraAccessMode.MARKED_TRANSFER
+                        val previous = sendingStartupMode.get()
+                        if (previous == null && sendingStartupMode.compareAndSet(null, requested)) sendingRequested.complete(requested)
+                        else if (sendingStartupMode.get() != requested)
+                            incomingEvents.stop(IllegalStateException("相机发送模式已切换，请重新发起连接"))
+                    }
+                    2 -> incomingEvents.stop(CameraSendingStopped("相机结束发送，连接已取消"))
+                    3 -> incomingEvents.stop(IllegalStateException("相机请求重新读取网络资料，请重新连接"))
+                }
+                return
+            }
             val mode = incomingMode.get()
             if (mode != null && (uuid == protocol.imageTransferEvent || uuid == protocol.sendingModeEvent)) {
                 if (value.isEmpty()) { incomingEvents.stop(IllegalStateException("相机发送事件不完整，接收已暂停")); return }
@@ -326,6 +362,53 @@ private class ConnectionGatt(private val context: Context, private val device: B
         write(protocol.wifiConnectionType, byteArrayOf(1), protocol.wifiService)
         write(protocol.connectionMode, byteArrayOf(3))
     }
+    suspend fun startSendingWifi(onStep: (BluetoothConnectionStep) -> Unit): CameraAccessMode {
+        check(canStartTransferWifi() && canObserveIncoming()) { "相机发送启动暂不支持，请使用 Wi-Fi 入口" }
+        val protocol = LumixBleProtocol
+        startupActive.set(true)
+        sendingStartupActive.set(true)
+        subscribe(protocol.wifiChoiceReply, protocol.wifiService)
+        subscribe(protocol.connectionStatus, protocol.service)
+        subscribe(protocol.imageTransferEvent, protocol.sendingService)
+        subscribe(protocol.sendingModeEvent, protocol.service)
+        onStep(BluetoothConnectionStep.WAITING_FOR_SEND)
+        val mode = try {
+            withTimeout(90_000L) {
+                select<CameraAccessMode> {
+                    incomingEvents.ended.onAwait { throw it }
+                    sendingRequested.onAwait { it }
+                }
+            }
+        } catch (_: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            error("未收到相机发送请求，请重新发起并在相机上开启拍后发送或选定文件发送")
+        }
+        ensureSendingActive()
+        onStep(BluetoothConnectionStep.STARTING_WIFI)
+        write(protocol.wifiConnectionType, byteArrayOf(1), protocol.wifiService)
+        ensureSendingActive()
+        val command = when (mode) {
+            CameraAccessMode.AUTO_UPLOAD -> byteArrayOf(1)
+            CameraAccessMode.MARKED_TRANSFER -> byteArrayOf(6)
+            CameraAccessMode.BROWSING -> error("相机没有请求发送模式")
+        }
+        write(protocol.connectionMode, command)
+        ensureSendingActive()
+        return mode
+    }
+    private suspend fun ensureSendingActive() {
+        currentCoroutineContext().ensureActive()
+        if (incomingEvents.ended.isCompleted) throw incomingEvents.ended.await()
+    }
+    suspend fun <T> sendingHandoff(block: suspend () -> T): T = coroutineScope {
+        ensureSendingActive()
+        val handoff = async { block() }
+        select {
+            incomingEvents.ended.onAwait { throw it }
+            startupRejected.onAwait { throw it }
+            handoff.onAwait { it }
+        }
+    }
     suspend fun <T> handoff(block: suspend () -> T): T = coroutineScope {
         val handoff = async { block() }
         select {
@@ -357,7 +440,7 @@ private class ConnectionGatt(private val context: Context, private val device: B
             return withTimeout(timeout) {
                 while (true) {
                     failure.get()?.let { throw it }
-                    val event = if (incomingMode.get() != null) select<Event> {
+                    val event = if (incomingMode.get() != null || sendingStartupActive.get()) select<Event> {
                         incomingEvents.ended.onAwait { throw it }
                         events.onReceive { it }
                     } else events.receive()
