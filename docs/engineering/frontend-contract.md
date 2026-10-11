@@ -25,6 +25,8 @@
 
 `PhotoProcessingStage` 提供真实阶段入口：`PREPARING → RENDERING → FRAMING → ENCODING → PUBLISHING`（无框省略 FRAMING）。这是阶段信息，没有内核完成百分比，不让前端伪造精确进度。`onPublished` 位于不可取消发布提交段，用于成功记录。取消使用协程取消，已发布照片保留。旧 `JpegOutput` 导出重载保留，默认无框。
 
+导出另提供可选的 `onTargetCreated(uri)` 回调：它仅表示已取得目标 URI，文件未必完整，不计成功。持久队列用它登记候选 URI，用 `onPublished` 登记 SAVED；正式批量前端应复用下面的队列入口，避免绕过任务记录。
+
 预览返回的位图由前端持有；移出 Compose 绘制后再释放，不能在旧 Image 尚绘制时回收。前端滑杆可用 150～250 ms 合并与 `collectLatest`，避免每一个中间值都计算。调用协程取消完成后，原生任务已结束，处理器内部的输入位图才会回收。预览尺寸与最终尺寸不同，颗粒、空间效果在不同采样网格上不保证逐像素相同。
 
 预览缓存只保留照片效果，画框／文字在其后绘制；原图、配方、表对象及实际照片处理尺寸共同决定失效。仅换签名等且处理尺寸不变时可复用光谱／LUT 结果。缓存位图不借给前端，所有返回图独立持有；8 MiB 不含前端图、临时图和 GPU。正式导出不读取小图缓存。后端、清理及数值证据边界见 [手机优化源码](mobile-processing.md)。
@@ -45,6 +47,8 @@
 - `updateFrame(FrameOptions)`：保存当前整批共享画框。`state.frame` / `state.exportOptions` 提供设置；切换处理模式不会清空画框。
 - `previewExportPhoto(id, longEdge)`、`exportLayout(id)`：导出页的含框预览和实际成片尺寸，不通过编辑预览塞入画框。
 - `export(retryOnly)`、`cancelExport()`：整批导出、仅重试失败及取消后续任务。`processingStage`／`processingPhotoId` 提供当前阶段和照片，`completed/total/exported/failures` 提供实际数量与结果。
+
+Room 8 已接入不可变导出快照和每项结果，`state.exportRuns/exportRunId` 可供任务页使用。新增 `resumeExport(id, retryFailed)`、`pauseExport()`、`cancelPendingExport(id)`、`confirmExportReview(runId, photoId, savedUri)`；继续旧请求保留旧配方与输出设置，普通“仅重试失败”用当前设置创建新请求。SAVED 跳过，REVIEW 需用户先核对目标，不自动重试。独立的 `ExportQueueStore/ExportQueueRunner` 不依赖此 ViewModel。字段、计数和未来服务接管边界见 [导出任务](export-queue.md)。本轮没有实现任务列表控件或导出前台服务。
 
 输入 `SourceImage` 中的 `rawNotice` 已包含内嵌 JPEG 说明和真实尺寸，前端以小字显示，不能写入画框。源图、EXIF、文件名、尺寸和随机种子不通过首张继承复制。
 

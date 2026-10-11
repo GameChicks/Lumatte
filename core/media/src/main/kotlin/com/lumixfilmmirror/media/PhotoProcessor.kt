@@ -73,12 +73,13 @@ class PhotoProcessor(context: Context) {
     suspend fun export(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
         output: JpegOutput, destination: ExportDestination,
         frame: FrameOptions = FrameOptions(), frameNumber: Int = 1,
-        onStage: suspend (PhotoProcessingStage) -> Unit = {}, onPublished: suspend (Uri) -> Unit = {}): Uri =
+        onStage: suspend (PhotoProcessingStage) -> Unit = {}, onTargetCreated: suspend (Uri) -> Unit = {},
+        onPublished: suspend (Uri) -> Unit = {}): Uri =
         writer.write(source, output, destination,
             lut = (recipe as? PhotoRecipe.Lut)?.let { luts.plan(it.parameters, catalogue.luts) },
             film = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed) },
             frame = frame, frameNumber = frameNumber,
-            onStage = onStage, onPublished = onPublished)
+            onStage = onStage, onTargetCreated = onTargetCreated, onPublished = onPublished)
 
     /** Complete composition preview. longEdge bounds the final canvas, including frame and text. */
     suspend fun previewExport(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
@@ -130,6 +131,8 @@ class PhotoProcessor(context: Context) {
 
     suspend fun export(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
         options: BatchExportOptions, destination: ExportDestination, frameNumber: Int = 1,
-        onStage: suspend (PhotoProcessingStage) -> Unit = {}, onPublished: suspend (Uri) -> Unit = {}): Uri =
-        export(source, recipe, catalogue, options.jpeg, destination, options.frame, frameNumber, onStage, onPublished)
+        onStage: suspend (PhotoProcessingStage) -> Unit = {}, onTargetCreated: suspend (Uri) -> Unit = {},
+        onPublished: suspend (Uri) -> Unit = {}): Uri =
+        export(source, recipe, catalogue, options.jpeg, destination, options.frame, frameNumber,
+            onStage = onStage, onTargetCreated = onTargetCreated, onPublished = onPublished)
 }

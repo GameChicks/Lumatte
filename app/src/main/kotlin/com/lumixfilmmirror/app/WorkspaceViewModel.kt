@@ -33,6 +33,10 @@ import com.lumixfilmmirror.storage.WorkspacePreferences
 import com.lumixfilmmirror.storage.TransferTask
 import com.lumixfilmmirror.storage.IncomingTransfer
 import com.lumixfilmmirror.storage.ProcessingBatch
+import com.lumixfilmmirror.storage.ExportQueueRunner
+import com.lumixfilmmirror.storage.ExportRequestPhoto
+import com.lumixfilmmirror.storage.ExportRun
+import com.lumixfilmmirror.storage.ExportItemState
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -80,6 +84,8 @@ data class WorkspaceState(
     val completed: Int = 0,
     val total: Int = 0,
     val exported: List<ExportedPhoto> = emptyList(),
+    val exportRuns: List<ExportRun> = emptyList(),
+    val exportRunId: String? = null,
     val failures: List<FailedPhoto> = emptyList(),
     val notice: String? = null,
 ) {
@@ -92,12 +98,30 @@ data class WorkspaceState(
 private fun WorkspaceState.showBatch(batches: List<ProcessingBatch>, id: String?): WorkspaceState {
     val batch = batches.firstOrNull { it.id == id }
     val photos = batch?.photos.orEmpty()
-    return copy(processingBatches = batches, processingBatchId = id, photos = photos,
+    val next = copy(processingBatches = batches, processingBatchId = id, photos = photos,
         lutRecipe = batch?.lut ?: LutRecipe(),
         frame = batch?.frame ?: FrameOptions(),
         treatment = batch?.treatment ?: PhotoTreatment.LUT,
         filmBatch = batch?.let { syncFilmBatch(it.film, photos) },
         selected = selected?.takeIf { selected -> photos.any { it.id == selected } } ?: photos.firstOrNull()?.id)
+    if (exporting || importing) return next
+    val selectedRun = exportRuns.firstOrNull { it.id == exportRunId && it.batchId == id }
+        ?: exportRuns.firstOrNull { it.batchId == id }
+    if (selectedRun == null && exportRunId == null && id == processingBatchId) return next
+    return next.showExportRun(selectedRun)
+}
+
+private fun WorkspaceState.showExportRun(run: ExportRun?): WorkspaceState {
+    if (run == null) return copy(exportRunId = null, completed = 0, total = 0, exported = emptyList(),
+        failures = emptyList(), processingStage = null, processingPhotoId = null)
+    val active = run.items.firstOrNull { it.state == ExportItemState.RUNNING }
+    return copy(exportRunId = run.id, completed = run.completed, total = run.items.size,
+        processingStage = active?.stage, processingPhotoId = active?.photo?.id,
+        exported = run.items.filter { it.state == ExportItemState.SAVED }.map { item ->
+            ExportedPhoto(item.photo.id, item.photo.name, Uri.parse(requireNotNull(item.savedUri))) },
+        failures = run.items.filter { it.state in setOf(ExportItemState.FAILED, ExportItemState.REVIEW) }.map { item ->
+            FailedPhoto(item.photo.id, item.photo.name, if (item.state == ExportItemState.REVIEW)
+                "保存结果需要核对 · ${item.error.orEmpty()}" else item.error ?: "导出失败") })
 }
 
 private fun syncFilmBatch(existing: FilmBatch?, photos: List<SourceImage>): FilmBatch? {
@@ -119,6 +143,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private val frameSaveJobs = mutableMapOf<String, Job>()
     private val importer = ImageImporter(application)
     private val store = WorkspaceStore(application)
+    private val exportRunner = ExportQueueRunner(application, processor)
+    val exportQueue get() = exportRunner.store
     private val camera = (application as FilmMirrorApplication).camera
     private val mutable = MutableStateFlow(WorkspaceState())
     val state = mutable.asStateFlow()
@@ -130,6 +156,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private var observingStorage = false
     private val storageObservers = mutableListOf<Job>()
     private var exportJob: Job? = null
+    private var exportCancelRequested = false
     val cameraState = camera.cameraState
 
     init {
@@ -140,7 +167,6 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                     val updated = previous.copy(cameraBusy = value.busy, activeTransferBatch = value.activeTransferBatch)
                     if (nextBatch == null || previous.exporting || previous.importing || previous.lutImporting || previous.batchBusy) updated
                     else updated.showBatch(updated.processingBatches, nextBatch)
-                        .copy(exported = emptyList(), failures = emptyList())
                 }
                 if (nextBatch != null && !mutable.value.recovering) persistPreferences()
             }
@@ -155,6 +181,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val problems = store.initialize(importer, recoverTransfers = !camera.isTransferring)
                 val settings = store.readPreferences()
+                exportQueue.initialize()
+                val exportRuns = exportQueue.runs.first()
                 val library = processor.loadCatalogue()
                 val filmPresets = library.films
                 val batches = availableBatches(store.processingBatches.first()).first
@@ -169,6 +197,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                         ?: batches.firstOrNull { batch -> batch.photos.any { it.id.value == settings.selectedId } }?.id
                         ?: batches.firstOrNull { it.photos.isNotEmpty() }?.id ?: batches.firstOrNull()?.id
                     previous.copy(output = settings.output, selected = settings.selectedId?.let(::PhotoId), luts = library.luts, filmPresets = filmPresets,
+                    exportRuns = exportRuns,
                     destination = settings.folderUri?.let { uri -> ExportDestination.Folder(Uri.parse(uri)) } ?: ExportDestination.Gallery,
                     exportCache = cleanup.remaining.copy(problems = cleanupProblems),
                     folderExports = folderExports,
@@ -220,6 +249,19 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             catch (error: CancellationException) { throw error }
             catch (error: Exception) { storageFailed(error.message ?: "无法读取接收确认记录") }
         }
+        storageObservers += viewModelScope.launch {
+            try { exportQueue.runs.collect { runs ->
+                mutable.update { previous ->
+                    val next = previous.copy(exportRuns = runs)
+                    val run = runs.firstOrNull { it.id == previous.exportRunId && it.batchId == previous.processingBatchId }
+                        ?: runs.firstOrNull { it.batchId == previous.processingBatchId }
+                    if (previous.exporting || previous.importing || (run == null && previous.exportRunId == null)) next
+                    else next.showExportRun(run)
+                }
+            } }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { storageFailed(error.message ?: "无法读取导出任务记录") }
+        }
     }
 
     private fun storageFailed(message: String) {
@@ -260,7 +302,13 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         require(snapshot.photos.any { it.id == id }) { "照片不在当前批次中" }
         if (original) return PhotoRecipe.Original
         return if (snapshot.treatment == PhotoTreatment.LUT) PhotoRecipe.Lut(snapshot.lutRecipe)
-        else filmPlan(snapshot, id).let { PhotoRecipe.Film(it.parameters, it.grainSeed) }
+        else {
+            val batch = requireNotNull(snapshot.filmBatch) { "请先选择胶卷" }
+            if (batch.mode == FilmBatchMode.FIRST_PHOTO) require(snapshot.photos.any { it.id == batch.referenceId }) {
+                "原基准照片不可用，请明确指定新的基准照片"
+            }
+            PhotoRecipe.Film(batch.effectiveParameters(id), batch.photos.single { it.id == id }.grainSeed)
+        }
     }
 
     suspend fun previewEditedPhoto(id: PhotoId, longEdge: Int = 960, original: Boolean = false): android.graphics.Bitmap {
@@ -505,7 +553,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private fun showCreatedBatch(batch: ProcessingBatch) {
         mutable.update { previous -> previous.showBatch(
             (listOf(batch) + previous.processingBatches).distinctBy { it.id }, batch.id)
-            .copy(exported = emptyList(), failures = emptyList(), notice = null) }
+            .copy(notice = null) }
         persistPreferences()
     }
 
@@ -524,7 +572,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         if (mutable.value.busy || camera.cameraState.value.busy || mutable.value.processingBatches.none { it.id == id }) return
         if (id == mutable.value.processingBatchId) return
         mutable.update { it.showBatch(it.processingBatches, id)
-            .copy(exported = emptyList(), failures = emptyList(), notice = null) }
+            .copy(notice = null) }
         persistPreferences()
     }
 
@@ -543,50 +591,90 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun export(retryOnly: Boolean = false) {
         val snapshot = mutable.value
         if (snapshot.busy || camera.cameraState.value.busy || snapshot.photos.isEmpty()) return
-        val retryIds = snapshot.failures.mapNotNull { it.id }.toSet()
+        val previousRun = snapshot.exportRuns.firstOrNull { it.id == snapshot.exportRunId }
+        val retryIds = previousRun?.items?.filter { it.state == ExportItemState.FAILED }?.map { it.photo.id }?.toSet()
+            ?: snapshot.failures.mapNotNull { it.id }.toSet()
         val photos = if (retryOnly) snapshot.photos.filter { it.id in retryIds } else snapshot.photos
-        if (photos.isEmpty()) return
-        mutable.update { it.copy(exporting = true, completed = 0, total = photos.size, processingStage = null, processingPhotoId = null,
-            exported = if (retryOnly) it.exported else emptyList(), failures = emptyList(), notice = null, exportCache = null) }
+        if (photos.isEmpty()) {
+            if (retryOnly && previousRun?.reviews != null && previousRun.reviews > 0)
+                notice("保存结果需要核对，请先核对目标照片，再决定是否重试")
+            return
+        }
+        launchExport(photos.size) {
+            val batchId = requireNotNull(snapshot.processingBatchId) { "处理批次不存在" }
+            store.saveLutRecipe(batchId, snapshot.lutRecipe)
+            store.saveEditRecipe(batchId, snapshot.treatment, snapshot.filmBatch)
+            store.saveFrameRecipe(batchId, snapshot.frame)
+            val numbers = snapshot.photos.mapIndexed { index, photo -> photo.id to index + 1 }.toMap()
+            exportQueue.enqueue(batchId, photos.map { photo -> ExportRequestPhoto(photo.id, photo.name,
+                requireNotNull(numbers[photo.id]), photoRecipe(snapshot, photo.id)) },
+                snapshot.exportOptions, snapshot.destination)
+        }
+    }
+
+    /** Continue the immutable saved request, skipping SAVED and REVIEW items. */
+    fun resumeExport(id: String, retryFailed: Boolean = false) {
+        val snapshot = mutable.value
+        if (snapshot.busy || camera.cameraState.value.busy) return
+        val run = snapshot.exportRuns.firstOrNull { it.id == id && it.batchId == snapshot.processingBatchId } ?: return
+        launchExport(run.items.size, retryFailed) { requireNotNull(exportQueue.snapshot(id)) }
+    }
+
+    /** Frontend must first ask the user to inspect the candidate file; null allows a later retry. */
+    fun confirmExportReview(runId: String, photoId: PhotoId, savedUri: Uri?) {
+        if (mutable.value.busy || mutable.value.exportRuns.none { it.id == runId && it.batchId == mutable.value.processingBatchId }) return
+        viewModelScope.launch {
+            try { exportQueue.confirmReview(runId, photoId, savedUri) }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { notice(error.message ?: "核对结果未能保存") }
+        }
+    }
+
+    fun cancelPendingExport(id: String) {
+        if (mutable.value.busy || mutable.value.exportRuns.none { it.id == id && it.batchId == mutable.value.processingBatchId }) return
+        viewModelScope.launch {
+            try { exportQueue.stopIdle(id, cancel = true) }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { notice(error.message ?: "任务未能取消") }
+        }
+    }
+
+    private fun launchExport(total: Int, retryFailed: Boolean = false, request: suspend () -> ExportRun) {
+        exportCancelRequested = false
+        mutable.update { it.copy(exporting = true, completed = 0, total = total, processingStage = null,
+            processingPhotoId = null, exported = emptyList(), failures = emptyList(), notice = null, exportCache = null) }
         exportJob = viewModelScope.launch {
+            var id: String? = null
             try {
-                val catalogue = ProcessingCatalogue(snapshot.luts, snapshot.filmPresets, emptyList())
-                snapshot.processingBatchId?.let { store.saveLutRecipe(it, snapshot.lutRecipe) }
-                snapshot.processingBatchId?.let { store.saveEditRecipe(it, snapshot.treatment, snapshot.filmBatch) }
-                snapshot.processingBatchId?.let { store.saveFrameRecipe(it, snapshot.frame) }
-                for (photo in photos) {
-                    coroutineContext.ensureActive()
-                    try {
-                        processor.export(photo, photoRecipe(snapshot, photo.id), catalogue, snapshot.exportOptions, snapshot.destination,
-                            frameNumber = snapshot.photos.indexOfFirst { it.id == photo.id } + 1,
-                            onStage = { stage -> mutable.update { it.copy(processingPhotoId = photo.id, processingStage = stage) } }) { uri ->
-                            mutable.update { it.copy(exported = it.exported + ExportedPhoto(photo.id, photo.name, uri),
-                                completed = it.completed + 1) }
-                        }
-                    } catch (error: CancellationException) { throw error }
-                    catch (error: OutOfMemoryError) {
-                        mutable.update { it.copy(failures = it.failures + FailedPhoto(photo.id, photo.name,
-                            "当前尺寸所需内存不足，请降低 JPG 尺寸后重试"), completed = it.completed + 1) }
-                    } catch (error: LinkageError) {
-                        mutable.update { it.copy(failures = it.failures + FailedPhoto(photo.id, photo.name,
-                            "胶片引擎暂不可用"), completed = it.completed + 1) }
-                    } catch (error: Exception) {
-                        mutable.update { it.copy(failures = it.failures + FailedPhoto(photo.id, photo.name, error.message ?: "导出失败"),
-                            completed = it.completed + 1) }
-                    }
+                val run = withContext(NonCancellable) { request().also { id = it.id } }
+                coroutineContext.ensureActive()
+                mutable.update { it.showExportRun(run) }
+                exportRunner.run(run.id, retryFailed, cancelRemaining = { exportCancelRequested }) { progress ->
+                    mutable.update { it.showExportRun(progress) }
                 }
-                mutable.update { it.copy(notice = "已保存 ${it.exported.size} 张照片") }
+                mutable.update { it.copy(notice = "本次导出任务已结束，结果已记录") }
             } catch (error: CancellationException) {
-                mutable.update { it.copy(notice = "已取消后续导出，已保存的照片会保留") }
+                mutable.update { it.copy(notice = if (exportCancelRequested)
+                    "已取消后续导出，已保存的照片会保留" else "导出已暂停，可继续未完成的项目") }
             } catch (error: Exception) {
-                mutable.update { it.copy(notice = error.message ?: "本批导出未能开始，请核对处理配方") }
+                mutable.update { it.copy(notice = error.message ?: "本批导出未能开始，已保存记录保留") }
             } finally {
                 withContext(NonCancellable) {
                     try {
+                        id?.let { runId ->
+                            var run = exportQueue.snapshot(runId)
+                            if (run?.state == com.lumixfilmmirror.storage.ExportRunState.QUEUED) {
+                                exportQueue.stopIdle(runId, cancel = exportCancelRequested)
+                                run = exportQueue.snapshot(runId)
+                            }
+                            mutable.update { it.showExportRun(run) }
+                        }
+                        if (id == null) mutable.update { previous -> previous.showExportRun(
+                            previous.exportRuns.firstOrNull { it.id == previous.exportRunId }) }
                         val records = writer.inspectFolderExports()
                         mutable.update { it.copy(folderExports = records) }
                     } catch (error: Exception) {
-                        mutable.update { it.copy(notice = "导出已结束，但文件夹记录暂不可读：${error.message.orEmpty()}") }
+                        mutable.update { it.copy(notice = "导出已结束，但结果记录暂不可读：${error.message.orEmpty()}") }
                     }
                 }
                 mutable.update { it.copy(exporting = false, processingStage = null, processingPhotoId = null) }
@@ -594,5 +682,6 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun cancelExport() { exportJob?.cancel() }
+    fun pauseExport() { exportCancelRequested = false; exportJob?.cancel() }
+    fun cancelExport() { exportCancelRequested = true; exportJob?.cancel() }
 }

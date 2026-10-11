@@ -217,9 +217,10 @@ internal abstract class WorkspaceDao {
 
 @Database(entities = [PhotoRow::class, TransferTask::class, IncomingTransfer::class,
     ProcessingBatchRow::class, ProcessingEntryRow::class, BatchLutRecipeRow::class, BatchEditRecipeRow::class,
-    BatchFrameRecipeRow::class], version = 7, exportSchema = true)
+    BatchFrameRecipeRow::class, ExportRunRow::class, ExportItemRow::class], version = 8, exportSchema = true)
 internal abstract class WorkspaceDatabase : RoomDatabase() {
     abstract fun workspace(): WorkspaceDao
+    abstract fun exports(): ExportQueueDao
     companion object {
         private val version1To2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -260,10 +261,20 @@ internal abstract class WorkspaceDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS batch_frame_recipes (batchId TEXT NOT NULL PRIMARY KEY, frameJson TEXT NOT NULL, FOREIGN KEY(batchId) REFERENCES processing_batches(id) ON UPDATE NO ACTION ON DELETE NO ACTION)")
             }
         }
+        private val version7To8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS export_runs (id TEXT NOT NULL PRIMARY KEY, batchId TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, state TEXT NOT NULL, dimensionPercent INTEGER NOT NULL, compressionQuality INTEGER NOT NULL, frameJson TEXT NOT NULL, folderUri TEXT, FOREIGN KEY(batchId) REFERENCES processing_batches(id) ON UPDATE NO ACTION ON DELETE NO ACTION)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_export_runs_batchId ON export_runs(batchId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_export_runs_state ON export_runs(state)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS export_items (runId TEXT NOT NULL, photoId TEXT NOT NULL, name TEXT NOT NULL, frameNumber INTEGER NOT NULL, recipeJson TEXT NOT NULL, state TEXT NOT NULL, stage TEXT, candidateUri TEXT, savedUri TEXT, error TEXT, PRIMARY KEY(runId, photoId), FOREIGN KEY(runId) REFERENCES export_runs(id) ON UPDATE NO ACTION ON DELETE NO ACTION)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_export_items_runId ON export_items(runId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_export_items_photoId ON export_items(photoId)")
+            }
+        }
         @Volatile private var instance: WorkspaceDatabase? = null
         fun get(context: Context): WorkspaceDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, WorkspaceDatabase::class.java,
-                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4, version4To5, version5To6, version6To7).build().also { instance = it }
+                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4, version4To5, version5To6, version6To7, version7To8).build().also { instance = it }
         }
     }
 }

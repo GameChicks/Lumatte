@@ -59,6 +59,7 @@ class JpegOutputWriter(context: Context) {
         frame: FrameOptions = FrameOptions(),
         frameNumber: Int = 1,
         onStage: suspend (PhotoProcessingStage) -> Unit = {},
+        onTargetCreated: suspend (Uri) -> Unit = {},
         onPublished: suspend (Uri) -> Unit = {}): Uri = withContext(Dispatchers.IO) {
         JpegExportAccess.mutex.withLock {
             require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
@@ -93,8 +94,8 @@ class JpegOutputWriter(context: Context) {
                 val name = "LFM-$stamp-${UUID.randomUUID()}.jpg"
                 onStage(PhotoProcessingStage.PUBLISHING)
                 when (destination) {
-                    ExportDestination.Gallery -> publishGallery(temp, name, onPublished)
-                    is ExportDestination.Folder -> publishFolder(source, temp, name, destination.treeUri, onPublished)
+                    ExportDestination.Gallery -> publishGallery(temp, name, onTargetCreated, onPublished)
+                    is ExportDestination.Folder -> publishFolder(source, temp, name, destination.treeUri, onTargetCreated, onPublished)
                 }
             } finally { temp.delete() }
         }
@@ -207,7 +208,8 @@ class JpegOutputWriter(context: Context) {
         check(stored == file.length()) { "相册 JPG 尺寸不一致" }
     }
 
-    private suspend fun publishGallery(file: File, name: String, onPublished: suspend (Uri) -> Unit): Uri {
+    private suspend fun publishGallery(file: File, name: String, onTargetCreated: suspend (Uri) -> Unit,
+        onPublished: suspend (Uri) -> Unit): Uri {
         val resolver = context.contentResolver
         val details = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
@@ -217,6 +219,7 @@ class JpegOutputWriter(context: Context) {
         }
         val uri = resolver.insert(cache.collection, details) ?: error("无法创建相册文件")
         try {
+            withContext(NonCancellable) { onTargetCreated(uri) }
             copyGallery(file, uri)
             coroutineContext.ensureActive()
             // Publication and the caller's success record survive cancellation at the IO return boundary.
@@ -234,6 +237,7 @@ class JpegOutputWriter(context: Context) {
     }
 
     private suspend fun publishFolder(source: SourceImage, file: File, name: String, tree: Uri,
+        onTargetCreated: suspend (Uri) -> Unit,
         onPublished: suspend (Uri) -> Unit): Uri {
         val folder = DocumentFile.fromTreeUri(context, tree) ?: error("导出文件夹不可用")
         val prepared = folderJournal.prepare(source, name, tree, file.length())
@@ -245,6 +249,7 @@ class JpegOutputWriter(context: Context) {
             target = created
             val record = folderJournal.created(prepared, created.uri)
             targetRecorded = true
+            withContext(NonCancellable) { onTargetCreated(created.uri) }
             copy(file, created.uri)
             coroutineContext.ensureActive()
             withContext(NonCancellable) {
