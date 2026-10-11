@@ -176,14 +176,20 @@ Java_com_lumixfilmmirror_media_NativeFilmBridge_render(JNIEnv* env, jobject, jlo
         lfm::set_film_seed(uint64_t(seed));
         const spk_image input{rgb.data(), info.width, info.height, 3};
         spk_session* opened = spk_open(engine.value, &input, delta.c_str(), nullptr);
-        if (!opened) throw std::runtime_error(std::string("Film exposure preparation failed: ") + spk_last_error(engine.value));
+        if (!opened) {
+            task->check();
+            throw std::runtime_error(std::string("Film exposure preparation failed: ") + spk_last_error(engine.value));
+        }
         Session session{opened};
         task->check();
         std::vector<float>().swap(rgb);  // engine owns its source after spk_open
         Result result;
         const auto status = spk_render(opened, "full", &result.value);
         if (status == SPK_ERR_CANCELLED) throw Cancelled{};
-        if (status != SPK_OK) throw std::runtime_error(std::string("Film rendering failed: ") + spk_last_error(engine.value));
+        if (status != SPK_OK) {
+            task->check();
+            throw std::runtime_error(std::string("Film rendering failed: ") + spk_last_error(engine.value));
+        }
         task->check();
         if (!result.value.rgba16 || result.value.width != info.width || result.value.height != info.height ||
             result.value.row_stride_px < info.width) throw std::runtime_error("Film output dimensions changed unexpectedly");

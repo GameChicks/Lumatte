@@ -16,6 +16,7 @@
 - `third_party/spektralab/`、`native/film/`：固定原生光谱参考、许可与 Android 适配，尚未编译。
 - `native/lut/`：原生 CPU 双 LUT 扫描行与取消适配，保持 Kotlin 后备；效果预览 LRU 和后台清理见 [手机优化源码](docs/engineering/mobile-processing.md)，尚未编译或测量。
 - `docs/protocol/`：协议依据、范围及逐机型状态。
+- `dist/`：后续原型 APK 和打包交付附属文件；当前只有目录说明，未打包。需要模拟器验证时，镜像、AVD 与运行数据安排在 D 盘。
 
 批量规则、RAW 内嵌 JPEG、导出尺寸及系统主题见 [产品决策](docs/product/decisions.md)。
 

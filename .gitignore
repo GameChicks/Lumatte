@@ -22,3 +22,5 @@ research/third-party-sync/decompiled/
 research/third-party-sync/raw/
 .cxx/
 **/.cxx/
+/dist/*
+!/dist/README.md

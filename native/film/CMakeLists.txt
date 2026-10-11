@@ -60,6 +60,7 @@ string(REPLACE "${cancel_anchor}"
     "if (lfm::film_cancelled() || (progress_ && progress_->cancelled))"
     pipeline_source "${pipeline_source}")
 file(WRITE "${SPK_ADAPTED}/pipeline.cpp" "${pipeline_source}")
+include("${CMAKE_CURRENT_LIST_DIR}/adapt_vulkan.cmake")
 
 set(SPK_SHADER_NAMES spk_math_probe spk_take_rgb spk_matmul3 spk_stride_sample
     spk_affine3 spk_tc_b spk_lut2d_cubic spk_sep_fir_acc spk_iir_df_acc
@@ -95,10 +96,10 @@ set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/film_shader_resources.c
 
 add_library(lfm_film SHARED film_jni.cpp film_diffusion.cpp film_seed.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/film_shader_resources.cpp" ${shader_headers}
-    ${SPK_PIPELINE_SOURCES} "${SPK_ROOT}/src/gpu/vulkan_gpu.cpp")
+    ${SPK_PIPELINE_SOURCES} "${SPK_VULKAN_SOURCE}")
 target_include_directories(lfm_film PRIVATE "${CMAKE_CURRENT_LIST_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}/shaders" "${SPK_ADAPTED}" "${SPK_ROOT}/include"
-    "${SPK_ROOT}/src" "${SPK_CORE}")
+    "${SPK_ROOT}/src" "${SPK_ROOT}/src/gpu" "${SPK_CORE}")
 target_compile_definitions(lfm_film PRIVATE SPK_VERSION="lfm-prototype"
     SPK_BUILD_STAMP="spektralab-6a347d5756f8+lfm")
 target_link_libraries(lfm_film PRIVATE lfm_spectral_core lfm_volk jnigraphics dl m)

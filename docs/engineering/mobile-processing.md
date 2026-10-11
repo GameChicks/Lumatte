@@ -24,6 +24,18 @@ NativeLutRenderer 单线程执行任务，逐行检查取消。取消入口与�
 
 编辑预览和含框导出预览共用串行门。缓存读取、写入和清理都在该门内执行；不在当前处理／绘制时回收其输入。取消发生在 Default 调度器向前端交付结果的窗口时，会释放调用方未收到的位图。正式 JPEG 导出不读预览缓存，不将缓存的小图放大为成片，仍默认 100% 有效输入尺寸。
 
+## Vulkan 上传与回读分段
+
+`native/film/adapt_vulkan.cmake` 在未来获准构建时生成 Vulkan 后端副本，以本项目的 `film_vulkan_upload.inc`、`film_vulkan_read.inc` 替换两个传输方法；上游原件与原始清单不改写。应用构建使用这份副本，其他分配、计算着色器和数值模型保留。
+
+原路径按完整传输长度申请并保留上传／回读 staging；大图会多出整幅 float32 输入或 RGBA16 输出大小的 CPU 可映射缓冲。新代码每次最多传输 4 MiB，分别复用上传和回读缓冲。每个方向的逻辑大小不超过 4 MiB，两个方向通常最多合计 8 MiB；这不包含驱动对齐、缓冲扩容时新旧分配短暂共存、原生输入数组、GPU 计算平面、最终结果或 Android 位图。不是应用总内存上限。
+
+分段按连续字节偏移复制，不按照片空间拆分，不降低分辨率。double → float32 的表上传仍逐元素执行原来的转换，图像数据的精度、顺序和结果格式不变；没有运行数值对照，不宣称逐像素对应已经通过。4 MiB 边界及尾段保留四字节对齐；回读同时保留原有源偏移。
+
+每段保留原有 host／transfer 屏障、非一致内存 flush／invalidate 和同步队列等待，GPU 完成后才复用缓冲。分段边界检查当前胶片任务的原子取消标记；JNI 将这种传输取消归为取消，输入、session 和结果仍由已有 RAII 排空释放。单次 GPU 操作没有被强制中断。依据：[Vulkan buffer copy](https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdCopyBuffer.html)、[映射内存可见性](https://docs.vulkan.org/refpages/latest/refpages/source/vkInvalidateMappedMemoryRanges.html)。这两份 API 文档不是手机运行证据。
+
+代价是大图传输分成更多同步提交，可能增加耗时；本轮只处理额外中转内存，不能声称更快。完整 GPU 平面、存储缓冲大小限制和 GPU／主机最终结果仍是后续工作。没有运行 CMake、编译、着色器或图像处理。
+
 ## 生命周期与前端入口
 
 `FilmMirrorApplication.processor` 是应用共享处理器，WorkspaceViewModel 复用它；新前端也应复用该实例，避免多套缓存和资源管理器。系统 UI 隐藏／后台回调请求清空预览缓存并释放闲置胶片引擎；旧 Android 的运行内存压力回调也接入同一路径。清理请求合并、异步等待串行门，不取消导出、不阻塞回调、不触碰前端持有的图。
