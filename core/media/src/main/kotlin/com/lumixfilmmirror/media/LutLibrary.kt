@@ -44,11 +44,12 @@ class LutLibrary(context: Context) {
         check(root.isDirectory || root.mkdirs()) { "无法创建 LUT 目录" }
         val assets = mutableListOf<LutAsset>()
         val problems = mutableListOf<String>()
+        val parsingContext = coroutineContext
         for (entry in bundled) {
             coroutineContext.ensureActive()
             try {
                 val text = context.assets.open("luts/${entry.name}.cube").bufferedReader(Charsets.UTF_8).use { it.readText() }
-                val table = CubeLut.parse(text, entry.name).named(entry.name)
+                val table = CubeLut.parse(text, entry.name) { parsingContext.ensureActive() }.named(entry.name)
                 assets += LutAsset("bundled-${entry.id}", entry.name, true, table, entry.style)
             } catch (error: java.io.IOException) { problems += "${entry.name}：内置 LUT 读取失败" }
             catch (error: IllegalArgumentException) { problems += "${entry.name}：内置 LUT 数据无效" }
@@ -87,7 +88,8 @@ class LutLibrary(context: Context) {
         } ?: error("无法读取 LUT 文件")
         val text = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString()
-        val table = CubeLut.parse(text, name).named(name.removeSuffix(".cube").removeSuffix(".CUBE"))
+        val parsingContext = coroutineContext
+        val table = CubeLut.parse(text, name) { parsingContext.ensureActive() }.named(name.removeSuffix(".cube").removeSuffix(".CUBE"))
         coroutineContext.ensureActive()
         val id = "local-" + MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
         check(root.isDirectory || root.mkdirs())

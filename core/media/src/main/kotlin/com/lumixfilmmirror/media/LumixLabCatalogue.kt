@@ -38,7 +38,7 @@ data class LumixLabLutDetail(val lut: LumixLabLut, val overview: String?, val ph
 /** The caller owns image after successful return and must recycle it when the card is discarded. */
 data class LumixLabExample(val lutCode: String, val image: Bitmap, val colours: LutExampleColours)
 
-/** Language is an explicit service value; locale mapping has not been recovered yet. */
+/** Language is a service value; obtain it through LumixLabLanguages with a configured Android Context. */
 data class LumixLabLutQuery(val language: String, val offset: Int = 0, val limit: Int = 20,
     val genreCode: String? = null, val creatorCode: String? = null,
     val countries: List<String> = emptyList())

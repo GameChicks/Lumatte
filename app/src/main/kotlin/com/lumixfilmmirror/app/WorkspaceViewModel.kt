@@ -14,6 +14,9 @@ import com.lumixfilmmirror.media.PhotoProcessor
 import com.lumixfilmmirror.media.ProcessingCatalogue
 import com.lumixfilmmirror.media.FilmPreset
 import com.lumixfilmmirror.media.FilmRenderPlan
+import com.lumixfilmmirror.media.LumixLabBrowser
+import com.lumixfilmmirror.media.LumixLabLutQuery
+import com.lumixfilmmirror.media.OfficialLutDownloadStage
 import com.lumixfilmmirror.model.LutRecipe
 import com.lumixfilmmirror.model.FilmBatch
 import com.lumixfilmmirror.model.FilmBatchMode
@@ -53,6 +56,9 @@ import kotlin.coroutines.coroutineContext
 
 data class ExportedPhoto(val id: PhotoId, val name: String, val uri: Uri)
 data class FailedPhoto(val id: PhotoId?, val name: String, val reason: String)
+enum class OfficialLutDownloadStatus { RUNNING, SAVED, CANCELLED, FAILED }
+data class OfficialLutDownloadState(val code: String, val status: OfficialLutDownloadStatus,
+    val stage: OfficialLutDownloadStage?, val assetId: String? = null, val error: String? = null)
 
 data class WorkspaceState(
     val photos: List<SourceImage> = emptyList(),
@@ -62,6 +68,7 @@ data class WorkspaceState(
     val luts: List<LutAsset> = emptyList(),
     val lutRecipe: LutRecipe = LutRecipe(),
     val lutImporting: Boolean = false,
+    val officialLutDownload: OfficialLutDownloadState? = null,
     val filmPresets: List<FilmPreset> = emptyList(),
     val treatment: PhotoTreatment = PhotoTreatment.LUT,
     val filmBatch: FilmBatch? = null,
@@ -134,6 +141,9 @@ private fun syncFilmBatch(existing: FilmBatch?, photos: List<SourceImage>): Film
 class WorkspaceViewModel(application: Application) : AndroidViewModel(application) {
     val processor = (application as FilmMirrorApplication).processor
     val writer get() = processor.writer
+    /** Frontend-facing browser. Construction has no network side effects. */
+    val officialLuts = LumixLabBrowser(processor.officialLutCatalogue, viewModelScope)
+    private var officialLutDownloadJob: Job? = null
     private val editDrafts = mutableMapOf<String, Pair<PhotoTreatment, FilmBatch?>>()
     private val editSaveJobs = mutableMapOf<String, Job>()
     private val lutDrafts = mutableMapOf<String, LutRecipe>()
@@ -464,6 +474,61 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                     notice = (listOf("已导入 $imported 款 LUT") + problems).joinToString("\n")) }
             }
         }
+    }
+
+    fun refreshOfficialLuts(genreCode: String? = null, creatorCode: String? = null,
+        language: String = processor.officialLutLanguage()) {
+        officialLuts.refresh(LumixLabLutQuery(language, genreCode = genreCode, creatorCode = creatorCode))
+    }
+
+    /** Download never overwrites a slot or starts export. Selection remains an explicit batch edit. */
+    fun downloadOfficialLut(code: String, language: String = processor.officialLutLanguage()): Boolean {
+        if (mutable.value.busy || officialLutDownloadJob?.isActive == true) return false
+        mutable.update { it.copy(lutImporting = true, officialLutDownload = OfficialLutDownloadState(code,
+            OfficialLutDownloadStatus.RUNNING, OfficialLutDownloadStage.READING_DETAIL)) }
+        officialLutDownloadJob = viewModelScope.launch {
+            try {
+                val asset = processor.downloadOfficialLut(code, language) { stage ->
+                    mutable.update { it.copy(officialLutDownload = it.officialLutDownload?.copy(stage = stage)) }
+                }
+                mutable.update { it.copy(luts = it.luts.filterNot { existing -> existing.id == asset.id } + asset,
+                    officialLutDownload = OfficialLutDownloadState(code, OfficialLutDownloadStatus.SAVED, null, asset.id)) }
+            } catch (error: CancellationException) {
+                mutable.update { it.copy(officialLutDownload = OfficialLutDownloadState(code, OfficialLutDownloadStatus.CANCELLED, null)) }
+                throw error
+            } catch (error: Exception) {
+                mutable.update { it.copy(officialLutDownload = OfficialLutDownloadState(code, OfficialLutDownloadStatus.FAILED,
+                    null, error = error.message ?: "官方 LUT 下载失败")) }
+            } finally { mutable.update { it.copy(lutImporting = false) } }
+        }
+        return true
+    }
+
+    fun cancelOfficialLutDownload() { officialLutDownloadJob?.cancel() }
+
+    /** Re-read durable assets after a late cancellation, external recovery or a failed UI delivery. */
+    fun reloadLutLibrary(): Boolean {
+        if (mutable.value.busy) return false
+        mutable.update { it.copy(lutImporting = true) }
+        viewModelScope.launch {
+            try {
+                val catalogue = processor.loadCatalogue()
+                mutable.update { it.copy(luts = catalogue.luts, filmPresets = catalogue.films,
+                    notice = catalogue.problems.takeIf { problems -> problems.isNotEmpty() }?.joinToString("\n") ?: it.notice) }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { notice(error.message ?: "LUT 目录读取失败") }
+            finally { mutable.update { it.copy(lutImporting = false) } }
+        }
+        return true
+    }
+
+    fun selectLutSlot(id: String?, second: Boolean = false): Boolean {
+        val current = mutable.value
+        if (current.busy || current.processingBatchId == null || (id != null && current.luts.none { it.id == id })) return false
+        val recipe = if (second) current.lutRecipe.copy(second = current.lutRecipe.second.copy(id = id))
+            else current.lutRecipe.copy(first = current.lutRecipe.first.copy(id = id))
+        updateLut(recipe)
+        return true
     }
 
     private fun withCamera(action: () -> Unit) { if (!mutable.value.busy) action() }

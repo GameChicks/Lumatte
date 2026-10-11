@@ -54,7 +54,7 @@ def pool(data, at):
     return result
 
 
-def index(data):
+def index(data, *, names=None, configurations=False):
     global_strings = []
     resources = []
     for kind, header, size, at in chunks(data, u16(data, 2), len(data)):
@@ -85,15 +85,31 @@ def index(data):
                 for entry_id, off in offsets:
                     entry = ca + entries_start + off
                     entry_size, entry_flags, key = struct.unpack_from("<HHI", data, entry)
+                    if names is not None and keys[key] not in names:
+                        continue
                     if entry_flags & 1:
                         continue  # Complex maps do not directly reference a file.
                     value = entry + entry_size
                     value_type, value_data = data[value + 3], u32(data, value + 4)
                     if value_type == 3:
-                        resources.append({"id": f"0x{package_id:02x}{type_id:02x}{entry_id:04x}",
-                                          "type": types[type_id - 1], "name": keys[key],
-                                          "value": global_strings[value_data]})
-    return sorted({(r["id"], r["value"]): r for r in resources}.values(), key=lambda r: (r["type"], r["name"], r["value"]))
+                        resource = {"id": f"0x{package_id:02x}{type_id:02x}{entry_id:04x}",
+                                    "type": types[type_id - 1], "name": keys[key],
+                                    "value": global_strings[value_data]}
+                        if configurations:
+                            config = ca + 20
+                            config_size = u32(data, config)
+                            if config_size < 12 or config + config_size > ca + ch:
+                                raise ValueError("Invalid resource configuration")
+                            def code(offset, length):
+                                raw = data[config + offset:config + offset + length]
+                                # Retain packed codes as hex. This focused recovery only needs ASCII locales.
+                                return raw.rstrip(b"\0").decode("ascii") if all(c < 128 for c in raw) else "hex:" + raw.hex()
+                            resource["configuration"] = {"language": code(8, 2), "region": code(10, 2),
+                                "script": code(36, 4) if config_size >= 40 else "",
+                                "rawHex": data[config:config + config_size].hex()}
+                        resources.append(resource)
+    return sorted({(r["id"], r["value"], r.get("configuration", {}).get("rawHex")): r for r in resources}.values(),
+                  key=lambda r: (r["type"], r["name"], r["value"], r.get("configuration", {}).get("rawHex", "")))
 
 
 def main():

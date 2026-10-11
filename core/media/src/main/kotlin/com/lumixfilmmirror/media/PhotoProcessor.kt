@@ -24,9 +24,11 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 
 data class ProcessingCatalogue(val luts: List<LutAsset>, val films: List<FilmPreset>, val problems: List<String>)
+enum class OfficialLutDownloadStage { READING_DETAIL, DOWNLOADING, IMPORTING }
 
 /** Processing entry point for a future frontend. No Compose, screen or animation dependency. */
 class PhotoProcessor(context: Context) {
+    private val applicationContext = context.applicationContext
     private val luts = LutLibrary(context)
     private val films = FilmCatalogue(context)
     private val lutGallery = LutGalleryLibrary(context)
@@ -46,9 +48,15 @@ class PhotoProcessor(context: Context) {
 
     suspend fun importLut(uri: Uri): LutAsset = luts.import(uri)
     /** Explicit download action; returns a normal offline asset usable in either LUT slot. */
-    suspend fun downloadOfficialLut(code: String, language: String): LutAsset {
+    fun officialLutLanguage(): String = LumixLabLanguages.forContext(applicationContext)
+
+    suspend fun downloadOfficialLut(code: String, language: String = officialLutLanguage(),
+        onStage: suspend (OfficialLutDownloadStage) -> Unit = {}): LutAsset {
+        onStage(OfficialLutDownloadStage.READING_DETAIL)
         val detail = officialLutCatalogue.detail(code, language)
+        onStage(OfficialLutDownloadStage.DOWNLOADING)
         val cube = officialLutCatalogue.downloadCube(detail)
+        onStage(OfficialLutDownloadStage.IMPORTING)
         return luts.importOfficial(detail, cube)
     }
     /** Display metadata only; the caller keeps the existing processing catalogue for rendering. */
