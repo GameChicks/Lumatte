@@ -1,0 +1,20 @@
+{
+  "stocks": [
+    {
+      "id": "lfm_silver_neutral",
+      "name": "Silver · Neutral",
+      "category": "MONOCHROME",
+      "printId": "lfm_silver_paper",
+      "positive": false,
+      "description": "本项目自有银盐黑白风格，非实测品牌胶卷模型。"
+    },
+    {
+      "id": "lfm_silver_contrast",
+      "name": "Silver · Contrast",
+      "category": "MONOCHROME",
+      "printId": "lfm_silver_paper",
+      "positive": false,
+      "description": "本项目自有银盐黑白风格，非实测品牌胶卷模型。"
+    }
+  ]
+}

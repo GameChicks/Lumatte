@@ -21,7 +21,7 @@ internal class MobileFilmModelLibrary(context: Context) {
     private val cache = LinkedHashMap<String, MobileFilmModel>(4, .75f, true)
     private var cachedBytes = 0L
     private var entries: Map<String, Entry>? = null
-    private data class Entry(val info: MobileFilmModelInfo, val manifestSha256: String)
+    private data class Entry(val info: MobileFilmModelInfo, val manifestSha256: String, val root: String)
 
     suspend fun info(): MobileFilmModelsInfo = withContext(Dispatchers.IO) {
         gate.withLock {
@@ -43,26 +43,38 @@ internal class MobileFilmModelLibrary(context: Context) {
             require(entry.info.printId == preset.printId && entry.info.positive == preset.positive) {
                 "移动胶片模型与所选胶卷／相纸不符"
             }
+            require(entry.info.origin != FilmModelOrigin.PROJECT_MONOCHROME || preset.category == FilmCategory.MONOCHROME) {
+                "自有黑白胶片分类不符"
+            }
             cache[preset.id]?.let { return@withLock it }
             coroutineContext.ensureActive()
-            val bytes = readSmall("$ROOT/${preset.id}/model.json")
+            val bytes = readSmall("${entry.root}/${preset.id}/model.json")
             require(hash(bytes) == entry.manifestSha256) { "胶片模型说明哈希不符" }
             val manifest = JSONObject(bytes.toString(Charsets.UTF_8))
             val source = manifest.getJSONObject("source")
             require(manifest.getInt("schema") == 1 && manifest.getString("modelVersion") == entry.info.modelVersion &&
                 manifest.getString("stockId") == preset.id && manifest.getString("printId") == preset.printId &&
-                manifest.getBoolean("positive") == preset.positive && source.getString("commit") == SOURCE_COMMIT &&
-                source.getString("repository") == "https://github.com/andreavolpato/spektrafilm" &&
-                source.getString("license") == "CC-BY-SA-4.0" &&
+                manifest.getBoolean("positive") == preset.positive &&
                 manifest.getString("storage") == "float32_le_rgb_x_fastest" &&
-                manifest.getString("dir") == "baked_local_only" && !manifest.getBoolean("spatialEffectsBaked") &&
+                !manifest.getBoolean("spatialEffectsBaked") &&
                 !manifest.getBoolean("grainBaked")) { "不支持此胶片模型来源／阶段格式" }
+            when (entry.info.origin) {
+                FilmModelOrigin.SPEKTRAFILM -> require(source.getString("commit") == SOURCE_COMMIT &&
+                    source.getString("repository") == "https://github.com/andreavolpato/spektrafilm" &&
+                    source.getString("license") == "CC-BY-SA-4.0" && manifest.getString("dir") == "baked_local_only") {
+                    "不支持此光谱胶片模型来源"
+                }
+                FilmModelOrigin.PROJECT_MONOCHROME -> require(source.getString("origin") == "project_authored" &&
+                    source.getString("author") == "Lumix Film Mirror" && source.getString("implementation") == "silver-negative-v1" &&
+                    source.getString("license") == "GPL-3.0-only" && manifest.getString("dir") == "none_silver_density" &&
+                    !manifest.getJSONObject("silverModel").getBoolean("commercialStockCalibration")) { "不支持此自有黑白模型来源" }
+            }
             val tables = manifest.getJSONObject("tables")
             val scanDescriptor = tables.getJSONObject("scan")
             val model = MobileFilmModel(entry.info,
-                readTable(preset.id, "response", tables.getJSONObject("response"), "srgb_encoded", "film_raw_linear"),
-                readTable(preset.id, "development", tables.getJSONObject("development"), "film_log10_exposure", "film_cmy_density"),
-                readTable(preset.id, "scan", scanDescriptor, "film_cmy_density", "srgb_encoded"),
+                readTable(entry.root, preset.id, "response", tables.getJSONObject("response"), "srgb_encoded", "film_raw_linear"),
+                readTable(entry.root, preset.id, "development", tables.getJSONObject("development"), "film_log10_exposure", "film_cmy_density"),
+                readTable(entry.root, preset.id, "scan", scanDescriptor, "film_cmy_density", "srgb_encoded"),
                 readEffects(manifest, scanDescriptor))
             val count = model.response.bytes + model.development.bytes + model.scan.bytes
             require(count == entry.info.tableBytes) { "胶片模型总大小不符" }
@@ -83,9 +95,19 @@ internal class MobileFilmModelLibrary(context: Context) {
 
     private suspend fun index(): Map<String, Entry> {
         entries?.let { return it }
-        val json = JSONObject(readSmall("$ROOT/index.json").toString(Charsets.UTF_8))
-        require(json.getInt("schema") == 1 && json.getString("sourceCommit") == SOURCE_COMMIT &&
-            json.getString("modelVersion") == MODEL_VERSION) { "不支持此移动胶片目录版本" }
+        val spectral = readIndex(ROOT, MODEL_VERSION, FilmModelOrigin.SPEKTRAFILM)
+        val monochrome = readIndex(MONO_ROOT, MONO_VERSION, FilmModelOrigin.PROJECT_MONOCHROME)
+        require(spectral.keys.intersect(monochrome.keys).isEmpty()) { "移动胶片目录标识重复" }
+        return (spectral + monochrome).also { entries = it }
+    }
+
+    private suspend fun readIndex(root: String, expectedVersion: String, origin: FilmModelOrigin): Map<String, Entry> {
+        val json = JSONObject(readSmall("$root/index.json").toString(Charsets.UTF_8))
+        require(json.getInt("schema") == 1 && json.getString("modelVersion") == expectedVersion &&
+            when (origin) {
+                FilmModelOrigin.SPEKTRAFILM -> json.getString("sourceCommit") == SOURCE_COMMIT
+                FilmModelOrigin.PROJECT_MONOCHROME -> json.getString("origin") == "project_authored"
+            }) { "不支持此移动胶片目录版本" }
         val array = json.getJSONArray("models")
         require(array.length() in 1..128) { "移动胶片目录数量无效" }
         val result = LinkedHashMap<String, Entry>()
@@ -96,11 +118,14 @@ internal class MobileFilmModelLibrary(context: Context) {
             val version = item.getString("modelVersion")
             val size = item.getLong("tableBytes")
             val digest = item.getString("manifestSha256")
-            require(ID.matches(id) && ID.matches(printId) && version == MODEL_VERSION &&
+            require(ID.matches(id) && ID.matches(printId) && version == expectedVersion &&
                 size in 1..MAX_MODEL_BYTES && SHA256.matches(digest) && !result.containsKey(id)) { "移动胶片目录条目无效" }
-            result[id] = Entry(MobileFilmModelInfo(id, printId, item.getBoolean("positive"), version, SOURCE_COMMIT, size), digest)
+            if (origin == FilmModelOrigin.PROJECT_MONOCHROME) require(id in MONO_STOCKS && printId == "lfm_silver_paper" &&
+                !item.getBoolean("positive")) { "自有黑白目录条目无效" }
+            result[id] = Entry(MobileFilmModelInfo(id, printId, item.getBoolean("positive"), version,
+                SOURCE_COMMIT.takeIf { origin == FilmModelOrigin.SPEKTRAFILM }, size, origin), digest, root)
         }
-        return result.toMap().also { entries = it }
+        return result.toMap()
     }
 
     private suspend fun readSmall(path: String): ByteArray = assets.open(path).use { input ->
@@ -116,7 +141,7 @@ internal class MobileFilmModelLibrary(context: Context) {
         output.toByteArray()
     }
 
-    private suspend fun readTable(stock: String, name: String, json: JSONObject, inputSpace: String, outputSpace: String): FilmStageTable {
+    private suspend fun readTable(root: String, stock: String, name: String, json: JSONObject, inputSpace: String, outputSpace: String): FilmStageTable {
         val size = json.getInt("size")
         require(size in 2..65 && json.getString("file") == "$name.f32" && json.getString("shaper") == "linear" &&
             json.getString("inputSpace") == inputSpace && json.getString("outputSpace") == outputSpace) { "胶片阶段表格式无效" }
@@ -137,7 +162,7 @@ internal class MobileFilmModelLibrary(context: Context) {
         }
         val values = FloatArray(count)
         val digest = MessageDigest.getInstance("SHA-256")
-        assets.open("$ROOT/$stock/$name.f32").use { input ->
+        assets.open("$root/$stock/$name.f32").use { input ->
             val block = ByteArray(16 * 1024)
             val view = ByteBuffer.wrap(block).order(ByteOrder.LITTLE_ENDIAN)
             var written = 0
@@ -180,7 +205,7 @@ internal class MobileFilmModelLibrary(context: Context) {
                 require(value.isFinite() && value in low..high) { "胶片效果参数无效：$key" }
             } }
         }
-        // v1 generation reserves exactly 0.2 above the highest developed density.
+        // v1 generators reserve 0.2 above the declared density ceiling.
         val maximum = triple(scan, "maximum", .21f, 10f).also { for (c in 0..2) it[c] -= .2f }
         return MobileFilmEffects(grain.getBoolean("active"), scalar(grain, "particle_area_um2", .0001f, 10f),
             triple(grain, "particle_scale", .0001f, 20f), triple(grain, "density_min", 0f, 1f),
@@ -193,6 +218,9 @@ internal class MobileFilmModelLibrary(context: Context) {
         private const val ROOT = "film/mobile-v1"
         private const val SOURCE_COMMIT = "3bb2c2d2801ff68b92019cf1dbcbb133d60832bc"
         private const val MODEL_VERSION = "sf-3bb2c2d-three-stage-v1"
+        private const val MONO_ROOT = "film/mobile-monochrome-v1"
+        private const val MONO_VERSION = "lfm-silver-three-stage-v1"
+        private val MONO_STOCKS = setOf("lfm_silver_neutral", "lfm_silver_contrast")
         private const val MAX_JSON_BYTES = 256 * 1024
         private const val MAX_MODEL_BYTES = 12L * 1024 * 1024
         private const val CACHE_BYTES = 4L * 1024 * 1024

@@ -67,6 +67,8 @@ Room 8 已接入不可变导出快照和每项结果，`state.exportRuns/exportR
 
 `PhotoProcessor.mobileFilmModelsInfo()` 可读取已打入资源目录的移动胶片模型 ID、相纸、正负片、版本、来源提交和缓存信息，不加载全部表或初始化 GPU。缺失／不支持的目录返回 problems，取消正常传播。这个资料入口不是实际渲染后端状态，不展示“已加速”或技术引擎选择；预览／导出已接 GLES 图块和从原图重做的 CPU 后备源码，共用模型与共享画框，尚未运行验证。实现与空间／颗粒近似见 [图像后端](mobile-film-rendering.md)。
 
+黑白目录新增 `lfm_silver_neutral`／`lfm_silver_contrast` 自有风格，`FilmPreset.description` 可供介绍页显示来源说明。模型资料新增 `origin` 区分 spektrafilm 与本项目；自有模型 `sourceCommit` 为 null，前端需按来源处理可空提交。这两项不是品牌胶卷的实测复现。批量、曝光、柔光、Halation、画框和导出接口不变，详见 [黑白功能](monochrome-film.md)。
+
 ## 设计资料
 
 三栏顺序为连接／Film／Lut，默认进入连接；悬浮胶囊底栏、系统浅深色、混排复古标题、简洁几何及少量 Neo-Dotmatrix／弥散按用户提供 `reference/` 原件执行。字体副本及资产记录在 `research/ui/fonts/`，不加入应用构建。指定正文 OPPO Sans、欢迎 NHL Minnesota、点阵字体管家波点；可用 Playfair Display 做混排，附 OFL。

@@ -34,4 +34,5 @@ third_party/spektralab/upstream/** -text whitespace=cr-at-eol,-blank-at-eol,-bla
 *.bin binary
 *.f32 binary
 core/media/src/main/assets/film/mobile-v1/SPEKTRAFILM_LICENSE.txt -text whitespace=-blank-at-eol,-blank-at-eof
+core/media/src/main/assets/film/mobile-monochrome-v1/LICENSE.txt -text whitespace=-blank-at-eol,-blank-at-eof
 LICENSE -text whitespace=-blank-at-eol,-blank-at-eof

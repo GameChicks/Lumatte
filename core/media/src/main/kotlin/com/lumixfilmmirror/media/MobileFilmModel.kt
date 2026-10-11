@@ -5,8 +5,11 @@ import kotlin.math.log10
 import kotlin.math.pow
 
 /** Describes packaged data, not an active/validated processing backend. */
+enum class FilmModelOrigin { SPEKTRAFILM, PROJECT_MONOCHROME }
+
 data class MobileFilmModelInfo(val stockId: String, val printId: String, val positive: Boolean,
-    val modelVersion: String, val sourceCommit: String, val tableBytes: Long)
+    val modelVersion: String, val sourceCommit: String?, val tableBytes: Long,
+    val origin: FilmModelOrigin = FilmModelOrigin.SPEKTRAFILM)
 
 data class MobileFilmModelsInfo(val models: List<MobileFilmModelInfo>, val problems: List<String>,
     val cachedModels: Int, val cachedTableBytes: Long, val cacheBudgetBytes: Long)

@@ -1,0 +1,6 @@
+Lumix Film Mirror project-authored Silver Neutral / Silver Contrast. GPL-3.0-only.
+Artist-authored panchromatic luminance, sigmoid negative and paper response.
+Not spektrafilm model data; not measured commercial-stock or filter calibration.
+Scalar silver density uses three equal channels for shared mobile-stage transport.
+Spatial effects and random grain are applied at runtime, not baked.
+No image, device, accuracy, performance or runtime validation was run.
