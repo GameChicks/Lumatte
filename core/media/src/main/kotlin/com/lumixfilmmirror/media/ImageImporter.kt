@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.exifinterface.media.ExifInterface
+import com.lumixfilmmirror.media.frame.FrameCameraNames
 import com.lumixfilmmirror.model.InputOrigin
 import com.lumixfilmmirror.model.PhotoId
 import com.lumixfilmmirror.model.PixelSize
@@ -20,6 +21,7 @@ data class PhotoMetadata(
     val camera: String = "", val lens: String = "", val capturedAt: String = "",
     val iso: String = "", val aperture: String = "", val shutter: String = "", val focalLength: String = "",
 ) {
+    val frameCameraName: String get() = FrameCameraNames.format(camera)
     val detail: String get() = listOf(lens, focalLength, aperture, shutter, iso).filter { it.isNotBlank() }.joinToString("  ·  ")
 }
 

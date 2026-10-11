@@ -45,6 +45,8 @@
 
 输入 `SourceImage` 中的 `rawNotice` 已包含内嵌 JPEG 说明和真实尺寸，前端以小字显示，不能写入画框。源图、EXIF、文件名、尺寸和随机种子不通过首张继承复制。
 
+画框机型文字使用 `source.metadata.frameCameraName`；也可调用 `FrameCameraNames.format(exifCamera)`。它将 EXIF 的 `Panasonic DC-S5`／`DC-S5` 显示为 `Lumix S5`，`DC-S1RM2` 显示为 `Lumix S1RM2`，并兼容旧款 `DMC-` 前缀。预览与导出已共用此入口。原始 `metadata.camera` 保留不变，未识别名称保留，缺失名称不推测；每张使用自身元数据，自定义画框文字仍优先。
+
 ## 动效与画框的扩展边界
 
 开发／反转视觉只属于前端：一批开启一次，用户跳过仅改变动效状态，不调用 `cancelExport()`；反转是最终正片的呈现，不把导出结果再次反相。建议前端按一次导出会话维护动效状态，结合真实阶段及数量呈现。

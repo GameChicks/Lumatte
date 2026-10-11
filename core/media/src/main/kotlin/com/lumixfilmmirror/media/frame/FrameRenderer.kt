@@ -32,7 +32,7 @@ internal class FrameRenderer(context: Context) {
             val colors = if (options.fixedColorArgb == null && options.preset in setOf(FramePreset.PALETTE, FramePreset.FILM))
                 FramePalette.extract(photo) else emptyMap()
             val accent = (options.fixedColorArgb ?: colors[options.mood] ?: Color.rgb(99, 103, 96)) or (-0x1000000)
-            val identity = FrameIdentity(source.metadata.camera.ifBlank { source.name.substringBeforeLast('.') },
+            val identity = FrameIdentity(source.metadata.frameCameraName.ifBlank { source.name.substringBeforeLast('.') },
                 options.filmBrand.ifBlank { stock?.name?.substringBefore(' ') ?: "LUMIX" },
                 options.filmName.ifBlank { stock?.name?.substringAfter(' ') ?: "FILM MIRROR" }, stock?.id,
                 options.filmBlackWhite ?: (stock?.category == FilmCategory.MONOCHROME), options.filmNotes, accent, options.roll120,
