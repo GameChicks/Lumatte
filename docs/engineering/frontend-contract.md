@@ -59,11 +59,13 @@ Room 8 已接入不可变导出快照和每项结果，`state.exportRuns/exportR
 
 ## 动效与画框的扩展边界
 
+LUT 图库后端新增 `loadLutGallery(catalogue)`、`setLutSubjects(asset, subjects)` 和 `previewLutCard(source, asset)`。卡片同时返回实际效果 Bitmap 与 Palette 颜色，默认长边 320，调用方负责回收已接收的图。全库 `lutGalleryColours(source, catalogue, onEntry=...)` 按项生成颜色数字、回收临时卡片，不返回图片；用于分析未滚动到的候选后筛选，不能把尚未分析条目当成已证明不匹配。用 `LutGalleryFilter.select` 做搜索、内置／本地、题材、颜色家族和例图近黑白组合筛选。卡片来源明确为用户当前照片，不是创作者上传图片；题材为用户可保存的标签，不从颜色自动判断。字段、来源、缓存与取消约定见 [LUT 图库接口](lut-gallery.md)。正式前端可以使用这些入口，原型 UI 本轮未改。
+
 开发／反转视觉只属于前端：一批开启一次，用户跳过仅改变动效状态，不调用 `cancelExport()`；反转是最终正片的呈现，不把导出结果再次反相。建议前端按一次导出会话维护动效状态，结合真实阶段及数量呈现。
 
 `core/model` 的 `FramePreset/FrameOptions/BatchExportOptions` 已接入画框绘制与 Room 7 批次保存。11 项含无框使用恢复比例和素材，在效果后、JPEG 编码前绘制；整批一个预设和设置，每张使用自身方向、EXIF 和取色。设置说明、各行字体／自定义素材键及源代码证据边界见 [画框功能](frame-export.md)。这是功能源码，尚未渲染、编译或与旧包对照。
 
-正式选卷暗盒滚动、400 ms 介绍及返回位置保留由前端管理，不进入影像引擎。LUT 创作者目录、例图 Palette、官方服务器下载尚未具备可用接口；不要把当前本地目录标为官方云端。
+正式选卷暗盒滚动、400 ms 介绍及返回位置保留由前端管理，不进入影像引擎。例图 Palette 与筛选后端已接入源码；LUT 创作者网络目录、官方例图取得和服务器下载尚未具备可用客户端，不要把当前本地目录标为官方云端。
 
 `PhotoProcessor.mobileFilmModelsInfo()` 可读取已打入资源目录的移动胶片模型 ID、相纸、正负片、版本、来源提交和缓存信息，不加载全部表或初始化 GPU。缺失／不支持的目录返回 problems，取消正常传播。这个资料入口不是实际渲染后端状态，不展示“已加速”或技术引擎选择；预览／导出已接 GLES 图块和从原图重做的 CPU 后备源码，共用模型与共享画框，尚未运行验证。实现与空间／颗粒近似见 [图像后端](mobile-film-rendering.md)。
 

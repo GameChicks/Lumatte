@@ -21,6 +21,6 @@
 
 后续功能源码已经接入实际光谱胶片管线、统一曝光／Halation／三档黑柔，以及逐张／首张继承草稿；曝光和相纸曝光合并为一个参数。共享画框绘制与导出预览亦已接入，胶片和 LUT 使用同一 `BatchExportOptions`。这些功能没有编译或实际渲染证据，见 [胶片接入](film-engine.md)、[画框功能](frame-export.md)。每批一次显影／反转动效和正式界面由另一个前端负责，调用边界见 [前端交接](frontend-contract.md)。
 
-随后继续正式 LUT 图库：创作者例图与 Android Palette 色彩标签、题材分类、官方正常目录／下载访问、VLT 兼容、GPU 与大图内存改善。CPU LUT 路径不能作为 Vulkan 胶片管线完成的证据。
+LUT 图库继续接入取色与组合筛选后端：实际当前照片单 LUT 卡片、Android Palette 颜色及明确来源、可保存题材、搜索／颜色家族／例图近黑白筛选。功能入口见 [图库接口](lut-gallery.md)，尚未编译或运行，原型 UI 本轮不改。创作者真实例图的取得、官方正常目录／下载访问、VLT 兼容、GPU 与大图内存改善继续待办。CPU LUT 路径不能作为完整参考胶片管线完成的证据。
 
 参考格式：[Blackmagic 官方论坛的 Cube LUT 说明](https://forum.blackmagicdesign.com/viewtopic.php?f=21&t=40284)。行为与性能须在用户授权相关验证后另行记录。

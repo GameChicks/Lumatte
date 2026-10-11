@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-11",
+  "apk": {
+    "file": "reference/base.apk",
+    "sha256": "262335c3032c82fc966812e84803551cffd215d5125fc334fffa221e5be91824",
+    "version": "3.1.0"
+  },
+  "tool": "JADX 1.5.6, selected classes, no resources or app execution",
+  "baseUrl": "https://lumix-base.jpn.panasonic.com/lutapi/v2/",
+  "clientHeaderName": "lutapp-api-key",
+  "evidenceLevel": "static decompiled request declarations only; no network requests",
+  "sources": [
+    {
+      "file": "tools/.cache/lumix-lab/h6.a.java",
+      "sha256": "11cd6e780b259d93313b96f80f0364586140c8b25dc6dff9e47c55966f04297b"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/h6.h.java",
+      "sha256": "9452732dd9970e0188c3bb694ef4d01fe90750e1a209ea6d1921e514bd12f170"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/h6.e.java",
+      "sha256": "590bd83dcc3503f97d5ba0678bb7d536413234617ae276c3c73f39f5cb52e6f3"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/CommunityListPostBean.java",
+      "sha256": "d71f6079ee6d2592710da6c1f81535709c9753ad516bfdef9e87672eb680694a"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/CommunityGenresPostBean.java",
+      "sha256": "5bee540d9568b82e4c2bddb2f5a5b57a5f5d65db694409c042d94e1740f346c5"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/CommunityDownloadPostBean.java",
+      "sha256": "ba30140aa84fb50a01e1f8320777558f03d484288bf4ed1562ebefccb770ba61"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/CommunityLutTopPostBean.java",
+      "sha256": "2398773ab47e82cbcd797f33ea6dad991cd7d7ad9e801969da7eb56f5682229e"
+    }
+  ],
+  "requests": [
+    {
+      "path": "community/genres",
+      "method": "POST",
+      "bodyType": null,
+      "responseType": "CommunityGenresBean"
+    },
+    {
+      "path": "community/luts/filter",
+      "method": "POST",
+      "bodyType": "CommunityListPostBean",
+      "responseType": "CommunityFilterBean"
+    },
+    {
+      "path": "community/luts/top",
+      "method": "POST",
+      "bodyType": "CommunityLutTopPostBean",
+      "responseType": "CommunityLutsTopBean"
+    },
+    {
+      "path": "community/lut",
+      "method": "POST",
+      "bodyType": "CommunityGenresPostBean",
+      "responseType": "CommunityDownloadBean"
+    },
+    {
+      "path": "community/luts/download",
+      "method": "POST",
+      "bodyType": "CommunityDownloadPostBean",
+      "responseType": "streaming ZIP"
+    },
+    {
+      "path": "community/creators",
+      "method": "POST",
+      "bodyType": "CommunityCreatorsPostBean",
+      "responseType": "CommunityCreatorListBean"
+    },
+    {
+      "path": "community/creator",
+      "method": "POST",
+      "bodyType": "CommunityGenresPostBean",
+      "responseType": "CommunityCreatorResponseBean"
+    },
+    {
+      "path": "community/creators/countries",
+      "method": "POST",
+      "bodyType": "CommunityCreatorsCountriesPostBean",
+      "responseType": "CommunityCreatorsCountriesBean"
+    }
+  ],
+  "bodyFields": {
+    "CommunityListPostBean": {
+      "countries": "string[]",
+      "creator_code": "string",
+      "genre_code": "string",
+      "key": "string",
+      "language": "string",
+      "limit": "string",
+      "offset": "string",
+      "order": {
+        "key": "string",
+        "order": "string"
+      }
+    },
+    "CommunityGenresPostBean": {
+      "code": "string",
+      "key": "string",
+      "language": "string"
+    },
+    "CommunityDownloadPostBean": {
+      "code": "string",
+      "key": "string"
+    },
+    "CommunityLutTopPostBean": {
+      "date_range": "string",
+      "genre_code": "string",
+      "language": "string",
+      "limit": "int",
+      "region": "string"
+    }
+  },
+  "remaining": [
+    "actual caller-provided key/language/region values",
+    "required/optional field behavior",
+    "response field schemas and HTTPS image origins",
+    "normal server access and conditions",
+    "ZIP members and VLT parsing"
+  ]
+}

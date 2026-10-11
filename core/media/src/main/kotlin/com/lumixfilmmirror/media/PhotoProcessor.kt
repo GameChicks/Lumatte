@@ -12,6 +12,7 @@ import com.lumixfilmmirror.model.FrameOptions
 import com.lumixfilmmirror.model.PixelSize
 import com.lumixfilmmirror.model.FrameLayout
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
@@ -28,6 +29,7 @@ data class ProcessingCatalogue(val luts: List<LutAsset>, val films: List<FilmPre
 class PhotoProcessor(context: Context) {
     private val luts = LutLibrary(context)
     private val films = FilmCatalogue(context)
+    private val lutGallery = LutGalleryLibrary(context)
     private val mobileFilmModels = MobileFilmModelLibrary(context)
     private val previewGate = Semaphore(1)
     private val previewCache = EffectPreviewCache()
@@ -41,6 +43,9 @@ class PhotoProcessor(context: Context) {
     }
 
     suspend fun importLut(uri: Uri): LutAsset = luts.import(uri)
+    /** Display metadata only; the caller keeps the existing processing catalogue for rendering. */
+    suspend fun loadLutGallery(catalogue: ProcessingCatalogue): LutGallerySnapshot = lutGallery.load(catalogue.luts)
+    suspend fun setLutSubjects(asset: LutAsset, subjects: Set<LutSubject>): LutGalleryEntry = lutGallery.setSubjects(asset, subjects)
     suspend fun importFrameImage(uri: Uri): String = writer.frameAssets.importImage(uri)
     suspend fun importFrameFont(uri: Uri): String = writer.frameAssets.importFont(uri)
     fun exportLayout(source: SourceImage, options: BatchExportOptions) =
@@ -65,6 +70,49 @@ class PhotoProcessor(context: Context) {
 
     fun lutPlan(recipe: com.lumixfilmmirror.model.LutRecipe, assets: List<LutAsset>) = luts.plan(recipe, assets)
     fun filmPlan(recipe: PhotoRecipe.Film, presets: List<FilmPreset>) = films.plan(recipe.parameters, presets, recipe.grainSeed)
+
+    /** Current-photo card, full single-LUT strength and no grain/frame. Never a creator's example. */
+    suspend fun previewLutCard(source: SourceImage, asset: LutAsset, longEdge: Int = 320): LutCardPreview {
+        require(longEdge in 64..512) { "LUT 卡片长边需在 64～512 像素之间" }
+        var produced: Bitmap? = null
+        try {
+            return withContext(Dispatchers.Default) {
+                previewGate.withPermit {
+                    val recipe = PhotoRecipe.Lut(com.lumixfilmmirror.model.LutRecipe(
+                        first = com.lumixfilmmirror.model.LutSlot(asset.id, 1f)))
+                    val catalogue = ProcessingCatalogue(listOf(asset), emptyList(), emptyList())
+                    val layout = FrameLayouts.preview(exportLayout(source, BatchExportOptions()), longEdge)
+                    val pixels = effectPreview(source, recipe, catalogue, photoSize(layout)).also { produced = it }
+                    val colours = LutGalleryColours.analyse(pixels, LutColourOrigin.PHOTO_PREVIEW, source.id.value)
+                    coroutineContext.ensureActive()
+                    LutCardPreview(asset.id, pixels, colours)
+                }
+            }
+        } catch (error: Throwable) { produced?.recycle(); throw error }
+    }
+
+    /** Whole local-catalogue colour metadata, one small bitmap at a time. No image is returned/retained. */
+    suspend fun lutGalleryColours(source: SourceImage, catalogue: ProcessingCatalogue, longEdge: Int = 192,
+        onEntry: suspend (LutGalleryColourEntry) -> Unit = {}): LutGalleryColourSnapshot {
+        require(longEdge in 64..512)
+        val entries = mutableListOf<LutGalleryColourEntry>()
+        val problems = mutableListOf<String>()
+        for (asset in catalogue.luts) {
+            coroutineContext.ensureActive()
+            val entry = try {
+                val preview = previewLutCard(source, asset, longEdge)
+                try { LutGalleryColourEntry(preview.lutId, preview.colours) }
+                finally { preview.image.recycle() }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { problems += "${asset.name}：例图取色失败"; null }
+            if (entry != null) {
+                entries += entry
+                onEntry(entry) // Consumer failure propagates; it is not a failed LUT calculation.
+            }
+        }
+        coroutineContext.ensureActive()
+        return LutGalleryColourSnapshot(entries, problems)
+    }
 
     suspend fun preview(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
         longEdge: Int = 960) = ownedPreview {
