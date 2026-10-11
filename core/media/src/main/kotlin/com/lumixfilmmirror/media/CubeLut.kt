@@ -11,6 +11,10 @@ internal class CubeLut(val title: String, private val oneSize: Int, private val 
     private val one: FloatArray, private val three: FloatArray,
     private val oneMin: FloatArray, private val oneMax: FloatArray,
     private val threeMin: FloatArray, private val threeMax: FloatArray) {
+    internal val nativeData by lazy {
+        NativeCubeData(oneSize, threeSize, one, three,
+            oneMin + oneMax + threeMin + threeMax)
+    }
     fun named(name: String) = CubeLut(name.take(200), oneSize, threeSize, one, three, oneMin, oneMax, threeMin, threeMax)
     fun apply(input: FloatArray, result: FloatArray) {
         for (channel in 0..2) {

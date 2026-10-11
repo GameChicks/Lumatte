@@ -1,6 +1,7 @@
 package com.lumixfilmmirror.media
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.PhotoRecipe
@@ -8,7 +9,13 @@ import com.lumixfilmmirror.model.PhotoProcessingStage
 import com.lumixfilmmirror.model.BatchExportOptions
 import com.lumixfilmmirror.model.FrameLayouts
 import com.lumixfilmmirror.model.FrameOptions
+import com.lumixfilmmirror.model.PixelSize
+import com.lumixfilmmirror.model.FrameLayout
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -22,6 +29,9 @@ class PhotoProcessor(context: Context) {
     private val luts = LutLibrary(context)
     private val films = FilmCatalogue(context)
     private val previewGate = Semaphore(1)
+    private val previewCache = EffectPreviewCache()
+    private val trimScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var trimJob: Job? = null
     val writer = JpegOutputWriter(context)
 
     suspend fun loadCatalogue(): ProcessingCatalogue {
@@ -34,20 +44,24 @@ class PhotoProcessor(context: Context) {
     suspend fun importFrameFont(uri: Uri): String = writer.frameAssets.importFont(uri)
     fun exportLayout(source: SourceImage, options: BatchExportOptions) =
         FrameLayouts.plan(options.jpeg.contentSize(source.size), options.frame)
+    fun lutBackend(): LutBackend = NativeLutRenderer.backend()
+    suspend fun previewCacheInfo(): PreviewCacheInfo = previewGate.withPermit { previewCache.info() }
+    suspend fun clearPreviewCache() = previewGate.withPermit { previewCache.clear() }
+    /** Coalesced, nonblocking application memory callback. Never clears a borrowed/in-flight image. */
+    @Synchronized fun requestMemoryTrim() {
+        if (trimJob?.isActive == true) return
+        trimJob = trimScope.launch { clearPreviewCache() }
+    }
 
     fun lutPlan(recipe: com.lumixfilmmirror.model.LutRecipe, assets: List<LutAsset>) = luts.plan(recipe, assets)
     fun filmPlan(recipe: PhotoRecipe.Film, presets: List<FilmPreset>) = films.plan(recipe.parameters, presets, recipe.grainSeed)
 
     suspend fun preview(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
-        longEdge: Int = 960) = withContext(Dispatchers.Default) {
+        longEdge: Int = 960) = ownedPreview {
         require(longEdge in 64..2048) { "预览长边需在 64～2048 像素之间" }
         previewGate.withPermit {
-            val active = coroutineContext
-            writer.preview(source, longEdge,
-                lut = (recipe as? PhotoRecipe.Lut)?.let { luts.plan(it.parameters, catalogue.luts) },
-                film = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed) }) {
-                active.ensureActive()
-            }
+            val layout = FrameLayouts.preview(exportLayout(source, BatchExportOptions()), longEdge)
+            effectPreview(source, recipe, catalogue, photoSize(layout))
         }
     }
 
@@ -63,15 +77,50 @@ class PhotoProcessor(context: Context) {
 
     /** Complete composition preview. longEdge bounds the final canvas, including frame and text. */
     suspend fun previewExport(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
-        options: BatchExportOptions, longEdge: Int = 960, frameNumber: Int = 1) = withContext(Dispatchers.Default) {
+        options: BatchExportOptions, longEdge: Int = 960, frameNumber: Int = 1) = ownedPreview {
         require(longEdge in 64..2048) { "预览长边需在 64～2048 像素之间" }
         previewGate.withPermit {
             val active = coroutineContext
-            writer.preview(source, longEdge,
-                lut = (recipe as? PhotoRecipe.Lut)?.let { luts.plan(it.parameters, catalogue.luts) },
-                film = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed) },
-                frame = options.frame, output = options.jpeg, frameNumber = frameNumber) { active.ensureActive() }
+            require(frameNumber > 0)
+            val layout = FrameLayouts.preview(exportLayout(source, options), longEdge)
+            val pixels = effectPreview(source, recipe, catalogue, photoSize(layout))
+            try {
+                val stock = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed).preset }
+                val result = writer.framePreview(pixels, source, options.frame, layout, stock, frameNumber) { active.ensureActive() }
+                if (result !== pixels) pixels.recycle()
+                result
+            } catch (error: Throwable) { pixels.recycle(); throw error }
         }
+    }
+
+    private fun photoSize(layout: FrameLayout) = PixelSize(maxOf(1, kotlin.math.round(layout.photo.width).toInt()),
+        maxOf(1, kotlin.math.round(layout.photo.height).toInt()))
+
+    private suspend fun effectPreview(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue, size: PixelSize): Bitmap {
+        val lut = (recipe as? PhotoRecipe.Lut)?.parameters
+        fun table(id: String?) = id?.let { value ->
+            requireNotNull(catalogue.luts.firstOrNull { it.id == value }) { "所选 LUT 不可用，请重新选择" }.table
+        }
+        val film = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed) }
+        val key = EffectPreviewKey(source.id.value, source.jpeg.absolutePath, source.jpeg.length(), source.jpeg.lastModified(),
+            source.size, source.orientation, size, recipe, table(lut?.first?.id), table(lut?.second?.id), film?.preset)
+        coroutineContext.ensureActive()
+        previewCache.copy(key)?.let { return it }
+        val active = coroutineContext
+        val pixels = writer.previewPixels(source, size, lut?.let { luts.plan(it, catalogue.luts) }, film) { active.ensureActive() }
+        try {
+            active.ensureActive()
+            previewCache.remember(key, pixels)
+            return pixels
+        } catch (error: Throwable) { pixels.recycle(); throw error }
+    }
+
+    /** A cancelled dispatcher hand-off must also release a completed result the caller never received. */
+    private suspend fun ownedPreview(block: suspend () -> Bitmap): Bitmap {
+        var produced: Bitmap? = null
+        try {
+            return withContext(Dispatchers.Default) { block().also { produced = it } }
+        } catch (error: Throwable) { produced?.recycle(); throw error }
     }
 
     suspend fun export(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,

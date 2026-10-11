@@ -109,7 +109,7 @@ private fun syncFilmBatch(existing: FilmBatch?, photos: List<SourceImage>): Film
 }
 
 class WorkspaceViewModel(application: Application) : AndroidViewModel(application) {
-    val processor = PhotoProcessor(application)
+    val processor = (application as FilmMirrorApplication).processor
     val writer get() = processor.writer
     private val editDrafts = mutableMapOf<String, Pair<PhotoTreatment, FilmBatch?>>()
     private val editSaveJobs = mutableMapOf<String, Job>()

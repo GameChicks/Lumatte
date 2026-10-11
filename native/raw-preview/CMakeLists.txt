@@ -23,3 +23,4 @@ target_link_options(lfm_raw_preview PRIVATE
     "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../film" "${CMAKE_CURRENT_BINARY_DIR}/film")
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../lut" "${CMAKE_CURRENT_BINARY_DIR}/lut")

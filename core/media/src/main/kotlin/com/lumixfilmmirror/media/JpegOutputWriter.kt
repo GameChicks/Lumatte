@@ -106,11 +106,9 @@ class JpegOutputWriter(context: Context) {
         require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
         require(frameNumber > 0)
         val layout = FrameLayouts.preview(FrameLayouts.plan(output.contentSize(source.size), frame), longEdge)
-        val pixels = decode(source, PixelSize(maxOf(1, kotlin.math.round(layout.photo.width).toInt()),
-            maxOf(1, kotlin.math.round(layout.photo.height).toInt())))
+        val pixels = previewPixels(source, PixelSize(maxOf(1, kotlin.math.round(layout.photo.width).toInt()),
+            maxOf(1, kotlin.math.round(layout.photo.height).toInt())), lut, film, checkActive)
         try {
-            film?.let { filmEngine.render(pixels, it) }
-            lut?.render(pixels, source, checkActive)
             checkActive()
             val result = frames.render(pixels, source, frame, layout, film?.preset, frameNumber, checkActive)
             if (result !== pixels) pixels.recycle()
@@ -118,6 +116,24 @@ class JpegOutputWriter(context: Context) {
         }
         catch (error: Throwable) { pixels.recycle(); throw error }
     }
+
+    /** Shared treatment-only stage, allowing frame previews to reuse an unchanged effect image. */
+    internal suspend fun previewPixels(source: SourceImage, size: PixelSize, lut: LutRenderPlan?,
+        film: FilmRenderPlan?, checkActive: () -> Unit): Bitmap {
+        require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
+        checkActive()
+        val pixels = decode(source, size)
+        try {
+            film?.let { filmEngine.render(pixels, it) }
+            lut?.render(pixels, source, checkActive)
+            checkActive()
+            return pixels
+        } catch (error: Throwable) { pixels.recycle(); throw error }
+    }
+
+    internal fun framePreview(pixels: Bitmap, source: SourceImage, options: FrameOptions,
+        layout: com.lumixfilmmirror.model.FrameLayout, stock: FilmPreset?, frameNumber: Int, checkActive: () -> Unit) =
+        frames.render(pixels, source, options, layout, stock, frameNumber, checkActive)
 
     private fun decode(source: SourceImage, size: PixelSize): Bitmap {
         val ratio = minOf(source.size.width.toFloat() / size.width, source.size.height.toFloat() / size.height)

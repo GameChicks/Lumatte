@@ -4,7 +4,7 @@
 
 ## 独立的影像入口
 
-`core/media/PhotoProcessor.kt` 不依赖 Compose、屏幕、动画或 `WorkspaceViewModel`。一个应用持有一个处理器，前端传递以下模型即可：
+`core/media/PhotoProcessor.kt` 不依赖 Compose、屏幕、动画或 `WorkspaceViewModel`。正式前端复用 `FilmMirrorApplication.processor` 共享实例，避免多套缓存与处理队列，传递以下模型即可：
 
 | 接口／模型 | 用法 |
 |---|---|
@@ -17,11 +17,16 @@
 | `exportLayout(source, BatchExportOptions)` | 不解码计算照片区域和含画框最终画布尺寸 |
 | `previewExport(source, recipe, catalogue, options, longEdge, frameNumber)` | 处理效果＋画框预览，长边约束完整画布，默认 960 |
 | `importFrameImage(uri)` / `importFrameFont(uri)` | 导入私有素材副本并返回键，原件不改写 |
+| `lutBackend()` | 查询原生库加载对应的 `NATIVE_CPU`／`KOTLIN_CPU`；不证明速度或胶片 GPU 可用 |
+| `previewCacheInfo()` / `clearPreviewCache()` | 读取实际效果缓存统计，或等待当前预览安全结束后清理；预算 8 MiB／2 项 |
+| `requestMemoryTrim()` | 合并式异步缓存清理，用于应用内存／后台回调，不取消导出 |
 | `export(source, recipe, catalogue, BatchExportOptions, destination, frameNumber, onStage, onPublished)` | 同配方及共享画框导出 JPEG；默认尺寸 100%，质量独立；返回已保存 URI |
 
 `PhotoProcessingStage` 提供真实阶段入口：`PREPARING → RENDERING → FRAMING → ENCODING → PUBLISHING`（无框省略 FRAMING）。这是阶段信息，没有内核完成百分比，不让前端伪造精确进度。`onPublished` 位于不可取消发布提交段，用于成功记录。取消使用协程取消，已发布照片保留。旧 `JpegOutput` 导出重载保留，默认无框。
 
 预览返回的位图由前端持有；移出 Compose 绘制后再释放，不能在旧 Image 尚绘制时回收。前端滑杆可用 150～250 ms 合并与 `collectLatest`，避免每一个中间值都计算。调用协程取消完成后，原生任务已结束，处理器内部的输入位图才会回收。预览尺寸与最终尺寸不同，颗粒、空间效果在不同采样网格上不保证逐像素相同。
+
+预览缓存只保留照片效果，画框／文字在其后绘制；原图、配方、表对象及实际照片处理尺寸共同决定失效。仅换签名等且处理尺寸不变时可复用光谱／LUT 结果。缓存位图不借给前端，所有返回图独立持有；8 MiB 不含前端图、临时图和 GPU。正式导出不读取小图缓存。后端、清理及数值证据边界见 [手机优化源码](mobile-processing.md)。
 
 ## 复用工作台状态与批量逻辑
 

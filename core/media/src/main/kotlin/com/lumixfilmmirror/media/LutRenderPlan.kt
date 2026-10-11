@@ -6,8 +6,19 @@ import kotlin.math.roundToInt
 /** Shared CPU path for preview and export; bounded scanline tiles, encoded sRGB input/output. */
 class LutRenderPlan internal constructor(private val first: CubeLut?, private val firstStrength: Float,
     private val second: CubeLut?, private val secondStrength: Float, private val grain: Float) {
-    internal fun render(bitmap: Bitmap, source: SourceImage, checkActive: () -> Unit) {
+    internal suspend fun render(bitmap: Bitmap, source: SourceImage, checkActive: () -> Unit) {
         if ((first == null || firstStrength == 0f) && (second == null || secondStrength == 0f) && grain == 0f) return
+        checkActive()
+        if (NativeLutBridge.available) {
+            NativeLutRenderer.render(bitmap, source, first.takeIf { firstStrength > 0f }, firstStrength,
+                second.takeIf { secondStrength > 0f }, secondStrength, grain)
+            checkActive()
+            return
+        }
+        renderKotlin(bitmap, source, checkActive)
+    }
+
+    private fun renderKotlin(bitmap: Bitmap, source: SourceImage, checkActive: () -> Unit) {
         val tileHeight = minOf(32, bitmap.height)
         val pixels = IntArray(bitmap.width * tileHeight)
         val input = FloatArray(3); val output = FloatArray(3)
