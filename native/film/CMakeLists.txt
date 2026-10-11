@@ -32,6 +32,11 @@ target_link_libraries(lfm_volk PUBLIC dl)
 # its own atomic task flag at node boundaries instead of writing that bool.
 set(SPK_ADAPTED "${CMAKE_CURRENT_BINARY_DIR}/adapted")
 file(MAKE_DIRECTORY "${SPK_ADAPTED}")
+# Vulkan 1.0 only guarantees 128 invocations in a workgroup. One value drives
+# the host registry, the reduction dispatch and all generated shader layouts.
+set(LFM_FILM_WORKGROUP 128)
+file(WRITE "${SPK_ADAPTED}/film_gpu_layout.hpp"
+    "#pragma once\n#include <cstdint>\nnamespace lfm { inline constexpr uint32_t film_workgroup_size = ${LFM_FILM_WORKGROUP}u; }\n")
 file(GLOB pipeline_headers "${SPK_ROOT}/src/pipeline/*.hpp")
 foreach(header IN LISTS pipeline_headers)
     get_filename_component(name "${header}" NAME)
@@ -59,7 +64,14 @@ endif()
 string(REPLACE "${cancel_anchor}"
     "if (lfm::film_cancelled() || (progress_ && progress_->cancelled))"
     pipeline_source "${pipeline_source}")
-file(WRITE "${SPK_ADAPTED}/pipeline.cpp" "${pipeline_source}")
+set(reduction_anchor "groups * 256, error)) return false;")
+string(FIND "${pipeline_source}" "${reduction_anchor}" reduction_position)
+if(reduction_position EQUAL -1)
+    message(FATAL_ERROR "Pinned film maximum reduction dispatch anchor is missing")
+endif()
+string(REPLACE "${reduction_anchor}" "groups * lfm::film_workgroup_size, error)) return false;"
+    pipeline_source "${pipeline_source}")
+file(WRITE "${SPK_ADAPTED}/pipeline.cpp" "#include \"film_gpu_layout.hpp\"\n${pipeline_source}")
 include("${CMAKE_CURRENT_LIST_DIR}/adapt_vulkan.cmake")
 
 set(SPK_SHADER_NAMES spk_math_probe spk_take_rgb spk_matmul3 spk_stride_sample
@@ -75,7 +87,29 @@ set(shader_headers)
 set(shader_registry "#include \"film_shader_resources.hpp\"\n")
 set(shader_entries "")
 foreach(name IN LISTS SPK_SHADER_NAMES)
-    set(shader "${SPK_ROOT}/src/shaders/vulkan/${name}.comp")
+    set(shader_original "${SPK_ROOT}/src/shaders/vulkan/${name}.comp")
+    set(shader "${CMAKE_CURRENT_BINARY_DIR}/shaders/${name}.comp")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${shader_original}")
+    file(READ "${shader_original}" shader_source)
+    if(NOT name STREQUAL "spk_math_probe")
+        set(layout_anchor "layout(local_size_x = 256) in;")
+        string(FIND "${shader_source}" "${layout_anchor}" layout_position)
+        if(layout_position EQUAL -1)
+            message(FATAL_ERROR "Pinned shader workgroup layout is missing: ${name}")
+        endif()
+        string(REPLACE "${layout_anchor}" "layout(local_size_x = ${LFM_FILM_WORKGROUP}) in;"
+            shader_source "${shader_source}")
+    endif()
+    if(name STREQUAL "spk_reduce_max")
+        set(scratch_anchor "shared float scratch[256];")
+        string(FIND "${shader_source}" "${scratch_anchor}" scratch_position)
+        if(scratch_position EQUAL -1)
+            message(FATAL_ERROR "Pinned maximum reduction scratch layout is missing")
+        endif()
+        string(REPLACE "${scratch_anchor}" "shared float scratch[${LFM_FILM_WORKGROUP}];"
+            shader_source "${shader_source}")
+    endif()
+    file(WRITE "${shader}" "${shader_source}")
     set(spirv "${CMAKE_CURRENT_BINARY_DIR}/shaders/${name}.spv")
     set(header "${spirv}.hpp")
     add_custom_command(OUTPUT "${spirv}" "${header}"
@@ -83,7 +117,7 @@ foreach(name IN LISTS SPK_SHADER_NAMES)
             "-I${SPK_ROOT}/src/shaders/vulkan" "${shader}" -o "${spirv}"
         COMMAND "${CMAKE_COMMAND}" "-DINPUT=${spirv}" "-DOUTPUT=${header}"
             "-DSYMBOL=${name}" -P "${CMAKE_CURRENT_LIST_DIR}/embed_shader.cmake"
-        DEPENDS "${shader}" "${SPK_ROOT}/src/shaders/vulkan/spk_rng.glsl"
+        DEPENDS "${shader}" "${shader_original}" "${SPK_ROOT}/src/shaders/vulkan/spk_rng.glsl"
             "${CMAKE_CURRENT_LIST_DIR}/embed_shader.cmake" VERBATIM)
     list(APPEND shader_headers "${header}")
     string(APPEND shader_registry "#include \"${name}.spv.hpp\"\n")

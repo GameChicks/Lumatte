@@ -19,6 +19,22 @@ function(lfm_replace_vulkan_method source begin end include_file)
 endfunction()
 
 file(READ "${SPK_ROOT}/src/gpu/vulkan_gpu.cpp" vulkan_source)
+set(workgroup_anchor "constexpr uint32_t kWorkgroup = 256;")
+string(FIND "${vulkan_source}" "${workgroup_anchor}" workgroup_position)
+if(workgroup_position EQUAL -1)
+    message(FATAL_ERROR "Pinned Vulkan workgroup registry anchor is missing")
+endif()
+string(REPLACE "${workgroup_anchor}" "constexpr uint32_t kWorkgroup = lfm::film_workgroup_size;"
+    vulkan_source "${vulkan_source}")
+# Never allocate a giant startup probe or override a driver's storage range
+# on Android, including a software Vulkan device used by an emulator.
+set(storage_probe_anchor "probe_cpu_storage_range(detail);")
+string(FIND "${vulkan_source}" "${storage_probe_anchor}" storage_probe_position)
+if(storage_probe_position EQUAL -1)
+    message(FATAL_ERROR "Pinned Vulkan storage probe call anchor is missing")
+endif()
+string(REPLACE "${storage_probe_anchor}" "// Android keeps the advertised maxStorageBufferRange."
+    vulkan_source "${vulkan_source}")
 lfm_replace_vulkan_method(vulkan_source
     "    bool read(Buffer* src, size_t src_offset, void* dst, size_t bytes,"
     "    bool dispatch(const char* kernel, const std::vector<Arg>& args,"
@@ -28,4 +44,5 @@ lfm_replace_vulkan_method(vulkan_source
     "    BufferRef allocate(size_t bytes, bool persistent, std::string& error)"
     "film_vulkan_upload.inc")
 set(SPK_VULKAN_SOURCE "${SPK_ADAPTED}/vulkan_gpu.cpp")
-file(WRITE "${SPK_VULKAN_SOURCE}" "#include \"film_transfer.hpp\"\n${vulkan_source}")
+file(WRITE "${SPK_VULKAN_SOURCE}"
+    "#include \"film_transfer.hpp\"\n#include \"film_gpu_layout.hpp\"\n${vulkan_source}")

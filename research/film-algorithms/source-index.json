@@ -1,0 +1,189 @@
+{
+  "reviewDate": "2026-10-11",
+  "evidence": "Downloaded pinned source and read selected implementation. No installation, import, build, rendering, tests or benchmarks.",
+  "sourceCache": "tools/.cache/film-algorithms/",
+  "repositories": [
+    {
+      "repository": "andreavolpato/spektrafilm",
+      "revision": "3bb2c2d2801ff68b92019cf1dbcbb133d60832bc",
+      "branch": "main",
+      "metadataLicense": "GPL-3.0",
+      "files": [
+        {
+          "path": "SPEKTRAFILM_LICENSE.txt",
+          "bytes": 23677,
+          "sha256": "76d629501783ae52e8d63aee1e054c1e1a9713b9fe7d36fb306e25b1d14b24e9",
+          "url": "https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/SPEKTRAFILM_LICENSE.txt"
+        },
+        {
+          "path": "src/spektrafilm/runtime/pipeline.py",
+          "bytes": 7691,
+          "sha256": "22d3772529270f936363ddfc5ae8f30e4ee2fa2a8d562ef359242d6de728f4e8",
+          "url": "https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/src/spektrafilm/runtime/pipeline.py"
+        },
+        {
+          "path": "src/spektrafilm/runtime/services/spectral_lut_compute.py",
+          "bytes": 8582,
+          "sha256": "6f9ccc9f7758b381e3fd25abf961784af70bbcc7323b71974a434d771bf7c5f0",
+          "url": "https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/src/spektrafilm/runtime/services/spectral_lut_compute.py"
+        },
+        {
+          "path": "src/spektrafilm_lut_creator/builders.py",
+          "bytes": 55175,
+          "sha256": "87d5b800346f75364626874b2b9ed3dad2352758f6a81a7da6cba33aa9042a61",
+          "url": "https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/src/spektrafilm_lut_creator/builders.py"
+        },
+        {
+          "path": "src/spektrafilm_lut_creator/bundles.py",
+          "bytes": 14594,
+          "sha256": "0d2cd2a379e8d08851b51d976ed10576a108caac7582667a23f24536123a2a3a",
+          "url": "https://github.com/andreavolpato/spektrafilm/blob/3bb2c2d2801ff68b92019cf1dbcbb133d60832bc/src/spektrafilm_lut_creator/bundles.py"
+        }
+      ]
+    },
+    {
+      "repository": "oudelabs/filmify",
+      "revision": "133dbe15c1b7f384fa7568ea0018a76c2dd89bbc",
+      "branch": "main",
+      "metadataLicense": "GPL-3.0",
+      "files": [
+        {
+          "path": "LICENSE",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/LICENSE"
+        },
+        {
+          "path": "README.md",
+          "bytes": 1697,
+          "sha256": "d81e8090dcc80f12571e305cc5da83abacc725338033044123523959166beeff",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/README.md"
+        },
+        {
+          "path": "mini-tool/README.md",
+          "bytes": 5487,
+          "sha256": "dd3ab61bdebd67f96e5da1bf235d1ee1b6d143c37ede6613550591b4f696779a",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/mini-tool/README.md"
+        },
+        {
+          "path": "mini-tool/docs/shared-lut-design.md",
+          "bytes": 2396,
+          "sha256": "4773735003d824920c5b1db803b0b78acd8038b5921851542f547f415a5e5d74",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/mini-tool/docs/shared-lut-design.md"
+        },
+        {
+          "path": "mini-tool/minitool/mobile-film.js",
+          "bytes": 100733,
+          "sha256": "b882ea1ba8792b8b7816e8025c41d17a5889db4b8b51b76c6558ccbfcd8d1dd5",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/mini-tool/minitool/mobile-film.js"
+        },
+        {
+          "path": "mini-tool/minitool/mobile-optics.js",
+          "bytes": 12381,
+          "sha256": "fdefee06cb0b4de7773b883c1ed1cb41416b5ff49a895d788f650f7ff0359c39",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/mini-tool/minitool/mobile-optics.js"
+        },
+        {
+          "path": "mini-tool/minitool/native-film.js",
+          "bytes": 13223,
+          "sha256": "55a747948fcc8cb60bc82b0b67be12f6ca6a2e5612d47eff6baaceb682e1e941",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/mini-tool/minitool/native-film.js"
+        },
+        {
+          "path": "mini-tool/scripts/bake-mobile-film.py",
+          "bytes": 14834,
+          "sha256": "dc520c9648daef2a730f7b9bd519656d6fb1fd9c37e39571afde9e6c6d101ce1",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/mini-tool/scripts/bake-mobile-film.py"
+        },
+        {
+          "path": "mini-tool/styles/NOTICE.md",
+          "bytes": 2646,
+          "sha256": "8c2b665c60f9a897f5b08fd489059ea29122a298e114b3be037380ff9c4f0da4",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/mini-tool/styles/NOTICE.md"
+        },
+        {
+          "path": "mini-tool/styles/SPEKTRAFILM_LICENSE.txt",
+          "bytes": 23677,
+          "sha256": "76d629501783ae52e8d63aee1e054c1e1a9713b9fe7d36fb306e25b1d14b24e9",
+          "url": "https://github.com/oudelabs/filmify/blob/133dbe15c1b7f384fa7568ea0018a76c2dd89bbc/mini-tool/styles/SPEKTRAFILM_LICENSE.txt"
+        }
+      ]
+    },
+    {
+      "repository": "LYCO6273/Phos",
+      "revision": "c83e999ff8e1e938dfc0006f3d4e780c3153853d",
+      "branch": "main",
+      "metadataLicense": "NOASSERTION",
+      "files": [
+        {
+          "path": "LICENSE",
+          "bytes": 543,
+          "sha256": "17e707f8187e77df45a0e546149534d20409ef5312f4791395fdb3862f5181c4",
+          "url": "https://github.com/LYCO6273/Phos/blob/c83e999ff8e1e938dfc0006f3d4e780c3153853d/LICENSE"
+        },
+        {
+          "path": "README.md",
+          "bytes": 2668,
+          "sha256": "c3b80b01c1f03cea3ab0f5bef4fa9ad05fa36d0fbece00673375b11cd6fd6ebf",
+          "url": "https://github.com/LYCO6273/Phos/blob/c83e999ff8e1e938dfc0006f3d4e780c3153853d/README.md"
+        },
+        {
+          "path": "0.2.3/Phos/requirements.txt",
+          "bytes": 94,
+          "sha256": "f3e4aae8df9e3694340ea749e46fb635aa6575e2720eb80dd9409f8b09ea2f03",
+          "url": "https://github.com/LYCO6273/Phos/blob/c83e999ff8e1e938dfc0006f3d4e780c3153853d/0.2.3/Phos/requirements.txt"
+        },
+        {
+          "path": "0.2.3/Phos/Films/Gold200/Gold200.py",
+          "bytes": 10221,
+          "sha256": "6846392a975e8230c7168066fa1ecac7160f66a6362db9bb9c32918b8850bade",
+          "url": "https://github.com/LYCO6273/Phos/blob/c83e999ff8e1e938dfc0006f3d4e780c3153853d/0.2.3/Phos/Films/Gold200/Gold200.py"
+        },
+        {
+          "path": "0.2.3/Phos/Films/HP5/HP5.py",
+          "bytes": 4085,
+          "sha256": "36164242ba46b301a6466377c01dc5be29dd551721eb4a7abf31eceb3c78d00c",
+          "url": "https://github.com/LYCO6273/Phos/blob/c83e999ff8e1e938dfc0006f3d4e780c3153853d/0.2.3/Phos/Films/HP5/HP5.py"
+        }
+      ]
+    },
+    {
+      "repository": "Linglingletsgo/Phos_refactor",
+      "revision": "f9a081d6ff43c3eac377065f565f203f8ef6f0a4",
+      "branch": "main",
+      "metadataLicense": "AGPL-3.0",
+      "files": [
+        {
+          "path": "LICENSE",
+          "bytes": 34523,
+          "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+          "url": "https://github.com/Linglingletsgo/Phos_refactor/blob/f9a081d6ff43c3eac377065f565f203f8ef6f0a4/LICENSE"
+        },
+        {
+          "path": "README.md",
+          "bytes": 4311,
+          "sha256": "3b82b6a2c92d8bb3b3511f6f186c3dc12027e8589f236f2f56882c735ca22d4d",
+          "url": "https://github.com/Linglingletsgo/Phos_refactor/blob/f9a081d6ff43c3eac377065f565f203f8ef6f0a4/README.md"
+        },
+        {
+          "path": "requirements.txt",
+          "bytes": 86,
+          "sha256": "85fc7cbc4b4c456f71221219ee588157728f2db80654dab1de8954f879613b3e",
+          "url": "https://github.com/Linglingletsgo/Phos_refactor/blob/f9a081d6ff43c3eac377065f565f203f8ef6f0a4/requirements.txt"
+        },
+        {
+          "path": "phos/config.py",
+          "bytes": 8101,
+          "sha256": "bf0ba7503c118f6c20b5e5329222ef56f3d781af5e58233a9e8e199e90bb184d",
+          "url": "https://github.com/Linglingletsgo/Phos_refactor/blob/f9a081d6ff43c3eac377065f565f203f8ef6f0a4/phos/config.py"
+        },
+        {
+          "path": "phos/core.py",
+          "bytes": 14062,
+          "sha256": "76e88829002a74060e22792c7530dc3646d8a09d79d75264593ee1d1783c6d99",
+          "url": "https://github.com/Linglingletsgo/Phos_refactor/blob/f9a081d6ff43c3eac377065f565f203f8ef6f0a4/phos/core.py"
+        }
+      ]
+    }
+  ]
+}

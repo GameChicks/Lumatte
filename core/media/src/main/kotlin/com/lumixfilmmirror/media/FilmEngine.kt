@@ -51,7 +51,7 @@ internal class FilmEngine(context: Context) {
     private suspend fun resources(): File = withContext(Dispatchers.IO) {
         resourceMutex.withLock {
             ready?.let { return@withLock it }
-            val root = File(context.filesDir, "film-engine-6a347d5756f8-v1")
+            val root = File(context.filesDir, "film-engine-6a347d5756f8-v2-mobile128")
             check(root.isDirectory || root.mkdirs()) { "无法创建胶片引擎目录" }
             val files = listOf("spektrafilm_constants.bin", "neutral_print_filters.json", "print_luts.json") +
                 context.assets.list("profiles").orEmpty().filter { it.matches(Regex("[a-z0-9_]+\\.json")) }.map { "profiles/$it" }
