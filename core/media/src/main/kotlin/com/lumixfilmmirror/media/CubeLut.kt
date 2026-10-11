@@ -126,8 +126,8 @@ internal class CubeLut(val title: String, private val oneSize: Int, private val 
             val values = requireNotNull(data) { "LUT 没有颜色数据" }
             require(written == values.size) { "LUT 颜色数据不完整" }
             require((0..2).all { domainMax[it] > domainMin[it] }) { "LUT 输入范围无效" }
-            fun minimum(range: Pair<Float, Float>?) = range?.let { FloatArray(3) { it.first } } ?: domainMin.copyOf()
-            fun maximum(range: Pair<Float, Float>?) = range?.let { FloatArray(3) { it.second } } ?: domainMax.copyOf()
+            fun minimum(range: Pair<Float, Float>?) = range?.let { bounds -> FloatArray(3) { bounds.first } } ?: domainMin.copyOf()
+            fun maximum(range: Pair<Float, Float>?) = range?.let { bounds -> FloatArray(3) { bounds.second } } ?: domainMax.copyOf()
             require(oneRange?.let { it.second > it.first } != false && threeRange?.let { it.second > it.first } != false)
             require((oneRange == null && threeRange == null) || ("DOMAIN_MIN" !in headers && "DOMAIN_MAX" !in headers)) {
                 "LUT 同时声明两套输入范围，请使用单一范围格式"

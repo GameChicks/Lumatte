@@ -19,4 +19,4 @@
 
 持久化配置使用 [Room 2.8.5](https://developer.android.com/jetpack/androidx/releases/room)、[DataStore Preferences 1.1.7](https://developer.android.com/jetpack/androidx/releases/datastore) 和 [KSP 2.2.20-2.0.4](https://github.com/google/ksp/releases/tag/2.2.20-2.0.4)。已核对这些固定版本的发布记录，不声明组合已编译通过。Room Gradle 插件与 runtime/compiler 版本一致，配置 schemaDirectory；schema 随首次获准编译生成后纳入 Git。
 
-尚未运行 Gradle、编译、测试或生成 APK。没有加入自动测试或打包任务，也未配置本机 SDK 路径、签名或发布身份。逐阶段状态见 `progress.md`。
+2026-10-12 首次运行 Gradle 编译并生成调试原型 APK；工具与新生成的调试签名隔离在 D 盘，交付包及记录在 `dist/`。没有运行测试、模拟器或真实设备验证，没有添加自动测试或打包钩子。实际工具版本、编译修正及证据边界见 [首个原型记录](prototype-package.md)；前面的“未编译”描述保留为此前接入阶段的历史状态。
