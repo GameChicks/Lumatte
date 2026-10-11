@@ -10,7 +10,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 
-/** Screen-independent serial execution. A future service can own the same runner. */
+/** Screen-independent serial execution, owned by the application's photo export service. */
 class ExportQueueRunner(context: Context, private val processor: PhotoProcessor) {
     private val sources = WorkspaceStore(context)
     val store = ExportQueueStore(context)

@@ -33,7 +33,6 @@ import com.lumixfilmmirror.storage.WorkspacePreferences
 import com.lumixfilmmirror.storage.TransferTask
 import com.lumixfilmmirror.storage.IncomingTransfer
 import com.lumixfilmmirror.storage.ProcessingBatch
-import com.lumixfilmmirror.storage.ExportQueueRunner
 import com.lumixfilmmirror.storage.ExportRequestPhoto
 import com.lumixfilmmirror.storage.ExportRun
 import com.lumixfilmmirror.storage.ExportItemState
@@ -143,8 +142,9 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private val frameSaveJobs = mutableMapOf<String, Job>()
     private val importer = ImageImporter(application)
     private val store = WorkspaceStore(application)
-    private val exportRunner = ExportQueueRunner(application, processor)
-    val exportQueue get() = exportRunner.store
+    private val exports = (application as FilmMirrorApplication).exports
+    val exportExecution = exports.state
+    val exportQueue get() = exports.store
     private val camera = (application as FilmMirrorApplication).camera
     private val mutable = MutableStateFlow(WorkspaceState())
     val state = mutable.asStateFlow()
@@ -157,9 +157,21 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private val storageObservers = mutableListOf<Job>()
     private var exportJob: Job? = null
     private var exportCancelRequested = false
+    private var creatingExport = false
     val cameraState = camera.cameraState
 
     init {
+        viewModelScope.launch {
+            exportExecution.collect { execution ->
+                mutable.update { previous ->
+                    val updated = if (execution.run != null &&
+                        (execution.active || execution.run.batchId == previous.processingBatchId))
+                        previous.showExportRun(execution.run) else previous
+                    updated.copy(exporting = execution.active || creatingExport,
+                        notice = execution.notice ?: previous.notice)
+                }
+            }
+        }
         viewModelScope.launch {
             cameraState.collect { value ->
                 val nextBatch = value.activeTransferBatch?.takeIf { it != mutable.value.activeTransferBatch }
@@ -192,7 +204,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 val cleanupNotice = if (cleanup.temporaryFilesRemoved + cleanup.pendingImagesRemoved > 0)
                     "已整理上次导出的 ${cleanup.temporaryFilesRemoved} 个中间文件、${cleanup.pendingImagesRemoved} 个未发布 JPG" else null
                 mutable.update { previous ->
-                    val batchId = previous.activeTransferBatch
+                    val batchId = exportExecution.value.run?.batchId?.takeIf { exportExecution.value.active }
+                        ?: previous.activeTransferBatch
                         ?: settings.processingBatchId?.takeIf { id -> batches.any { it.id == id } }
                         ?: batches.firstOrNull { batch -> batch.photos.any { it.id.value == settings.selectedId } }?.id
                         ?: batches.firstOrNull { it.photos.isNotEmpty() }?.id ?: batches.firstOrNull()?.id
@@ -255,7 +268,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                     val next = previous.copy(exportRuns = runs)
                     val run = runs.firstOrNull { it.id == previous.exportRunId && it.batchId == previous.processingBatchId }
                         ?: runs.firstOrNull { it.batchId == previous.processingBatchId }
-                    if (previous.exporting || previous.importing || (run == null && previous.exportRunId == null)) next
+                    if (previous.importing || (run == null && previous.exportRunId == null)) next
                     else next.showExportRun(run)
                 }
             } }
@@ -269,6 +282,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         mutable.update { it.copy(storageFailure = message) }
         storageObservers.forEach { it.cancel() }
         camera.stopTransfer(false, "记录存储中断，传输已暂停")
+        exports.stop(reason = "记录存储中断，导出已暂停")
     }
 
     private suspend fun availableBatches(batches: List<ProcessingBatch>): Pair<List<ProcessingBatch>, Int> {
@@ -641,6 +655,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun launchExport(total: Int, retryFailed: Boolean = false, request: suspend () -> ExportRun) {
         exportCancelRequested = false
+        creatingExport = true
         mutable.update { it.copy(exporting = true, completed = 0, total = total, processingStage = null,
             processingPhotoId = null, exported = emptyList(), failures = emptyList(), notice = null, exportCache = null) }
         exportJob = viewModelScope.launch {
@@ -649,10 +664,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 val run = withContext(NonCancellable) { request().also { id = it.id } }
                 coroutineContext.ensureActive()
                 mutable.update { it.showExportRun(run) }
-                exportRunner.run(run.id, retryFailed, cancelRemaining = { exportCancelRequested }) { progress ->
-                    mutable.update { it.showExportRun(progress) }
-                }
-                mutable.update { it.copy(notice = "本次导出任务已结束，结果已记录") }
+                exports.requestStart(run.id, retryFailed)
             } catch (error: CancellationException) {
                 mutable.update { it.copy(notice = if (exportCancelRequested)
                     "已取消后续导出，已保存的照片会保留" else "导出已暂停，可继续未完成的项目") }
@@ -663,7 +675,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                     try {
                         id?.let { runId ->
                             var run = exportQueue.snapshot(runId)
-                            if (run?.state == com.lumixfilmmirror.storage.ExportRunState.QUEUED) {
+                            val owned = exportExecution.value.let { it.active && it.runId == runId }
+                            if (!owned && run?.state == com.lumixfilmmirror.storage.ExportRunState.QUEUED) {
                                 exportQueue.stopIdle(runId, cancel = exportCancelRequested)
                                 run = exportQueue.snapshot(runId)
                             }
@@ -671,17 +684,22 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                         }
                         if (id == null) mutable.update { previous -> previous.showExportRun(
                             previous.exportRuns.firstOrNull { it.id == previous.exportRunId }) }
-                        val records = writer.inspectFolderExports()
-                        mutable.update { it.copy(folderExports = records) }
                     } catch (error: Exception) {
                         mutable.update { it.copy(notice = "导出已结束，但结果记录暂不可读：${error.message.orEmpty()}") }
                     }
                 }
-                mutable.update { it.copy(exporting = false, processingStage = null, processingPhotoId = null) }
+                creatingExport = false
+                mutable.update { it.copy(exporting = exportExecution.value.active) }
             }
         }
     }
 
-    fun pauseExport() { exportCancelRequested = false; exportJob?.cancel() }
-    fun cancelExport() { exportCancelRequested = true; exportJob?.cancel() }
+    fun pauseExport() {
+        if (exportExecution.value.active) exports.stop()
+        else { exportCancelRequested = false; exportJob?.cancel() }
+    }
+    fun cancelExport() {
+        if (exportExecution.value.active) exports.stop(cancel = true, reason = "已取消后续导出，已保存照片保留")
+        else { exportCancelRequested = true; exportJob?.cancel() }
+    }
 }

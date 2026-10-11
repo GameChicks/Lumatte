@@ -48,7 +48,9 @@
 - `previewExportPhoto(id, longEdge)`、`exportLayout(id)`：导出页的含框预览和实际成片尺寸，不通过编辑预览塞入画框。
 - `export(retryOnly)`、`cancelExport()`：整批导出、仅重试失败及取消后续任务。`processingStage`／`processingPhotoId` 提供当前阶段和照片，`completed/total/exported/failures` 提供实际数量与结果。
 
-Room 8 已接入不可变导出快照和每项结果，`state.exportRuns/exportRunId` 可供任务页使用。新增 `resumeExport(id, retryFailed)`、`pauseExport()`、`cancelPendingExport(id)`、`confirmExportReview(runId, photoId, savedUri)`；继续旧请求保留旧配方与输出设置，普通“仅重试失败”用当前设置创建新请求。SAVED 跳过，REVIEW 需用户先核对目标，不自动重试。独立的 `ExportQueueStore/ExportQueueRunner` 不依赖此 ViewModel。字段、计数和未来服务接管边界见 [导出任务](export-queue.md)。本轮没有实现任务列表控件或导出前台服务。
+Room 8 已接入不可变导出快照和每项结果，`state.exportRuns/exportRunId` 可供任务页使用。新增 `resumeExport(id, retryFailed)`、`pauseExport()`、`cancelPendingExport(id)`、`confirmExportReview(runId, photoId, savedUri)`；继续旧请求保留旧配方与输出设置，普通“仅重试失败”用当前设置创建新请求。SAVED 跳过，REVIEW 需用户先核对目标，不自动重试。没有新增任务列表控件。
+
+实际执行已交给 `PhotoExportService`；共享 `FilmMirrorApplication.exports` 的 `state`（也可通过 ViewModel 的 `exportExecution`）提供 `active/preparing/stopping/run/notice`，包含接管与收尾，页面关闭后已接管任务不由页面取消。独立前端用其 `store` 创建／读取快照，显式 `requestStart(runId, retry)` 启动，`stop(cancel, reason)` 暂停或取消；从可见应用用户操作发起，不在订阅、重进页面或启动恢复时自动运行。字段、通知、会话标识与系统时限边界见 [导出任务](export-queue.md)。这些生命周期行为尚未运行验证。
 
 输入 `SourceImage` 中的 `rawNotice` 已包含内嵌 JPEG 说明和真实尺寸，前端以小字显示，不能写入画框。源图、EXIF、文件名、尺寸和随机种子不通过首张继承复制。
 

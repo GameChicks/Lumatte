@@ -49,10 +49,14 @@
 | `cancelPendingExport(id)` | 取消未运行请求的余下项目，运行中必须用执行取消入口 |
 | `confirmExportReview(runId, photoId, savedUri)` | 前端展示目标并得到用户决定后登记核对结果 |
 
-独立前端可直接使用 `ExportQueueStore.runs`、`snapshot`、`enqueue`、`stopIdle`、`confirmReview`，再把 `ExportQueueRunner.run` 交给自己的协程所有者。必须先调用 `initialize`，这不会自动执行历史任务。运行协程取消时 runner 在不可取消收尾中持久化暂停／取消；进程直接终止时依赖下一次启动恢复。已经取消的请求不能复用，重新导出需建立新请求。
+独立前端复用 `FilmMirrorApplication.exports`，其 `store` 提供 `runs`、`snapshot`、`enqueue`、`stopIdle`、`confirmReview`。先调用 `initialize`，这不会自动执行历史任务；用 `requestStart(id, retry)` 将明确请求交给照片导出服务，用 `stop(cancel, reason)` 暂停或取消。不要同时从页面另建 runner 执行同一任务。已经取消的请求不能复用，重新导出需建立新请求。
 
-## 尚未完成
+## 服务接管
 
-目前 WorkspaceViewModel 持有执行协程，离开其生命周期会暂停，尚未接入照片导出的前台服务、进度通知和系统时限处理。相机传输前台服务不替代胶片／LUT 导出服务。本轮只完成持久请求与可复用执行器；不能声称锁屏、后台长时导出或进程中断恢复已验证。
+`ExportController` 由 Application 共享持有；`PhotoExportService` 持有实际运行协程。工作台仅创建请求、发起接管并观察状态，页面生命周期结束不再取消已接管任务。`ExportExecutionState` 的 `active/preparing/stopping` 包含启动和收尾占用；`run` 提供实际结果，`notice` 提供结束／失败说明。原生取消排空及 Room 收尾结束之前不接受新请求。
 
-后续服务接管需遵循平台类型／超时约束，用户从可见应用发起，不从开机或进程恢复自动执行。平台依据：[Android 前台服务类型](https://developer.android.com/develop/background-work/services/fgs/service-types#media-processing)、[超时处理](https://developer.android.com/develop/background-work/services/fgs/timeout)。本文没有启动服务、请求设备或执行平台验证。
+服务通知显示阶段、已保存／失败／待核对数量，并提供暂停、取消余下和返回应用入口。通知携带请求 UUID 加独立会话 UUID，旧通知不能停止后来恢复的同一请求。启动 15 秒仍未接管时暂停请求；启动异常也保留任务。启动失败或接管前暂停／取消只由一个收尾协程写记录，暂停期间升级取消不会留下另一条延迟写入影响新请求。
+
+API 35 及以上选择 `mediaProcessing`，较早系统选择 `dataSync`；清单声明对应类型与权限。服务只接受应用当前的明确启动请求，`START_NOT_STICKY`，不开机启动或自动恢复。持有带过期时间、定期续期的 CPU 唤醒锁，结束时释放。系统超时回调先取消任务并及时停止前台服务，原生排空和记录收尾另行完成；进程未被杀死时控制器仍保持占用。另有单次 330 分钟应用时段限制；它不是后台运行保证，也不替代系统的累计限制。
+
+平台依据：[Android 前台服务类型](https://developer.android.com/develop/background-work/services/fgs/service-types#media-processing)、[超时处理](https://developer.android.com/develop/background-work/services/fgs/timeout)。当前只有源码；没有启动服务、运行迁移、编译或设备验证。通知权限／系统后台限制、锁屏、原生取消、服务销毁、进程被杀及各系统版本行为都尚无实际证据。

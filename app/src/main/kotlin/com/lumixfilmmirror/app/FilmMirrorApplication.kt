@@ -9,6 +9,7 @@ class FilmMirrorApplication : Application() {
     val camera: CameraController by lazy { CameraController(this) }
     private val sharedProcessor = lazy { PhotoProcessor(this) }
     val processor: PhotoProcessor get() = sharedProcessor.value
+    val exports: ExportController by lazy { ExportController(this, processor) }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
