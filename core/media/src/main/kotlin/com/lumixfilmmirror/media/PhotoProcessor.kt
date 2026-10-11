@@ -28,6 +28,7 @@ data class ProcessingCatalogue(val luts: List<LutAsset>, val films: List<FilmPre
 class PhotoProcessor(context: Context) {
     private val luts = LutLibrary(context)
     private val films = FilmCatalogue(context)
+    private val mobileFilmModels = MobileFilmModelLibrary(context)
     private val previewGate = Semaphore(1)
     private val previewCache = EffectPreviewCache()
     private val trimScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -45,11 +46,14 @@ class PhotoProcessor(context: Context) {
     fun exportLayout(source: SourceImage, options: BatchExportOptions) =
         FrameLayouts.plan(options.jpeg.contentSize(source.size), options.frame)
     fun lutBackend(): LutBackend = NativeLutRenderer.backend()
+    /** Packaged model data and its cache only; this does not switch or initialize the film backend. */
+    suspend fun mobileFilmModelsInfo(): MobileFilmModelsInfo = mobileFilmModels.info()
     suspend fun previewCacheInfo(): PreviewCacheInfo = previewGate.withPermit { previewCache.info() }
     suspend fun clearPreviewCache() = previewGate.withPermit { previewCache.clear() }
     /** Releases discardable preview/GPU caches after current work, leaving recipes and output intact. */
     suspend fun clearProcessingCaches() = previewGate.withPermit {
         previewCache.clear()
+        mobileFilmModels.clear()
         writer.releaseIdleFilmEngine()
     }
     /** Coalesced, nonblocking application memory callback. Never clears a borrowed/in-flight image. */

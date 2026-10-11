@@ -29,4 +29,6 @@ CMakeLists.txt text eol=lf
 third_party/libraw/upstream/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
 third_party/spektralab/upstream/** -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
 *.bin binary
+*.f32 binary
+core/media/src/main/assets/film/mobile-v1/SPEKTRAFILM_LICENSE.txt -text whitespace=-blank-at-eol,-blank-at-eof
 LICENSE -text whitespace=-blank-at-eol,-blank-at-eof

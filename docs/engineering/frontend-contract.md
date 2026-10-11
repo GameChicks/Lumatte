@@ -64,6 +64,8 @@ Room 8 已接入不可变导出快照和每项结果，`state.exportRuns/exportR
 
 正式选卷暗盒滚动、400 ms 介绍及返回位置保留由前端管理，不进入影像引擎。LUT 创作者目录、例图 Palette、官方服务器下载尚未具备可用接口；不要把当前本地目录标为官方云端。
 
+`PhotoProcessor.mobileFilmModelsInfo()` 可读取已打入资源目录的移动胶片模型 ID、相纸、正负片、版本、来源提交和缓存信息，不加载全部表或初始化 GPU。缺失／不支持的目录返回 problems，取消正常传播。这个资料入口不是实际渲染后端状态，不展示“已加速”或技术引擎选择；现有预览／导出仍走原来管线。移动模型的读取器与色彩阶段源码、尚缺的空间处理见 [数据层](mobile-film-models.md)。
+
 ## 设计资料
 
 三栏顺序为连接／Film／Lut，默认进入连接；悬浮胶囊底栏、系统浅深色、混排复古标题、简洁几何及少量 Neo-Dotmatrix／弥散按用户提供 `reference/` 原件执行。字体副本及资产记录在 `research/ui/fonts/`，不加入应用构建。指定正文 OPPO Sans、欢迎 NHL Minnesota、点阵字体管家波点；可用 Playfair Display 做混排，附 OFL。

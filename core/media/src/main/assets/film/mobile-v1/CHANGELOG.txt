@@ -1,0 +1,8 @@
+Lumix Film Mirror: sf-3bb2c2d-three-stage-v1
+Source: spektrafilm 3bb2c2d2801ff68b92019cf1dbcbb133d60832bc, Andrea Volpato.
+Derived data licensed CC BY-SA 4.0. Generated float32, x-fastest, per-stock tables.
+sRGB -> linear film response (33^3), log exposure -> density/local DIR (33^3),
+density -> fixed paper/positive scan sRGB (41^3). Exposure is zero at bake.
+Spatial effects, random grain and automatic exposure are disabled during bake.
+DIR spatial diffusion is omitted; local chemistry is baked once.
+Sampling and float32 encoding are modifications. No accuracy/performance validation was run.

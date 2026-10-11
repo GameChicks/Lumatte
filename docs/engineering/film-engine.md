@@ -2,6 +2,8 @@
 
 状态：原生引擎、Android 调用层、批量配方与导出接口已写入源码。没有运行 CMake／Gradle，没有编译、解析或渲染测试，没有手机或性能证据，没有 APK。界面按用户最新决定交给另一个前端，本次不实现选卷页面或动效。
 
+后续自主选型采用 spektrafilm 来源的分阶段移动路线，已实际生产另一版本链的 20 个响应／显影／扫描数据包，并写入懒加载读取器和 CPU 色彩阶段源码。生产资源生成不等于 Android 解析或照片渲染；完整 GLES／CPU 后端、空间效果及颗粒仍待接入，当前本文的 Vulkan 仍是默认执行路径。两套版本不混用，见 [移动模型数据层](mobile-film-models.md)。
+
 ## 来源与处理语义
 
 - 采用 [SpektraLab](https://github.com/JamesQiu2005/SpektraLab) 的 C++／Vulkan 光谱管线，固定 `6a347d5756f8b1a96ec393c60bf5d0452fa5498b`。117 份选定源码、数值资源和许可正文保留在 `third_party/spektralab/upstream/`，字节及 SHA-256 记录在 `source-manifest.json`。未运行上游构建脚本或测试。
