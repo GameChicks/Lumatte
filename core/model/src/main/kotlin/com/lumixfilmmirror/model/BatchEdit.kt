@@ -4,15 +4,20 @@ package com.lumixfilmmirror.model
 value class PhotoId(val value: String)
 
 enum class FilmBatchMode { INDIVIDUAL, FIRST_PHOTO }
+enum class DiffusionGrade(val strength: Float) { OFF(0f), EIGHTH(.125f), QUARTER(.25f), HALF(.5f) }
+enum class PhotoTreatment { LUT, FILM }
 
-/** Values use normalized effect strength; algorithm-specific mappings belong to the engine. */
+/** Three public controls; exposure uses one EV and professional settings stay inside the engine. */
 data class FilmParameters(
-    val presetId: String,
+    val presetId: String = "kodak_gold_200",
     val exposureEv: Float = 0f,
-    val halation: Float = 0f,
-    val bloom: Float = 0f,
-    val grain: Float = 0f,
-)
+    val diffusion: DiffusionGrade = DiffusionGrade.OFF,
+    val halationEnabled: Boolean = true,
+) {
+    init {
+        require(exposureEv.isFinite() && exposureEv in -3f..3f)
+    }
+}
 
 data class BatchPhoto(
     val id: PhotoId,

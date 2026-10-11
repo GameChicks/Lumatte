@@ -1,0 +1,592 @@
+{
+  "repository": "https://github.com/JamesQiu2005/SpektraLab",
+  "commit": "6a347d5756f8b1a96ec393c60bf5d0452fa5498b",
+  "retrieved": "2026-10-11",
+  "files": [
+    {
+      "path": "engine/include/spektrafilm/spk_engine.h",
+      "bytes": 21338,
+      "sha256": "5dd33ab8aaff9cd98031aba4f2b601c31617e4894380d91170cd5d6079769dfb"
+    },
+    {
+      "path": "engine/resources/neutral_print_filters.json",
+      "bytes": 22195,
+      "sha256": "8bbf8d8db76aecdc9e94bc0b1e31f3329553eeda56d210ab36294fa5e4bf3b13"
+    },
+    {
+      "path": "engine/resources/print_luts.json",
+      "bytes": 1559,
+      "sha256": "292b36e7e4a9a7555032cd565b180d0cf6c0da21c80f2210ccaaf9b77732c1dd"
+    },
+    {
+      "path": "engine/resources/profiles/fujifilm_c200.json",
+      "bytes": 206785,
+      "sha256": "30db07d88090aadc62e03d18c2c51f67a20a1673390c69f99933b7ed5406d2c8"
+    },
+    {
+      "path": "engine/resources/profiles/fujifilm_crystal_archive_typeii.json",
+      "bytes": 215850,
+      "sha256": "b613da2fc9cde092da450abe00b230c73d7ec6afc20fed2b4112e5b5fa77e80e"
+    },
+    {
+      "path": "engine/resources/profiles/fujifilm_pro_400h.json",
+      "bytes": 207090,
+      "sha256": "da1be731ab79fb5535c43042494fa7298c942179abb68270b928aa012c629b31"
+    },
+    {
+      "path": "engine/resources/profiles/fujifilm_provia_100f.json",
+      "bytes": 209348,
+      "sha256": "f061f7aa55e3fefe1c89ee2edb8555a2d44fe8167d02f663c787067d131137b6"
+    },
+    {
+      "path": "engine/resources/profiles/fujifilm_velvia_100.json",
+      "bytes": 209162,
+      "sha256": "af696fa9662e0483cb9428d2939675044f2016fc3fad760b50a20a0a586fc04b"
+    },
+    {
+      "path": "engine/resources/profiles/fujifilm_xtra_400.json",
+      "bytes": 206953,
+      "sha256": "5f2a3642c7c8db5e750d7366c34b47d24b89ad78d2abe41da4b5282fd4286e58"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_2383.json",
+      "bytes": 215787,
+      "sha256": "273eda5e3c9f4a624c1ce65a8249e343fb227d49bcf9bab54167415ac6fd5540"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_2393.json",
+      "bytes": 215772,
+      "sha256": "11fc419921ac81bde811305c46c4bc25a833373e5378a06f3c88929b55d16b33"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_ektachrome_100.json",
+      "bytes": 208738,
+      "sha256": "ef194fd80c60a1ac42bbbf1df458b4d047fc07bc17eebce674bb3bcba2ccf62a"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_ektacolor_edge.json",
+      "bytes": 215171,
+      "sha256": "82af7d6f3e268f2debbf1a6993356193ac0e948f8fb9725bb8b68d75daddaef4"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_ektar_100.json",
+      "bytes": 207128,
+      "sha256": "60acbd46c75005771569eafb97f534a4495e9d4e1e9c1e419b90cea2676ec7cf"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_endura_premier.json",
+      "bytes": 215400,
+      "sha256": "7dd0ffe44fc383aa68dc0cee85d4a7e084bec7698784675ea567ca313af00fc1"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_gold_200.json",
+      "bytes": 206865,
+      "sha256": "aa8a0c1c7851fface3752f968cdf6c6d74a26fc9756a4460d3155d2382506b7c"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_kodachrome_64.json",
+      "bytes": 208570,
+      "sha256": "f88ede487219cf75090ed6663af6923c595707b3c48819f2ccf27122130e921d"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_portra_160.json",
+      "bytes": 207062,
+      "sha256": "1bc9b65a6940f3a4381e8d14d0ac43594aff9495051992ce4d7408e761549992"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_portra_400.json",
+      "bytes": 207169,
+      "sha256": "b5cdc73dbec8f462f488bca70bedf23fd13ce79969c0457e8ac2a2565d92bf5d"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_portra_800.json",
+      "bytes": 206916,
+      "sha256": "5b0c6e861c6273a2ecdf552525e80738037918e650a0dc206e095acfd02f8b43"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_portra_800_push1.json",
+      "bytes": 207154,
+      "sha256": "dac9cbcd2442442d9dee90bd2d6a28dcc4b996635dcac0b44ac8ecd32c4b3a4f"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_portra_800_push2.json",
+      "bytes": 207128,
+      "sha256": "5ee01e4a00c157721738314313a43b46fcd5dae62ed3a7e4730f9054b66f6282"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_portra_endura.json",
+      "bytes": 215233,
+      "sha256": "ad5ac4b98640c2d6ad0ba24c33ac880d927cbbf1c60551594f2a081cfc2d8d9a"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_supra_endura.json",
+      "bytes": 215500,
+      "sha256": "8d49b240952c77b8302d6d7e652400e21bed595233f926bcc588481d100d2055"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_ultra_endura.json",
+      "bytes": 215526,
+      "sha256": "8ea5aa5643c5a27b9c189f81a5a126573484f679d4b6d37dbee1b27485b6de9a"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_ultramax_400.json",
+      "bytes": 206958,
+      "sha256": "248b78bdcc4fdbe864e30f193f900059ecd98cbdb276c88ad8f6f5b520137901"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_verita_200d.json",
+      "bytes": 206939,
+      "sha256": "5d71a3f544721a71cfa0b0671ce1b5eda6dc1e6a09273810793d4bc821b272fc"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_vision3_200t.json",
+      "bytes": 207307,
+      "sha256": "4a28f049fd6bad67be98efdb058b413c6b3c022e2932b357b346d902c4c393c8"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_vision3_250d.json",
+      "bytes": 207058,
+      "sha256": "9ab85c8627c0533beb925b747e441e93beabe9e98c2429695b0a53866b56fcc7"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_vision3_500t.json",
+      "bytes": 206966,
+      "sha256": "d7beca68bf16db88dbb7373fd13a6a1150a57a911a54bb0309a760a6f9883329"
+    },
+    {
+      "path": "engine/resources/profiles/kodak_vision3_50d.json",
+      "bytes": 207089,
+      "sha256": "fd426abc9de911682080db222020978dee4e8df7ca939bfcd5c9d0f6df249fa1"
+    },
+    {
+      "path": "engine/resources/spektrafilm_constants.bin",
+      "bytes": 9450196,
+      "sha256": "f2c06600606fa169171f58b6639d2669f372a2b39ebe9c72e3edeff5f6d7d31d"
+    },
+    {
+      "path": "engine/src/core/blob.cpp",
+      "bytes": 7914,
+      "sha256": "0352985d7c1cbc9202170eda8b2f3b9883c13b8593efd36c03c3ba5ea76af661"
+    },
+    {
+      "path": "engine/src/core/blob.hpp",
+      "bytes": 1997,
+      "sha256": "31462ebacfb4dce084651fd5ca872824a1552577e0ac8ead80ed14f5b063f827"
+    },
+    {
+      "path": "engine/src/core/cam16.cpp",
+      "bytes": 10957,
+      "sha256": "dcdd8f4188e330c855c57978980fcf5b0d200fd585a595d6ceadb61ed76d65cd"
+    },
+    {
+      "path": "engine/src/core/cam16.hpp",
+      "bytes": 3215,
+      "sha256": "c63bb6ccf0522785a713456042cf75991e74daa2fcc69d048bb2f2d834b43aa8"
+    },
+    {
+      "path": "engine/src/core/camera_filters.hpp",
+      "bytes": 5100,
+      "sha256": "b75a5bac5db906924432ebc69b1c28d858e8b97cd7c6f0566ef215e35addca08"
+    },
+    {
+      "path": "engine/src/core/colour.cpp",
+      "bytes": 11463,
+      "sha256": "2e507db29568cf798958bb242fb1174303a469ebca072243a30070a76f6b4243"
+    },
+    {
+      "path": "engine/src/core/colour.hpp",
+      "bytes": 5338,
+      "sha256": "251a239c1c14afa8421d61c1ca6d6d47a614affc6cebaa3dab680f4dbf2f24e1"
+    },
+    {
+      "path": "engine/src/core/curves.cpp",
+      "bytes": 11654,
+      "sha256": "1cde1154d92bf7671f8a427b0798ab9aa284e5ee15d94788b6677095cec57c85"
+    },
+    {
+      "path": "engine/src/core/curves.hpp",
+      "bytes": 2517,
+      "sha256": "2452bbc867df9cb517810c00c0f4c9ff9d8cd00eb3f110bbaf81dce3854c2e8d"
+    },
+    {
+      "path": "engine/src/core/digital_intermediate.cpp",
+      "bytes": 20157,
+      "sha256": "cb136c69faca30bc65f21b2e0dbc3b208a2d56c1375a9533210f9fbb53cd4bba"
+    },
+    {
+      "path": "engine/src/core/digital_intermediate.hpp",
+      "bytes": 5452,
+      "sha256": "c93b66f55d2e81e481ca1459df4d8527aaef94a095dbaa3ed19ef86508457375"
+    },
+    {
+      "path": "engine/src/core/file_path.hpp",
+      "bytes": 821,
+      "sha256": "c299cfee7d363f0f82495d84ee6be8cae6e97a025e95715ca55dd0afae5a4d45"
+    },
+    {
+      "path": "engine/src/core/hanatos.cpp",
+      "bytes": 16112,
+      "sha256": "e6e23dd599af20fca75eca648d86f5a46d9663de96cc617b0f87013c18c92a35"
+    },
+    {
+      "path": "engine/src/core/hanatos.hpp",
+      "bytes": 3961,
+      "sha256": "53043a6953e674198b3c0790fca15cc7989501c3025de8d3accae458039836f1"
+    },
+    {
+      "path": "engine/src/core/json.cpp",
+      "bytes": 11626,
+      "sha256": "cb37dc91238845e574234832a8ec52a3c78476d2c196f38c3ab26caad82cfc98"
+    },
+    {
+      "path": "engine/src/core/json.hpp",
+      "bytes": 3895,
+      "sha256": "262c9bd9c5f0b0c8e0cd4b5a36556a39136db7370797dbe5345d523ee665e03c"
+    },
+    {
+      "path": "engine/src/core/latitude_fit.cpp",
+      "bytes": 11948,
+      "sha256": "f181dcfd8f4f3bfdb9b1507cce8c01964791448ec820ce422f4de9b3568b0a1c"
+    },
+    {
+      "path": "engine/src/core/latitude_fit.hpp",
+      "bytes": 6097,
+      "sha256": "b503c69fc7f82f3d5b8a77611639b1e4ba3980305f97a8943cd8674815e64927"
+    },
+    {
+      "path": "engine/src/core/numeric.cpp",
+      "bytes": 4059,
+      "sha256": "e79c70d752b2ede0d56d0e529029efbb371c686ae1143531feb68f1d066fb378"
+    },
+    {
+      "path": "engine/src/core/numeric.hpp",
+      "bytes": 4102,
+      "sha256": "07dd10d754a0ddd48df9a19096a9001cb669efdf79a0e08e9b75a3f460eb09af"
+    },
+    {
+      "path": "engine/src/core/params.cpp",
+      "bytes": 41461,
+      "sha256": "b33bb45f40628e26d965b27176d84262de9f2c8ba31a1f00ccb5da324fff648e"
+    },
+    {
+      "path": "engine/src/core/params.hpp",
+      "bytes": 26669,
+      "sha256": "7ba3fd720f2aff15d906eaa112c9c2c6ebb2ffdd57c6c218c05196609eea72cd"
+    },
+    {
+      "path": "engine/src/core/print_lut.cpp",
+      "bytes": 4456,
+      "sha256": "3ffb924a266c787aa7a8d11ce044ab711693125acd7fd203dee3f41cae71726f"
+    },
+    {
+      "path": "engine/src/core/print_lut.hpp",
+      "bytes": 3082,
+      "sha256": "ade2f85e1604b63362163812cc49af252b2e3eee4a021f43bbc4d76cd2036c53"
+    },
+    {
+      "path": "engine/src/core/printing.cpp",
+      "bytes": 12009,
+      "sha256": "6da2ec0d19d5f35671a86dcd7eee33c73c2ba8449adc329d4b009fb09d272ad8"
+    },
+    {
+      "path": "engine/src/core/printing.hpp",
+      "bytes": 3641,
+      "sha256": "73ef7452368a1ed948f6a92267cb382af3b25acce82ddc1815103d0e0e65113c"
+    },
+    {
+      "path": "engine/src/core/profile.cpp",
+      "bytes": 9503,
+      "sha256": "efdf21d5be888c041dd7929faecc5ac202d434d1f16fdaa00c606240b3771ea4"
+    },
+    {
+      "path": "engine/src/core/profile.hpp",
+      "bytes": 3298,
+      "sha256": "921ab1e072b71eacfc0ccb1a0e804b9e0f15524cbae97b558540ef30b7035233"
+    },
+    {
+      "path": "engine/src/core/setup_cache.cpp",
+      "bytes": 4119,
+      "sha256": "314a9746a832f7dc798f70c912c00374db96f9510cae19b4a41c576790ee98bb"
+    },
+    {
+      "path": "engine/src/core/setup_cache.hpp",
+      "bytes": 3240,
+      "sha256": "7825081b56428134e9ce4a839106bb0719f92ba7eac268a6caf2dcddce796b4e"
+    },
+    {
+      "path": "engine/src/core/spectral.cpp",
+      "bytes": 5870,
+      "sha256": "f8b733fda96ba5e26b37ec414135af3aabfe2f641b20974f2a859f2f8896ee6f"
+    },
+    {
+      "path": "engine/src/core/spectral.hpp",
+      "bytes": 3053,
+      "sha256": "891bf95215b4b9ab64cd3e2fb11067e1200d3eeded26fa603ed36d8308ba8bd6"
+    },
+    {
+      "path": "engine/src/gpu/gpu.hpp",
+      "bytes": 24774,
+      "sha256": "4f97b3e32ba78d995eb6b1a40f0aaf009760b25a9e7cf7161bb8c41bcc6a15ba"
+    },
+    {
+      "path": "engine/src/gpu/vulkan_gpu.cpp",
+      "bytes": 51516,
+      "sha256": "79c08c37b4f367ec86b147b5e0e16b4b2f82253cde2278fdcd5032a4ae3920fc"
+    },
+    {
+      "path": "engine/src/pipeline/blur.cpp",
+      "bytes": 13788,
+      "sha256": "7a173792e149c088f93b57426a38895f9b2b5f22e8d60427886da78cad9e4270"
+    },
+    {
+      "path": "engine/src/pipeline/blur.hpp",
+      "bytes": 6856,
+      "sha256": "e51f4ddb247aab61cfb9cba390158bd86e9c1f071a0844bffbb8dda56747b4ff"
+    },
+    {
+      "path": "engine/src/pipeline/engine.cpp",
+      "bytes": 113969,
+      "sha256": "5a4f74685dbc82438157d6456ab34ccc267c93bb542540c7404c0447feb62dc8"
+    },
+    {
+      "path": "engine/src/pipeline/image.hpp",
+      "bytes": 1230,
+      "sha256": "12e0d16d797460b2225005ae9830d5e07c3fcb665ed418522694d394b6bca586"
+    },
+    {
+      "path": "engine/src/pipeline/pipeline.cpp",
+      "bytes": 119465,
+      "sha256": "0add06f0cbc68ebca0c61a87b55e40ef629dbb9368fae652ec6522e4d364c01a"
+    },
+    {
+      "path": "engine/src/pipeline/pipeline.hpp",
+      "bytes": 46216,
+      "sha256": "ebffc6fa4a4c3b0e55a308aaf4c6148e3af135f28b23e491320f36edb96e6454"
+    },
+    {
+      "path": "engine/src/pipeline/scene_latitude.cpp",
+      "bytes": 6012,
+      "sha256": "5220a328337424e373fe1ce54855224ef5dd51a84e5788499e1da9679f5aa1f4"
+    },
+    {
+      "path": "engine/src/pipeline/strip.hpp",
+      "bytes": 1170,
+      "sha256": "ded7b914ede3718fd8dc1ca43ceed229a45e9f3dbe87d8881c4e1cfd67d8d46e"
+    },
+    {
+      "path": "engine/src/pipeline/timer.hpp",
+      "bytes": 1327,
+      "sha256": "b56efb59567c8e9eda2343fa5112a78b522512a23e3c3b634cbde40b652d1635"
+    },
+    {
+      "path": "engine/src/pipeline/windows_unported.cpp",
+      "bytes": 2715,
+      "sha256": "3c8688920de3e034a97e18a5816f5a4821226f4f2f8d0208c1b6ddf9137be0f6"
+    },
+    {
+      "path": "engine/src/pipeline/windows_unported.hpp",
+      "bytes": 1807,
+      "sha256": "d30fd2932988ba0291188ae25f4fbb84799ba2d729c6db129054d9e9e7718ae6"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_affine3.comp",
+      "bytes": 1096,
+      "sha256": "7470b977401cf12ea8bca6d9f539b911a968035ec96286e562d461d846f22713"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_boost.comp",
+      "bytes": 1232,
+      "sha256": "41cd7a7da4ebd41298a1de9263b162290f75d4ca3fb3aa997cab2506c4b327ae"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_bw_correct.comp",
+      "bytes": 1183,
+      "sha256": "2a3a7f1aa8be4d9b993d55fc9c4d89d38fb9252590828650bf76b6fb416e548b"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_cam16ucs_compress.comp",
+      "bytes": 7836,
+      "sha256": "1bdd96a0bd39b4d56fb13729b0c584bb7325ace746909b58bcbbfdd28c25f941"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_cctf_decode.comp",
+      "bytes": 2196,
+      "sha256": "716ab1c4c9ca9e87066884716d139e00a48a9cf396853fe3611359fb3f971966"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_cctf_encode_matrix.comp",
+      "bytes": 2280,
+      "sha256": "b60dbaafbfb0c19d4474ffdc65764d352948494901c47a96c60e75f73913ea27"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_couplers_correction.comp",
+      "bytes": 1971,
+      "sha256": "e64909ba705d09ab2c4732c82df080851b8dd663749088aa8681acf4a42f9c25"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_curves.comp",
+      "bytes": 2094,
+      "sha256": "bcff6181dd9aa56a6c04b7b1bf8c0a7435f88813163bd2fe42018d11ab3738bf"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_di_normalise.comp",
+      "bytes": 1434,
+      "sha256": "060b3ad17fa3d4131819ee8aa08a6c1aa60f362b0e13433335f9ae8578ecca35"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_edr.comp",
+      "bytes": 1835,
+      "sha256": "2454498a651b8ce1ebeb9086f8517371ed903ae5cb219fc9869cad9958eaa820"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_geometry_resample_df.comp",
+      "bytes": 4998,
+      "sha256": "54a9c84a908a9fce597949d39977f9e7bfa880b0700ea455fb8f81f065348831"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_glare_add.comp",
+      "bytes": 1117,
+      "sha256": "723b4db22b7f6f55e89ca9dd8cea0bac73ddbba4a6fea87cfd887c3931591ef4"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_grain_layer_one.comp",
+      "bytes": 2201,
+      "sha256": "9b7b58d71228c3dc519ddbf158268c35b6a292dd15e80262556e6fd48e6ef89e"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_grain_layers.comp",
+      "bytes": 2326,
+      "sha256": "9699ecd0ae5892cc4b6eb83793ab716a21d69860d88d378e481237a4cf9d2392"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_grain_simple.comp",
+      "bytes": 1256,
+      "sha256": "3d9c986dbe260e2f8bbe7dfb76474ad9eb36f9ab13cbe28c995b8e239350f285"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_iir_df_acc.comp",
+      "bytes": 5293,
+      "sha256": "6f313e6dd31e6332a9bdb45e2fa8bbc6c134fbc1ccc3b264774b0a7111d97e95"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_lincomb3.comp",
+      "bytes": 1247,
+      "sha256": "0ad7da930f8597ad762646ba0bee7e1eb5563ded8850daf140455ea2553d8681"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_log10_guarded.comp",
+      "bytes": 932,
+      "sha256": "69d11a9d5faef02c8e3e683568e84b5f2e21754a3acc4856f5bf236d89aee16f"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_lognormal_field.comp",
+      "bytes": 1325,
+      "sha256": "ce8780b7818dff501f738959af012f94c568595f7116944b58b8fa3b130ca137"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_lut2d_cubic.comp",
+      "bytes": 3470,
+      "sha256": "b8c7226a20e403dd4ea9317be2ffb85d6cbdc9acc3eff63e9d0d250f9efbe40d"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_lut3d_trilinear.comp",
+      "bytes": 3340,
+      "sha256": "59bb59de4d5109ce01bbf0218984d2c088c4bf13169773bd6815665d6612e8a6"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_math_probe.comp",
+      "bytes": 1351,
+      "sha256": "c72e4a5ae2907eeca515b3b09540b6351a54bc88a1ccc03650c873da295191c8"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_matmul3.comp",
+      "bytes": 1318,
+      "sha256": "9e2c7183157c9a87b7934aa9b214af15f78077c56f0b2b87a2f56c3684c92bbe"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_mul.comp",
+      "bytes": 937,
+      "sha256": "5326f9f5a3195ec5e38cb1def84b1453141032c02da7ef13db19925ace9dedc5"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_print_exposure.comp",
+      "bytes": 1005,
+      "sha256": "1ee17450d2f2038c8bb2d64dd298cc3bf455773912bd6ea89a6932b979682eb7"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_reduce_max.comp",
+      "bytes": 1136,
+      "sha256": "169656745e3aefe0309e7cc3fe446689756622f7f6063339ef5f151ae9199a6c"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_rng.glsl",
+      "bytes": 3406,
+      "sha256": "204e63c1ebb7b325ecf06cdcd63d3e02e0ce05ea04ff8099dda6b7bf0c521a82"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_rng_probe.comp",
+      "bytes": 1499,
+      "sha256": "f5497ed15b6324a8de38599cd2cd2bca087ef68468ccb6f71df1dd865a19c983"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_sep_fir_acc.comp",
+      "bytes": 3306,
+      "sha256": "bf40caa52dfff49e59365055327211cdd55198211eeb38e84a79c69ac7333609"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_spectral_epilogue.comp",
+      "bytes": 2400,
+      "sha256": "8185466f9e0859937c345bb38e0f5bb65708529f49dbdde0a5ed2ed62ff16053"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_stride_sample.comp",
+      "bytes": 1216,
+      "sha256": "f4b80aaa43879d8a87520f33fbae67b37f233eee5b575255dc543e4941fccc81"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_take_rgb.comp",
+      "bytes": 917,
+      "sha256": "73660646f9c231a7253ad247123eb8040bcc725e591d477b25254528b40a7709"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_tc_b.comp",
+      "bytes": 1885,
+      "sha256": "ce3facfdc7abf15eec4310cc149f8441b9481b95a26c8f00b4f16646f93fd8b6"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_to_rgba16.comp",
+      "bytes": 1314,
+      "sha256": "b7b59b3f262ce29e85a7ff973fdb84d86767f0e3c6e2c13279694145d5b199c4"
+    },
+    {
+      "path": "engine/src/shaders/vulkan/spk_zoom_bilinear_mirror.comp",
+      "bytes": 4244,
+      "sha256": "27f7f57d74027a662bca79e283e74caaa7eb147703eea96f10d1cbfe2a0df528"
+    },
+    {
+      "path": "engine/third_party/volk/LICENSE.md",
+      "bytes": 1066,
+      "sha256": "04a0693a84f19e53d281ca98bbb0c86ca77251ab13769c6168e6684feb9a1436"
+    },
+    {
+      "path": "engine/third_party/volk/volk.c",
+      "bytes": 320858,
+      "sha256": "a70a715023a6ff03654994239787c7e57e84b8151f4ba6e7a4d0f7e910100dbe"
+    },
+    {
+      "path": "engine/third_party/volk/volk.h",
+      "bytes": 179446,
+      "sha256": "d5b09761d63bbad0b41d772607c70a4afb7f4fe5339d64d32c33ac4a17d6fd9d"
+    },
+    {
+      "path": "license/LICENSE",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "path": "license/SPEKTRAFILM_LICENSE.txt",
+      "bytes": 23677,
+      "sha256": "76d629501783ae52e8d63aee1e054c1e1a9713b9fe7d36fb306e25b1d14b24e9"
+    }
+  ]
+}

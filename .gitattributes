@@ -16,12 +16,16 @@
 *.ttf binary
 *.otf binary
 research/filmtool/assets/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
+research/ui/fonts/Playfair-Display-OFL.txt -text whitespace=-blank-at-eol,-blank-at-eof
 research/filmtool/recovered/** whitespace=-blank-at-eol,-blank-at-eof
 *.csv text eol=lf
 *.cpp text eol=lf
 *.h text eol=lf
+*.hpp text eol=lf
 *.cmake text eol=lf
 *.pro text eol=lf
 CMakeLists.txt text eol=lf
 third_party/libraw/upstream/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
+third_party/spektralab/upstream/** -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
+*.bin binary
 LICENSE -text whitespace=-blank-at-eol,-blank-at-eof

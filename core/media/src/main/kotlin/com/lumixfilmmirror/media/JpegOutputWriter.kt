@@ -12,6 +12,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.exifinterface.media.ExifInterface
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.PixelSize
+import com.lumixfilmmirror.model.PhotoProcessingStage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ensureActive
@@ -34,6 +35,7 @@ class JpegOutputWriter(context: Context) {
     private val context = context.applicationContext
     private val cache = JpegExportCache(this.context)
     private val folderJournal = SafExportJournal(this.context)
+    private val filmEngine = FilmEngine(this.context)
 
     suspend fun inspectCache(): JpegExportCacheSnapshot = cache.inspect()
     suspend fun cleanCache(): JpegExportCleanup = cache.clean()
@@ -46,15 +48,22 @@ class JpegOutputWriter(context: Context) {
 
     suspend fun write(source: SourceImage, settings: JpegOutput, destination: ExportDestination,
         lut: LutRenderPlan? = null,
+        film: FilmRenderPlan? = null,
+        onStage: suspend (PhotoProcessingStage) -> Unit = {},
         onPublished: suspend (Uri) -> Unit = {}): Uri = withContext(Dispatchers.IO) {
         JpegExportAccess.mutex.withLock {
+            require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
+            onStage(PhotoProcessingStage.PREPARING)
             val size = settings.contentSize(source.size)
             val temp = cache.newTemporaryFile()
             try {
                 val pixels = decode(source, size)
                 try {
+                    onStage(PhotoProcessingStage.RENDERING)
+                    film?.let { filmEngine.render(pixels, it) }
                     val renderContext = coroutineContext
                     lut?.render(pixels, source) { renderContext.ensureActive() }
+                    onStage(PhotoProcessingStage.ENCODING)
                     temp.outputStream().buffered().use { output ->
                         check(pixels.compress(Bitmap.CompressFormat.JPEG, settings.compressionQuality, output)) { "无法写入 JPG" }
                     }
@@ -65,6 +74,7 @@ class JpegOutputWriter(context: Context) {
                 coroutineContext.ensureActive()
                 val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))
                 val name = "LFM-$stamp-${UUID.randomUUID()}.jpg"
+                onStage(PhotoProcessingStage.PUBLISHING)
                 when (destination) {
                     ExportDestination.Gallery -> publishGallery(temp, name, onPublished)
                     is ExportDestination.Folder -> publishFolder(source, temp, name, destination.treeUri, onPublished)
@@ -73,11 +83,17 @@ class JpegOutputWriter(context: Context) {
         }
     }
 
-    fun preview(source: SourceImage, longEdge: Int = 1280, lut: LutRenderPlan? = null, checkActive: () -> Unit = {}): Bitmap {
+    suspend fun preview(source: SourceImage, longEdge: Int = 1280, lut: LutRenderPlan? = null,
+        film: FilmRenderPlan? = null, checkActive: () -> Unit = {}): Bitmap {
+        require(longEdge > 0)
+        require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
         val factor = minOf(1.0, longEdge.toDouble() / maxOf(source.size.width, source.size.height))
         val pixels = decode(source, PixelSize(maxOf(1, (source.size.width * factor).toInt()),
             maxOf(1, (source.size.height * factor).toInt())))
-        try { lut?.render(pixels, source, checkActive); checkActive(); return pixels }
+        try {
+            film?.let { filmEngine.render(pixels, it) }
+            lut?.render(pixels, source, checkActive); checkActive(); return pixels
+        }
         catch (error: Throwable) { pixels.recycle(); throw error }
     }
 

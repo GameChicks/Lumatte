@@ -2,7 +2,7 @@
 
 面向松下相机的 Android 照片传输、胶片模拟、LUT 和画框导出应用。
 
-当前按用户最新要求优先实现影像编辑：双 LUT、两槽独立强度、顺序交换、颗粒、效果卡片与全屏选择、原图对比和整批导出已接入工作台源码；内置用户提供的 10 款 LUT，并支持本地 .cube 导入。每批配方由 Room 保存。胶片光谱模型仍待实现，传输适配的未完成项保留。历史源码恢复及新代码不等于应用已运行；未经要求不测试、不打包。
+当前按用户最新要求优先完善影像功能，UI 由用户另找前端。双 LUT、10 款用户内置及本地导入已接入；胶片光谱 C++／Vulkan、统一曝光／Halation／黑柔、逐张／首张继承、处理阶段和 Room 6 配方已接入源码，通过独立 PhotoProcessor 交给前端。原生引擎与移动端性能尚无编译／运行证据；画框绘制、黑白模型等仍需继续。历史恢复及新代码不等于应用已运行；未经要求不测试、不打包。见 [前端接口交接](docs/engineering/frontend-contract.md)。
 
 - `docs/product/`：已确认的交互与产品规则。
 - `research/filmtool/`：自有 Film Companion 的来源索引、恢复源码及报告；不加入应用构建。
@@ -11,6 +11,8 @@
 - `app/`：Android 应用入口、系统浅／深色轻拟物工作台和传输界面。
 - `app/src/main/assets/luts/`：用户提供的内置 LUT 副本；原始 `lut/` 保留为本机输入目录，不重复加入 Git。
 - `research/third-party-sync/`：第三方 Sync APK 分析记录与协议常量；不加入构建。
+- `research/ui/`：指定字体副本和前端参考记录；不加入构建。
+- `third_party/spektralab/`、`native/film/`：固定原生光谱参考、许可与 Android 适配，尚未编译。
 - `docs/protocol/`：协议依据、范围及逐机型状态。
 
 批量规则、RAW 内嵌 JPEG、导出尺寸及系统主题见 [产品决策](docs/product/decisions.md)。

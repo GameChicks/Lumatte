@@ -6,13 +6,22 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lumixfilmmirror.media.ExportDestination
 import com.lumixfilmmirror.media.ImageImporter
-import com.lumixfilmmirror.media.JpegOutputWriter
 import com.lumixfilmmirror.media.JpegExportCacheSnapshot
 import com.lumixfilmmirror.media.FolderExportSnapshot
 import com.lumixfilmmirror.media.SourceImage
 import com.lumixfilmmirror.media.LutAsset
-import com.lumixfilmmirror.media.LutLibrary
+import com.lumixfilmmirror.media.PhotoProcessor
+import com.lumixfilmmirror.media.ProcessingCatalogue
+import com.lumixfilmmirror.media.FilmPreset
+import com.lumixfilmmirror.media.FilmRenderPlan
 import com.lumixfilmmirror.model.LutRecipe
+import com.lumixfilmmirror.model.FilmBatch
+import com.lumixfilmmirror.model.FilmBatchMode
+import com.lumixfilmmirror.model.FilmParameters
+import com.lumixfilmmirror.model.BatchPhoto
+import com.lumixfilmmirror.model.PhotoTreatment
+import com.lumixfilmmirror.model.PhotoRecipe
+import com.lumixfilmmirror.model.PhotoProcessingStage
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.PhotoId
 import com.lumixfilmmirror.camera.CameraMedia
@@ -35,9 +44,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlin.coroutines.coroutineContext
 
 data class ExportedPhoto(val id: PhotoId, val name: String, val uri: Uri)
@@ -51,11 +57,16 @@ data class WorkspaceState(
     val luts: List<LutAsset> = emptyList(),
     val lutRecipe: LutRecipe = LutRecipe(),
     val lutImporting: Boolean = false,
+    val filmPresets: List<FilmPreset> = emptyList(),
+    val treatment: PhotoTreatment = PhotoTreatment.LUT,
+    val filmBatch: FilmBatch? = null,
     val selected: PhotoId? = null,
     val output: JpegOutput = JpegOutput(),
     val destination: ExportDestination = ExportDestination.Gallery,
     val importing: Boolean = false,
     val exporting: Boolean = false,
+    val processingStage: PhotoProcessingStage? = null,
+    val processingPhotoId: PhotoId? = null,
     val exportCacheBusy: Boolean = false,
     val exportCache: JpegExportCacheSnapshot? = null,
     val folderExports: FolderExportSnapshot? = null,
@@ -79,15 +90,26 @@ private fun WorkspaceState.showBatch(batches: List<ProcessingBatch>, id: String?
     val photos = batch?.photos.orEmpty()
     return copy(processingBatches = batches, processingBatchId = id, photos = photos,
         lutRecipe = batch?.lut ?: LutRecipe(),
+        treatment = batch?.treatment ?: PhotoTreatment.LUT,
+        filmBatch = batch?.let { syncFilmBatch(it.film, photos) },
         selected = selected?.takeIf { selected -> photos.any { it.id == selected } } ?: photos.firstOrNull()?.id)
 }
 
+private fun syncFilmBatch(existing: FilmBatch?, photos: List<SourceImage>): FilmBatch? {
+    if (photos.isEmpty()) return existing
+    val entries = existing?.photos.orEmpty().toMutableList()
+    val ids = entries.map { it.id }.toSet()
+    photos.filter { it.id !in ids }.forEach { entries += BatchPhoto(it.id, FilmParameters(), it.id.value.hashCode().toLong()) }
+    return if (existing == null) FilmBatch(entries, photos.first().id) else existing.copy(photos = entries)
+}
+
 class WorkspaceViewModel(application: Application) : AndroidViewModel(application) {
-    val writer = JpegOutputWriter(application)
-    private val lutLibrary = LutLibrary(application)
+    val processor = PhotoProcessor(application)
+    val writer get() = processor.writer
+    private val editDrafts = mutableMapOf<String, Pair<PhotoTreatment, FilmBatch?>>()
+    private val editSaveJobs = mutableMapOf<String, Job>()
     private val lutDrafts = mutableMapOf<String, LutRecipe>()
     private val lutSaveJobs = mutableMapOf<String, Job>()
-    private val previewGate = Semaphore(1)
     private val importer = ImageImporter(application)
     private val store = WorkspaceStore(application)
     private val camera = (application as FilmMirrorApplication).camera
@@ -126,7 +148,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val problems = store.initialize(importer, recoverTransfers = !camera.isTransferring)
                 val settings = store.readPreferences()
-                val library = lutLibrary.load()
+                val library = processor.loadCatalogue()
+                val filmPresets = library.films
                 val batches = availableBatches(store.processingBatches.first()).first
                 val cleanup = writer.cleanCache()
                 val folderExports = writer.inspectFolderExports()
@@ -138,7 +161,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                         ?: settings.processingBatchId?.takeIf { id -> batches.any { it.id == id } }
                         ?: batches.firstOrNull { batch -> batch.photos.any { it.id.value == settings.selectedId } }?.id
                         ?: batches.firstOrNull { it.photos.isNotEmpty() }?.id ?: batches.firstOrNull()?.id
-                    previous.copy(output = settings.output, selected = settings.selectedId?.let(::PhotoId), luts = library.assets,
+                    previous.copy(output = settings.output, selected = settings.selectedId?.let(::PhotoId), luts = library.luts, filmPresets = filmPresets,
                     destination = settings.folderUri?.let { uri -> ExportDestination.Folder(Uri.parse(uri)) } ?: ExportDestination.Gallery,
                     exportCache = cleanup.remaining.copy(problems = cleanupProblems),
                     folderExports = folderExports,
@@ -161,7 +184,11 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 store.processingBatches.collect { batches ->
                     val (stored, missing) = availableBatches(batches)
-                    val available = stored.map { it.copy(lut = lutDrafts[it.id] ?: it.lut) }
+                    val available = stored.map {
+                        val edit = editDrafts[it.id]
+                        it.copy(lut = lutDrafts[it.id] ?: it.lut,
+                            treatment = edit?.first ?: it.treatment, film = edit?.second ?: it.film)
+                    }
                     mutable.update { previous ->
                         val id = previous.processingBatchId ?: available.firstOrNull { it.photos.isNotEmpty() }?.id
                             ?: available.firstOrNull()?.id
@@ -214,15 +241,87 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun notice(message: String) { mutable.update { it.copy(notice = message) } }
 
-    fun lutPlan(recipe: LutRecipe, assets: List<LutAsset>) = lutLibrary.plan(recipe, assets)
+    fun lutPlan(recipe: LutRecipe, assets: List<LutAsset>) = processor.lutPlan(recipe, assets)
 
-    suspend fun previewPhoto(source: SourceImage, recipe: LutRecipe, assets: List<LutAsset>, longEdge: Int = 1280) =
-        withContext(Dispatchers.Default) {
-            previewGate.withPermit {
-                val operationContext = coroutineContext
-                writer.preview(source, longEdge, lutPlan(recipe, assets)) { operationContext.ensureActive() }
-            }
+    suspend fun previewPhoto(source: SourceImage, recipe: LutRecipe, assets: List<LutAsset>, longEdge: Int = 1280,
+        film: FilmRenderPlan? = null) =
+        processor.preview(source, film?.let { PhotoRecipe.Film(it.parameters, it.grainSeed) } ?: PhotoRecipe.Lut(recipe),
+            ProcessingCatalogue(assets, listOfNotNull(film?.preset), emptyList()), longEdge)
+
+    fun photoRecipe(snapshot: WorkspaceState, id: PhotoId, original: Boolean = false): PhotoRecipe {
+        require(snapshot.photos.any { it.id == id }) { "照片不在当前批次中" }
+        if (original) return PhotoRecipe.Original
+        return if (snapshot.treatment == PhotoTreatment.LUT) PhotoRecipe.Lut(snapshot.lutRecipe)
+        else filmPlan(snapshot, id).let { PhotoRecipe.Film(it.parameters, it.grainSeed) }
+    }
+
+    suspend fun previewEditedPhoto(id: PhotoId, longEdge: Int = 960, original: Boolean = false): android.graphics.Bitmap {
+        val snapshot = mutable.value
+        val source = snapshot.photos.firstOrNull { it.id == id } ?: error("照片不在当前批次中")
+        return processor.preview(source, photoRecipe(snapshot, id, original),
+            ProcessingCatalogue(snapshot.luts, snapshot.filmPresets, emptyList()), longEdge)
+    }
+
+    fun filmPlan(snapshot: WorkspaceState, id: PhotoId): FilmRenderPlan {
+        val batch = requireNotNull(snapshot.filmBatch) { "请先导入照片并选择胶卷" }
+        if (batch.mode == FilmBatchMode.FIRST_PHOTO) require(snapshot.photos.any { it.id == batch.referenceId }) {
+            "原基准照片不可用，请明确指定新的基准照片"
         }
+        val entry = batch.photos.single { it.id == id }
+        return processor.filmPlan(PhotoRecipe.Film(batch.effectiveParameters(id), entry.grainSeed), snapshot.filmPresets)
+    }
+
+    private fun saveEdit(treatment: PhotoTreatment, film: FilmBatch?) {
+        val id = mutable.value.processingBatchId ?: return
+        editDrafts[id] = treatment to film
+        mutable.update { it.copy(treatment = treatment, filmBatch = film, processingBatches = it.processingBatches.map { batch ->
+            if (batch.id == id) batch.copy(treatment = treatment, film = film) else batch
+        }) }
+        editSaveJobs.remove(id)?.cancel()
+        editSaveJobs[id] = viewModelScope.launch {
+            try { delay(250); store.saveEditRecipe(id, treatment, film) }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { notice(error.message ?: "胶片配方未能保存，当前草稿仍保留") }
+        }
+    }
+
+    fun treatment(value: PhotoTreatment) {
+        val snapshot = mutable.value
+        if (snapshot.busy || snapshot.photos.isEmpty() || snapshot.treatment == value) return
+        saveEdit(value, syncFilmBatch(snapshot.filmBatch, snapshot.photos))
+    }
+
+    fun filmMode(mode: FilmBatchMode) {
+        val snapshot = mutable.value
+        val batch = snapshot.filmBatch ?: return
+        if (!snapshot.busy) saveEdit(snapshot.treatment, batch.copy(mode = mode))
+    }
+
+    fun updateFilm(parameters: FilmParameters) {
+        val snapshot = mutable.value
+        val batch = snapshot.filmBatch ?: return
+        if (snapshot.busy) return
+        val id = if (batch.mode == FilmBatchMode.FIRST_PHOTO) batch.referenceId else snapshot.selected ?: return
+        if (snapshot.photos.none { it.id == id }) { notice("原基准照片不可用，请明确指定新的基准照片"); return }
+        saveEdit(snapshot.treatment, batch.updateParameters(id, parameters))
+    }
+
+    fun useCurrentFilmReference() {
+        val snapshot = mutable.value
+        val batch = snapshot.filmBatch ?: return
+        val id = snapshot.selected ?: return
+        if (!snapshot.busy && snapshot.photos.any { it.id == id }) saveEdit(snapshot.treatment, batch.copy(referenceId = id))
+    }
+
+    fun copyFilmReferenceToAll() {
+        val snapshot = mutable.value
+        val batch = snapshot.filmBatch ?: return
+        if (snapshot.busy) return
+        if (snapshot.photos.none { it.id == batch.referenceId }) {
+            notice("原基准照片不可用，请明确指定新的基准照片"); return
+        }
+        saveEdit(snapshot.treatment, batch.copyReferenceToAll())
+    }
 
     fun updateLut(recipe: LutRecipe) {
         val snapshot = mutable.value
@@ -252,7 +351,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 for (uri in uris) {
                     coroutineContext.ensureActive()
                     try {
-                        val asset = lutLibrary.import(uri)
+                        val asset = processor.importLut(uri)
                         mutable.update { it.copy(luts = it.luts.filterNot { existing -> existing.id == asset.id } + asset) }
                         imported++
                     } catch (error: CancellationException) { throw error }
@@ -407,16 +506,18 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         val retryIds = snapshot.failures.mapNotNull { it.id }.toSet()
         val photos = if (retryOnly) snapshot.photos.filter { it.id in retryIds } else snapshot.photos
         if (photos.isEmpty()) return
-        mutable.update { it.copy(exporting = true, completed = 0, total = photos.size,
+        mutable.update { it.copy(exporting = true, completed = 0, total = photos.size, processingStage = null, processingPhotoId = null,
             exported = if (retryOnly) it.exported else emptyList(), failures = emptyList(), notice = null, exportCache = null) }
         exportJob = viewModelScope.launch {
             try {
-                val plan = lutPlan(snapshot.lutRecipe, snapshot.luts)
+                val catalogue = ProcessingCatalogue(snapshot.luts, snapshot.filmPresets, emptyList())
                 snapshot.processingBatchId?.let { store.saveLutRecipe(it, snapshot.lutRecipe) }
+                snapshot.processingBatchId?.let { store.saveEditRecipe(it, snapshot.treatment, snapshot.filmBatch) }
                 for (photo in photos) {
                     coroutineContext.ensureActive()
                     try {
-                        writer.write(photo, snapshot.output, snapshot.destination, lut = plan) { uri ->
+                        processor.export(photo, photoRecipe(snapshot, photo.id), catalogue, snapshot.output, snapshot.destination,
+                            onStage = { stage -> mutable.update { it.copy(processingPhotoId = photo.id, processingStage = stage) } }) { uri ->
                             mutable.update { it.copy(exported = it.exported + ExportedPhoto(photo.id, photo.name, uri),
                                 completed = it.completed + 1) }
                         }
@@ -424,6 +525,9 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                     catch (error: OutOfMemoryError) {
                         mutable.update { it.copy(failures = it.failures + FailedPhoto(photo.id, photo.name,
                             "当前尺寸所需内存不足，请降低 JPG 尺寸后重试"), completed = it.completed + 1) }
+                    } catch (error: LinkageError) {
+                        mutable.update { it.copy(failures = it.failures + FailedPhoto(photo.id, photo.name,
+                            "胶片引擎暂不可用"), completed = it.completed + 1) }
                     } catch (error: Exception) {
                         mutable.update { it.copy(failures = it.failures + FailedPhoto(photo.id, photo.name, error.message ?: "导出失败"),
                             completed = it.completed + 1) }
@@ -433,7 +537,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             } catch (error: CancellationException) {
                 mutable.update { it.copy(notice = "已取消后续导出，已保存的照片会保留") }
             } catch (error: Exception) {
-                mutable.update { it.copy(notice = error.message ?: "本批导出未能开始，请核对 LUT 配方") }
+                mutable.update { it.copy(notice = error.message ?: "本批导出未能开始，请核对处理配方") }
             } finally {
                 withContext(NonCancellable) {
                     try {
@@ -443,7 +547,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                         mutable.update { it.copy(notice = "导出已结束，但文件夹记录暂不可读：${error.message.orEmpty()}") }
                     }
                 }
-                mutable.update { it.copy(exporting = false) }
+                mutable.update { it.copy(exporting = false, processingStage = null, processingPhotoId = null) }
             }
         }
     }

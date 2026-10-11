@@ -36,7 +36,9 @@ class WorkspaceStore(context: Context) {
             group.entries.sortedWith(compareBy({ it.entry.ordinal }, { it.entry.photoId }))
                 .mapNotNull { it.photos.singleOrNull()?.let(::source) },
             group.lutRecipes.singleOrNull()?.let { LutRecipe(LutSlot(it.firstId, it.firstStrength),
-                LutSlot(it.secondId, it.secondStrength), it.grain) } ?: LutRecipe())
+                LutSlot(it.secondId, it.secondStrength), it.grain) } ?: LutRecipe(),
+            group.editRecipes.singleOrNull()?.let { PhotoTreatment.valueOf(it.treatment) } ?: PhotoTreatment.LUT,
+            group.editRecipes.singleOrNull()?.filmJson?.let(FilmBatchCodec::read))
     } }
     val transfers = dao.transfers()
     val incomingTransfers = dao.incomingTransfers()
@@ -61,6 +63,8 @@ class WorkspaceStore(context: Context) {
     suspend fun reserveLocalPhoto(batchId: String, id: PhotoId) = dao.reserveProcessingPhoto(batchId, id.value)
     suspend fun saveLutRecipe(batchId: String, recipe: LutRecipe) = dao.saveLutRecipe(BatchLutRecipeRow(batchId,
         recipe.first.id, recipe.first.strength, recipe.second.id, recipe.second.strength, recipe.grain))
+    suspend fun saveEditRecipe(batchId: String, treatment: PhotoTreatment, film: FilmBatch?) =
+        dao.saveEditRecipe(BatchEditRecipeRow(batchId, treatment.name, film?.let(FilmBatchCodec::write)))
     suspend fun finish(task: TransferTask, photo: SourceImage, bytes: Long) = dao.finish(task.id, row(photo), bytes)
     suspend fun reserveVideo(task: TransferTask, uri: String, bytes: Long) = dao.reserveVideo(task.id, uri, bytes)
     suspend fun finishVideo(task: TransferTask, uri: String, bytes: Long) = dao.finishVideo(task.id, uri, bytes)

@@ -24,6 +24,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    sourceSets.getByName("main").assets.srcDir("../../third_party/spektralab/upstream/engine/resources")
 }
 kotlin { jvmToolchain(17) }
 dependencies {
