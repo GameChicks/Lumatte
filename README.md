@@ -2,12 +2,13 @@
 
 面向松下相机的 Android 照片传输、胶片模拟、LUT 和画框导出应用。
 
-当前按用户最新要求优先完善影像功能，UI 由用户另找前端。双 LUT、10 款用户内置及本地导入已接入；胶片光谱 C++／Vulkan、统一曝光／Halation／黑柔、逐张／首张继承、处理阶段和 Room 6 配方已接入源码，通过独立 PhotoProcessor 交给前端。原生引擎与移动端性能尚无编译／运行证据；画框绘制、黑白模型等仍需继续。历史恢复及新代码不等于应用已运行；未经要求不测试、不打包。见 [前端接口交接](docs/engineering/frontend-contract.md)。
+当前按用户最新要求优先完善影像功能，UI 由用户另找前端。双 LUT、10 款用户内置及本地导入已接入；胶片光谱 C++／Vulkan、统一曝光／Halation／黑柔、逐张／首张继承、处理阶段和批次配方已接入源码。11 项含无框的共享画框绘制、导出构图预览、自定义装饰／字体与 Room 7 配置也已接入，通过独立 PhotoProcessor 交给前端。原生引擎、画框实际渲染与移动端性能尚无编译／运行证据；黑白模型等仍需继续。历史恢复及新代码不等于应用已运行；未经要求不测试、不打包。见 [前端接口交接](docs/engineering/frontend-contract.md)、[画框功能](docs/engineering/frame-export.md)。
 
 - `docs/product/`：已确认的交互与产品规则。
 - `research/filmtool/`：自有 Film Companion 的来源索引、恢复源码及报告；不加入应用构建。
-- `tools/`：只读取参考资料的恢复工具。工具缓存与原始会话摘录不纳入 Git。
+- `tools/`：恢复、元数据读取与素材迁移工具；不运行旧会话命令。工具缓存与原始会话摘录不纳入 Git。
 - `core/`：新项目的数据规则与可复用领域代码。
+- `core/media/src/main/assets/frames/`：旧应用画框材料与 OFL 字体副本，附来源及哈希清单；用于导出，不是新 UI。
 - `app/`：Android 应用入口、系统浅／深色轻拟物工作台和传输界面。
 - `app/src/main/assets/luts/`：用户提供的内置 LUT 副本；原始 `lut/` 保留为本机输入目录，不重复加入 Git。
 - `research/third-party-sync/`：第三方 Sync APK 分析记录与协议常量；不加入构建。

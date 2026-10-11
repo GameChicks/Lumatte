@@ -2,6 +2,7 @@ package com.lumixfilmmirror.model
 
 import kotlin.math.ceil
 import kotlin.math.min
+import kotlin.math.round
 
 enum class FramePreset(val title: String) {
     NONE("无边框"), PAPER("白色相纸"), BLACK("黑色画廊"), FILM("胶片暗盒"),
@@ -64,13 +65,13 @@ object FrameLayouts {
         var width = pw + pad * 2 + sidebar + tail
         var height = ph + header + footer
         frame.ratio.landscape?.let {
-            val ratio = if (pw >= ph) it else 1f / it
+            val ratio = if (frame.portrait ?: (pw < ph)) 1f / it else it
             if (width / height < ratio) width = height * ratio else height = width / ratio
         }
         val canvas = PixelSize(ceil(width.toDouble()).toInt(), ceil(height.toDouble()).toInt())
         // Any ratio expansion adds margins. Photo content retains exactly its requested dimensions.
-        val x = pad + sidebar + (canvas.width - pad * 2 - sidebar - tail - pw) / 2
-        val y = header + (canvas.height - header - footer - ph) / 2
+        val x = round(pad + sidebar + (canvas.width - pad * 2 - sidebar - tail - pw) / 2)
+        val y = round(header + (canvas.height - header - footer - ph) / 2)
         val photo = FloatBox(x, y, x + pw, y + ph)
         val unit = min(canvas.width, canvas.height) / 1000f
         val caption = if (film) FloatBox(photo.right + unit * 18, photo.top + ph * .46f,
@@ -88,5 +89,17 @@ object FrameLayouts {
             FloatBox(right - cw * scale, top, right, bottom)
         } else null
         return FrameLayout(canvas, photo, caption, cartridge)
+    }
+
+    /** Scale the complete export composition, rather than recomputing small-photo margins. */
+    fun preview(layout: FrameLayout, longEdge: Int): FrameLayout {
+        require(longEdge > 0)
+        val scale = minOf(1.0, longEdge.toDouble() / maxOf(layout.canvas.width, layout.canvas.height))
+        val canvas = PixelSize(maxOf(1, (layout.canvas.width * scale).toInt()),
+            maxOf(1, (layout.canvas.height * scale).toInt()))
+        val sx = canvas.width.toFloat() / layout.canvas.width
+        val sy = canvas.height.toFloat() / layout.canvas.height
+        fun FloatBox.scaled() = FloatBox(left * sx, top * sy, right * sx, bottom * sy)
+        return FrameLayout(canvas, layout.photo.scaled(), layout.caption.scaled(), layout.cartridge?.scaled())
     }
 }

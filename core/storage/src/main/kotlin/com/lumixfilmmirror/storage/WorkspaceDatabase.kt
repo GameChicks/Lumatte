@@ -53,6 +53,8 @@ enum class TransferState { QUEUED, RUNNING, DOWNLOADED, PUBLISHING, PAUSED, FAIL
 @Dao
 internal abstract class WorkspaceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun saveFrameRecipe(recipe: BatchFrameRecipeRow)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun saveEditRecipe(recipe: BatchEditRecipeRow)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun saveLutRecipe(recipe: BatchLutRecipeRow)
@@ -214,7 +216,8 @@ internal abstract class WorkspaceDao {
 }
 
 @Database(entities = [PhotoRow::class, TransferTask::class, IncomingTransfer::class,
-    ProcessingBatchRow::class, ProcessingEntryRow::class, BatchLutRecipeRow::class, BatchEditRecipeRow::class], version = 6, exportSchema = true)
+    ProcessingBatchRow::class, ProcessingEntryRow::class, BatchLutRecipeRow::class, BatchEditRecipeRow::class,
+    BatchFrameRecipeRow::class], version = 7, exportSchema = true)
 internal abstract class WorkspaceDatabase : RoomDatabase() {
     abstract fun workspace(): WorkspaceDao
     companion object {
@@ -252,10 +255,15 @@ internal abstract class WorkspaceDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS batch_edit_recipes (batchId TEXT NOT NULL PRIMARY KEY, treatment TEXT NOT NULL, filmJson TEXT, FOREIGN KEY(batchId) REFERENCES processing_batches(id) ON UPDATE NO ACTION ON DELETE NO ACTION)")
             }
         }
+        private val version6To7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS batch_frame_recipes (batchId TEXT NOT NULL PRIMARY KEY, frameJson TEXT NOT NULL, FOREIGN KEY(batchId) REFERENCES processing_batches(id) ON UPDATE NO ACTION ON DELETE NO ACTION)")
+            }
+        }
         @Volatile private var instance: WorkspaceDatabase? = null
         fun get(context: Context): WorkspaceDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, WorkspaceDatabase::class.java,
-                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4, version4To5, version5To6).build().also { instance = it }
+                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4, version4To5, version5To6, version6To7).build().also { instance = it }
         }
     }
 }

@@ -23,6 +23,8 @@ import com.lumixfilmmirror.model.PhotoTreatment
 import com.lumixfilmmirror.model.PhotoRecipe
 import com.lumixfilmmirror.model.PhotoProcessingStage
 import com.lumixfilmmirror.model.JpegOutput
+import com.lumixfilmmirror.model.FrameOptions
+import com.lumixfilmmirror.model.BatchExportOptions
 import com.lumixfilmmirror.model.PhotoId
 import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.CameraWifiSecurity
@@ -62,6 +64,7 @@ data class WorkspaceState(
     val filmBatch: FilmBatch? = null,
     val selected: PhotoId? = null,
     val output: JpegOutput = JpegOutput(),
+    val frame: FrameOptions = FrameOptions(),
     val destination: ExportDestination = ExportDestination.Gallery,
     val importing: Boolean = false,
     val exporting: Boolean = false,
@@ -82,6 +85,7 @@ data class WorkspaceState(
 ) {
     val current: SourceImage? get() = photos.firstOrNull { it.id == selected }
     val processingBatch: ProcessingBatch? get() = processingBatches.firstOrNull { it.id == processingBatchId }
+    val exportOptions: BatchExportOptions get() = BatchExportOptions(output, frame)
     val busy: Boolean get() = importing || lutImporting || exporting || exportCacheBusy || cameraBusy || batchBusy || recovering || storageFailure != null
 }
 
@@ -90,6 +94,7 @@ private fun WorkspaceState.showBatch(batches: List<ProcessingBatch>, id: String?
     val photos = batch?.photos.orEmpty()
     return copy(processingBatches = batches, processingBatchId = id, photos = photos,
         lutRecipe = batch?.lut ?: LutRecipe(),
+        frame = batch?.frame ?: FrameOptions(),
         treatment = batch?.treatment ?: PhotoTreatment.LUT,
         filmBatch = batch?.let { syncFilmBatch(it.film, photos) },
         selected = selected?.takeIf { selected -> photos.any { it.id == selected } } ?: photos.firstOrNull()?.id)
@@ -110,6 +115,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private val editSaveJobs = mutableMapOf<String, Job>()
     private val lutDrafts = mutableMapOf<String, LutRecipe>()
     private val lutSaveJobs = mutableMapOf<String, Job>()
+    private val frameDrafts = mutableMapOf<String, FrameOptions>()
+    private val frameSaveJobs = mutableMapOf<String, Job>()
     private val importer = ImageImporter(application)
     private val store = WorkspaceStore(application)
     private val camera = (application as FilmMirrorApplication).camera
@@ -187,6 +194,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                     val available = stored.map {
                         val edit = editDrafts[it.id]
                         it.copy(lut = lutDrafts[it.id] ?: it.lut,
+                            frame = frameDrafts[it.id] ?: it.frame,
                             treatment = edit?.first ?: it.treatment, film = edit?.second ?: it.film)
                     }
                     mutable.update { previous ->
@@ -260,6 +268,38 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         val source = snapshot.photos.firstOrNull { it.id == id } ?: error("照片不在当前批次中")
         return processor.preview(source, photoRecipe(snapshot, id, original),
             ProcessingCatalogue(snapshot.luts, snapshot.filmPresets, emptyList()), longEdge)
+    }
+
+    suspend fun previewExportPhoto(id: PhotoId, longEdge: Int = 960): android.graphics.Bitmap {
+        val snapshot = mutable.value
+        val index = snapshot.photos.indexOfFirst { it.id == id }
+        require(index >= 0) { "照片不在当前批次中" }
+        return processor.previewExport(snapshot.photos[index], photoRecipe(snapshot, id),
+            ProcessingCatalogue(snapshot.luts, snapshot.filmPresets, emptyList()),
+            snapshot.exportOptions, longEdge, frameNumber = index + 1)
+    }
+
+    fun exportLayout(id: PhotoId): com.lumixfilmmirror.model.FrameLayout {
+        val snapshot = mutable.value
+        val source = snapshot.photos.firstOrNull { it.id == id } ?: error("照片不在当前批次中")
+        return processor.exportLayout(source, snapshot.exportOptions)
+    }
+
+    /** Export-stage settings apply to every photo in this batch, in either treatment mode. */
+    fun updateFrame(frame: FrameOptions) {
+        val snapshot = mutable.value
+        val id = snapshot.processingBatchId ?: return
+        if (snapshot.busy || snapshot.frame == frame) return
+        frameDrafts[id] = frame
+        mutable.update { it.copy(frame = frame, processingBatches = it.processingBatches.map { batch ->
+            if (batch.id == id) batch.copy(frame = frame) else batch
+        }) }
+        frameSaveJobs.remove(id)?.cancel()
+        frameSaveJobs[id] = viewModelScope.launch {
+            try { delay(250); store.saveFrameRecipe(id, frame) }
+            catch (error: CancellationException) { throw error }
+            catch (error: Exception) { notice(error.message ?: "画框设置未能保存，当前草稿仍保留") }
+        }
     }
 
     fun filmPlan(snapshot: WorkspaceState, id: PhotoId): FilmRenderPlan {
@@ -513,10 +553,12 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 val catalogue = ProcessingCatalogue(snapshot.luts, snapshot.filmPresets, emptyList())
                 snapshot.processingBatchId?.let { store.saveLutRecipe(it, snapshot.lutRecipe) }
                 snapshot.processingBatchId?.let { store.saveEditRecipe(it, snapshot.treatment, snapshot.filmBatch) }
+                snapshot.processingBatchId?.let { store.saveFrameRecipe(it, snapshot.frame) }
                 for (photo in photos) {
                     coroutineContext.ensureActive()
                     try {
-                        processor.export(photo, photoRecipe(snapshot, photo.id), catalogue, snapshot.output, snapshot.destination,
+                        processor.export(photo, photoRecipe(snapshot, photo.id), catalogue, snapshot.exportOptions, snapshot.destination,
+                            frameNumber = snapshot.photos.indexOfFirst { it.id == photo.id } + 1,
                             onStage = { stage -> mutable.update { it.copy(processingPhotoId = photo.id, processingStage = stage) } }) { uri ->
                             mutable.update { it.copy(exported = it.exported + ExportedPhoto(photo.id, photo.name, uri),
                                 completed = it.completed + 1) }

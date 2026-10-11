@@ -42,11 +42,35 @@ data class FrameOptions(
     val subtitleFont: FrameFont? = null,
     val footerFont: FrameFont? = null,
     val signatureFont: FrameFont = FrameFont.SCRIPT,
-    val filmBrand: String = "LUMIX",
-    val filmName: String = "FILM MIRROR",
+    /** Blank means use this photo's selected stock, then the neutral app label. */
+    val filmBrand: String = "",
+    val filmName: String = "",
     val filmNotes: String = "NOTES",
     val roll120: Boolean = false,
-)
+    val mood: FrameMood = FrameMood.VIBRANT,
+    val filmBlackWhite: Boolean? = null,
+    /** Null follows each photo's orientation; otherwise fixes the canvas direction. */
+    val portrait: Boolean? = null,
+    val imageKey: String? = null,
+    val titleFontKey: String? = null,
+    val subtitleFontKey: String? = null,
+    val footerFontKey: String? = null,
+    val signatureFontKey: String? = null,
+) {
+    init {
+        require(borderFraction.isFinite() && borderFraction in 0.02f..0.12f)
+        require(listOf(signature, title, subtitle, footer).all { it == null || it.length <= 240 })
+        require(filmBrand.length <= 60 && filmName.length <= 80 && filmNotes.length <= 60)
+        require(imageKey == null || imageKey.matches(Regex("[a-f0-9]{64}\\.png")))
+        require(listOf(titleFontKey, subtitleFontKey, footerFontKey, signatureFontKey)
+            .all { it == null || it.matches(Regex("[a-f0-9]{64}\\.font")) })
+    }
+}
+
+enum class FrameMood(val title: String) {
+    VIBRANT("炽烈"), LIGHT_VIBRANT("清曜"), DARK_VIBRANT("棠梨"),
+    MUTED("尘霭"), LIGHT_MUTED("霜月"), DARK_MUTED("侘寂"),
+}
 
 sealed interface InputOrigin {
     data object Jpeg : InputOrigin

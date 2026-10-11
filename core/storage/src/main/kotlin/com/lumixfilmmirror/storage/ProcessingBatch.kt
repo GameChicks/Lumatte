@@ -5,10 +5,17 @@ import com.lumixfilmmirror.media.SourceImage
 import com.lumixfilmmirror.model.LutRecipe
 import com.lumixfilmmirror.model.FilmBatch
 import com.lumixfilmmirror.model.PhotoTreatment
+import com.lumixfilmmirror.model.FrameOptions
 
 data class ProcessingBatch(val id: String, val title: String, val createdAt: Long,
     val photos: List<SourceImage> = emptyList(), val lut: LutRecipe = LutRecipe(),
-    val treatment: PhotoTreatment = PhotoTreatment.LUT, val film: FilmBatch? = null)
+    val treatment: PhotoTreatment = PhotoTreatment.LUT, val film: FilmBatch? = null,
+    val frame: FrameOptions = FrameOptions())
+
+@Entity(tableName = "batch_frame_recipes", foreignKeys = [ForeignKey(
+    entity = ProcessingBatchRow::class, parentColumns = ["id"], childColumns = ["batchId"],
+)])
+internal data class BatchFrameRecipeRow(@PrimaryKey val batchId: String, val frameJson: String)
 
 @Entity(tableName = "batch_edit_recipes", foreignKeys = [ForeignKey(
     entity = ProcessingBatchRow::class, parentColumns = ["id"], childColumns = ["batchId"],
@@ -41,4 +48,5 @@ internal data class ProcessingBatchWithPhotos(
     val entries: List<ProcessingEntryWithPhoto>,
     @Relation(parentColumn = "id", entityColumn = "batchId") val lutRecipes: List<BatchLutRecipeRow>,
     @Relation(parentColumn = "id", entityColumn = "batchId") val editRecipes: List<BatchEditRecipeRow>,
+    @Relation(parentColumn = "id", entityColumn = "batchId") val frameRecipes: List<BatchFrameRecipeRow>,
 )

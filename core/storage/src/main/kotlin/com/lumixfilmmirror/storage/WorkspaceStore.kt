@@ -38,7 +38,8 @@ class WorkspaceStore(context: Context) {
             group.lutRecipes.singleOrNull()?.let { LutRecipe(LutSlot(it.firstId, it.firstStrength),
                 LutSlot(it.secondId, it.secondStrength), it.grain) } ?: LutRecipe(),
             group.editRecipes.singleOrNull()?.let { PhotoTreatment.valueOf(it.treatment) } ?: PhotoTreatment.LUT,
-            group.editRecipes.singleOrNull()?.filmJson?.let(FilmBatchCodec::read))
+            group.editRecipes.singleOrNull()?.filmJson?.let(FilmBatchCodec::read),
+            group.frameRecipes.singleOrNull()?.frameJson?.let(FrameOptionsCodec::read) ?: FrameOptions())
     } }
     val transfers = dao.transfers()
     val incomingTransfers = dao.incomingTransfers()
@@ -65,6 +66,8 @@ class WorkspaceStore(context: Context) {
         recipe.first.id, recipe.first.strength, recipe.second.id, recipe.second.strength, recipe.grain))
     suspend fun saveEditRecipe(batchId: String, treatment: PhotoTreatment, film: FilmBatch?) =
         dao.saveEditRecipe(BatchEditRecipeRow(batchId, treatment.name, film?.let(FilmBatchCodec::write)))
+    suspend fun saveFrameRecipe(batchId: String, frame: FrameOptions) =
+        dao.saveFrameRecipe(BatchFrameRecipeRow(batchId, FrameOptionsCodec.write(frame)))
     suspend fun finish(task: TransferTask, photo: SourceImage, bytes: Long) = dao.finish(task.id, row(photo), bytes)
     suspend fun reserveVideo(task: TransferTask, uri: String, bytes: Long) = dao.reserveVideo(task.id, uri, bytes)
     suspend fun finishVideo(task: TransferTask, uri: String, bytes: Long) = dao.finishVideo(task.id, uri, bytes)

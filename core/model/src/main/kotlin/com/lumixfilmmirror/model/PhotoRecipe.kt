@@ -7,4 +7,4 @@ sealed interface PhotoRecipe {
     data class Film(val parameters: FilmParameters, val grainSeed: Long) : PhotoRecipe
 }
 
-enum class PhotoProcessingStage { PREPARING, RENDERING, ENCODING, PUBLISHING }
+enum class PhotoProcessingStage { PREPARING, RENDERING, FRAMING, ENCODING, PUBLISHING }

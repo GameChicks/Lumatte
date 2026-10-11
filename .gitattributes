@@ -17,6 +17,7 @@
 *.otf binary
 research/filmtool/assets/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
 research/ui/fonts/Playfair-Display-OFL.txt -text whitespace=-blank-at-eol,-blank-at-eof
+core/media/src/main/assets/frames/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
 research/filmtool/recovered/** whitespace=-blank-at-eol,-blank-at-eof
 *.csv text eol=lf
 *.cpp text eol=lf
