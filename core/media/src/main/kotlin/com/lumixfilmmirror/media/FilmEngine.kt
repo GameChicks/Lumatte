@@ -25,6 +25,7 @@ internal object NativeFilmBridge {
     external fun createTask(): Long
     external fun cancelTask(handle: Long)
     external fun releaseTask(handle: Long)
+    external fun releaseIdleEngine()
     external fun render(handle: Long, directory: String, bitmap: Bitmap, parameters: String, diffusion: Float, seed: Long)
 }
 
@@ -33,6 +34,19 @@ internal class FilmEngine(context: Context) {
     private val context = context.applicationContext
     private val resourceMutex = Mutex()
     private var ready: File? = null
+    @Volatile private var nativeUsed = false
+
+    /** Enqueued behind active renders; never loads the native library solely to clean up. */
+    suspend fun releaseIdleEngine() {
+        if (!nativeUsed) return
+        withContext(NonCancellable) {
+            val finished = CompletableDeferred<Result<Unit>>()
+            executor.execute {
+                finished.complete(runCatching { NativeFilmBridge.releaseIdleEngine() })
+            }
+            finished.await().getOrThrow()
+        }
+    }
 
     private suspend fun resources(): File = withContext(Dispatchers.IO) {
         resourceMutex.withLock {
@@ -90,6 +104,7 @@ internal class FilmEngine(context: Context) {
         }.toString()
         val task = NativeFilmBridge.createTask()
         check(task != 0L) { "无法建立胶片处理任务" }
+        nativeUsed = true
         val taskLock = Any()
         var released = false
         val finished = CompletableDeferred<Unit>()

@@ -19,7 +19,8 @@
 | `importFrameImage(uri)` / `importFrameFont(uri)` | 导入私有素材副本并返回键，原件不改写 |
 | `lutBackend()` | 查询原生库加载对应的 `NATIVE_CPU`／`KOTLIN_CPU`；不证明速度或胶片 GPU 可用 |
 | `previewCacheInfo()` / `clearPreviewCache()` | 读取实际效果缓存统计，或等待当前预览安全结束后清理；预算 8 MiB／2 项 |
-| `requestMemoryTrim()` | 合并式异步缓存清理，用于应用内存／后台回调，不取消导出 |
+| `clearProcessingCaches()` | 等待预览和已排队原生任务，清理效果缓存并释放胶片 GPU 引擎；不删除配方、素材或成片 |
+| `requestMemoryTrim()` | 合并式异步处理缓存清理，用于应用内存／后台回调，不取消导出 |
 | `export(source, recipe, catalogue, BatchExportOptions, destination, frameNumber, onStage, onPublished)` | 同配方及共享画框导出 JPEG；默认尺寸 100%，质量独立；返回已保存 URI |
 
 `PhotoProcessingStage` 提供真实阶段入口：`PREPARING → RENDERING → FRAMING → ENCODING → PUBLISHING`（无框省略 FRAMING）。这是阶段信息，没有内核完成百分比，不让前端伪造精确进度。`onPublished` 位于不可取消发布提交段，用于成功记录。取消使用协程取消，已发布照片保留。旧 `JpegOutput` 导出重载保留，默认无框。
@@ -27,6 +28,8 @@
 预览返回的位图由前端持有；移出 Compose 绘制后再释放，不能在旧 Image 尚绘制时回收。前端滑杆可用 150～250 ms 合并与 `collectLatest`，避免每一个中间值都计算。调用协程取消完成后，原生任务已结束，处理器内部的输入位图才会回收。预览尺寸与最终尺寸不同，颗粒、空间效果在不同采样网格上不保证逐像素相同。
 
 预览缓存只保留照片效果，画框／文字在其后绘制；原图、配方、表对象及实际照片处理尺寸共同决定失效。仅换签名等且处理尺寸不变时可复用光谱／LUT 结果。缓存位图不借给前端，所有返回图独立持有；8 MiB 不含前端图、临时图和 GPU。正式导出不读取小图缓存。后端、清理及数值证据边界见 [手机优化源码](mobile-processing.md)。
+
+`clearPreviewCache()` 仅清理位图 LRU。`clearProcessingCaches()` 另将胶片引擎释放安排在原生串行队列中，等待此前处理结束，不中途释放 session 或取消导出。清理完成后，后续胶片请求按需重新初始化 Vulkan／设置缓存，私有数值资源保留。该操作可能等待正在渲染的大图，不在主线程阻塞等待，不在每次调整参数后调用。应用后台回调通过 `requestMemoryTrim()` 请求同一路径；后续排入的导出仍会按需重新分配资源，不能将清理当作强制内存上限。
 
 ## 复用工作台状态与批量逻辑
 

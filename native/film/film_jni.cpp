@@ -95,6 +95,16 @@ Java_com_lumixfilmmirror_media_NativeFilmBridge_releaseTask(JNIEnv*, jobject, jl
     delete reinterpret_cast<Task*>(handle);
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_lumixfilmmirror_media_NativeFilmBridge_releaseIdleEngine(JNIEnv*, jobject) {
+    // The same executor and mutex as render ensure all session/result handles
+    // have been released before their owning GPU and its free pool are destroyed.
+    std::lock_guard engine_lock(engine_mutex);
+    if (engine.value) spk_engine_destroy(engine.value);
+    engine.value = nullptr;
+    engine.directory.clear();
+}
+
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_lumixfilmmirror_media_NativeFilmBridge_shaderNames(JNIEnv* env, jobject) {
     const auto shaders = lfm::film_shaders();

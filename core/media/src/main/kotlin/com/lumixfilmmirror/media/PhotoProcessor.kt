@@ -47,10 +47,15 @@ class PhotoProcessor(context: Context) {
     fun lutBackend(): LutBackend = NativeLutRenderer.backend()
     suspend fun previewCacheInfo(): PreviewCacheInfo = previewGate.withPermit { previewCache.info() }
     suspend fun clearPreviewCache() = previewGate.withPermit { previewCache.clear() }
+    /** Releases discardable preview/GPU caches after current work, leaving recipes and output intact. */
+    suspend fun clearProcessingCaches() = previewGate.withPermit {
+        previewCache.clear()
+        writer.releaseIdleFilmEngine()
+    }
     /** Coalesced, nonblocking application memory callback. Never clears a borrowed/in-flight image. */
     @Synchronized fun requestMemoryTrim() {
         if (trimJob?.isActive == true) return
-        trimJob = trimScope.launch { clearPreviewCache() }
+        trimJob = trimScope.launch { clearProcessingCaches() }
     }
 
     fun lutPlan(recipe: com.lumixfilmmirror.model.LutRecipe, assets: List<LutAsset>) = luts.plan(recipe, assets)

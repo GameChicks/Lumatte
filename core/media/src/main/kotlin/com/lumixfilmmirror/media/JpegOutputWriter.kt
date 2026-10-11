@@ -42,6 +42,7 @@ class JpegOutputWriter(context: Context) {
     private val filmEngine = FilmEngine(this.context)
     private val frames = FrameRenderer(this.context)
     val frameAssets get() = frames.assets
+    internal suspend fun releaseIdleFilmEngine() = filmEngine.releaseIdleEngine()
 
     suspend fun inspectCache(): JpegExportCacheSnapshot = cache.inspect()
     suspend fun cleanCache(): JpegExportCleanup = cache.clean()
