@@ -52,6 +52,8 @@ enum class TransferState { QUEUED, RUNNING, DOWNLOADED, PUBLISHING, PAUSED, FAIL
 
 @Dao
 internal abstract class WorkspaceDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun saveLutRecipe(recipe: BatchLutRecipeRow)
     @Transaction
     @Query("SELECT * FROM processing_batches ORDER BY createdAt DESC, id")
     abstract fun processingBatches(): Flow<List<ProcessingBatchWithPhotos>>
@@ -210,7 +212,7 @@ internal abstract class WorkspaceDao {
 }
 
 @Database(entities = [PhotoRow::class, TransferTask::class, IncomingTransfer::class,
-    ProcessingBatchRow::class, ProcessingEntryRow::class], version = 4, exportSchema = true)
+    ProcessingBatchRow::class, ProcessingEntryRow::class, BatchLutRecipeRow::class], version = 5, exportSchema = true)
 internal abstract class WorkspaceDatabase : RoomDatabase() {
     abstract fun workspace(): WorkspaceDao
     companion object {
@@ -238,10 +240,15 @@ internal abstract class WorkspaceDatabase : RoomDatabase() {
                 db.execSQL("INSERT OR IGNORE INTO processing_entries (photoId, batchId, ordinal) SELECT id, 'legacy-imports', ordinal FROM photos WHERE id NOT IN (SELECT photoId FROM processing_entries)")
             }
         }
+        private val version4To5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS batch_lut_recipes (batchId TEXT NOT NULL PRIMARY KEY, firstId TEXT, firstStrength REAL NOT NULL, secondId TEXT, secondStrength REAL NOT NULL, grain REAL NOT NULL, FOREIGN KEY(batchId) REFERENCES processing_batches(id) ON UPDATE NO ACTION ON DELETE NO ACTION)")
+            }
+        }
         @Volatile private var instance: WorkspaceDatabase? = null
         fun get(context: Context): WorkspaceDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, WorkspaceDatabase::class.java,
-                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4).build().also { instance = it }
+                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4, version4To5).build().also { instance = it }
         }
     }
 }

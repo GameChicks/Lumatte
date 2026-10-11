@@ -2,9 +2,16 @@ package com.lumixfilmmirror.storage
 
 import androidx.room.*
 import com.lumixfilmmirror.media.SourceImage
+import com.lumixfilmmirror.model.LutRecipe
 
 data class ProcessingBatch(val id: String, val title: String, val createdAt: Long,
-    val photos: List<SourceImage> = emptyList())
+    val photos: List<SourceImage> = emptyList(), val lut: LutRecipe = LutRecipe())
+
+@Entity(tableName = "batch_lut_recipes", foreignKeys = [ForeignKey(
+    entity = ProcessingBatchRow::class, parentColumns = ["id"], childColumns = ["batchId"],
+)])
+internal data class BatchLutRecipeRow(@PrimaryKey val batchId: String, val firstId: String?, val firstStrength: Float,
+    val secondId: String?, val secondStrength: Float, val grain: Float)
 
 @Entity(tableName = "processing_batches")
 internal data class ProcessingBatchRow(@PrimaryKey val id: String, val title: String, val createdAt: Long)
@@ -24,4 +31,5 @@ internal data class ProcessingBatchWithPhotos(
     @Embedded val batch: ProcessingBatchRow,
     @Relation(parentColumn = "id", entityColumn = "batchId", entity = ProcessingEntryRow::class)
     val entries: List<ProcessingEntryWithPhoto>,
+    @Relation(parentColumn = "id", entityColumn = "batchId") val lutRecipes: List<BatchLutRecipeRow>,
 )

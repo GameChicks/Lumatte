@@ -45,6 +45,7 @@ class JpegOutputWriter(context: Context) {
     }
 
     suspend fun write(source: SourceImage, settings: JpegOutput, destination: ExportDestination,
+        lut: LutRenderPlan? = null,
         onPublished: suspend (Uri) -> Unit = {}): Uri = withContext(Dispatchers.IO) {
         JpegExportAccess.mutex.withLock {
             val size = settings.contentSize(source.size)
@@ -52,6 +53,8 @@ class JpegOutputWriter(context: Context) {
             try {
                 val pixels = decode(source, size)
                 try {
+                    val renderContext = coroutineContext
+                    lut?.render(pixels, source) { renderContext.ensureActive() }
                     temp.outputStream().buffered().use { output ->
                         check(pixels.compress(Bitmap.CompressFormat.JPEG, settings.compressionQuality, output)) { "无法写入 JPG" }
                     }
@@ -70,10 +73,12 @@ class JpegOutputWriter(context: Context) {
         }
     }
 
-    fun preview(source: SourceImage, longEdge: Int = 1280): Bitmap {
+    fun preview(source: SourceImage, longEdge: Int = 1280, lut: LutRenderPlan? = null, checkActive: () -> Unit = {}): Bitmap {
         val factor = minOf(1.0, longEdge.toDouble() / maxOf(source.size.width, source.size.height))
-        return decode(source, PixelSize(maxOf(1, (source.size.width * factor).toInt()),
+        val pixels = decode(source, PixelSize(maxOf(1, (source.size.width * factor).toInt()),
             maxOf(1, (source.size.height * factor).toInt())))
+        try { lut?.render(pixels, source, checkActive); checkActive(); return pixels }
+        catch (error: Throwable) { pixels.recycle(); throw error }
     }
 
     private fun decode(source: SourceImage, size: PixelSize): Bitmap {

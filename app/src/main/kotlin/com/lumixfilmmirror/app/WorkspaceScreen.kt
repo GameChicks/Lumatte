@@ -31,8 +31,8 @@ import com.lumixfilmmirror.design.LocalFilmMaterials
 import com.lumixfilmmirror.design.PaperPanel
 import com.lumixfilmmirror.media.ExportDestination
 import com.lumixfilmmirror.model.JpegOutput
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.lumixfilmmirror.model.LutRecipe
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable
@@ -68,6 +68,7 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
         } else executeTransfer(target)
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { workspace.importImages(it) }
+    val lutPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { workspace.importLuts(it) }
     val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             try {
@@ -145,6 +146,9 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                 }
             }
             if (state.photos.isNotEmpty()) item {
+                LutEditorPanel(state, workspace, onImport = { lutPicker.launch(arrayOf("*/*")) })
+            }
+            if (state.photos.isNotEmpty()) item {
                 ExportSettingsPanel(state, workspace::output, onFolder = { folder.launch(null) },
                     onGallery = { workspace.destination(ExportDestination.Gallery) })
             }
@@ -193,17 +197,30 @@ private fun PhotoPreview(state: WorkspaceState, workspace: WorkspaceViewModel) {
     val source = state.current ?: return
     var bitmap by remember(source.id) { mutableStateOf<Bitmap?>(null) }
     var problem by remember(source.id) { mutableStateOf<String?>(null) }
-    LaunchedEffect(source.id) {
-        try { bitmap = withContext(Dispatchers.IO) { workspace.writer.preview(source) } }
+    var original by remember(source.id) { mutableStateOf(false) }
+    var loading by remember(source.id) { mutableStateOf(true) }
+    val recipe = if (original) LutRecipe() else state.lutRecipe
+    LaunchedEffect(source.id, recipe, state.luts) {
+        loading = true
+        problem = null
+        try {
+            delay(180)
+            bitmap = workspace.previewPhoto(source, recipe, state.luts)
+        }
         catch (error: kotlinx.coroutines.CancellationException) { throw error }
         catch (error: Exception) { problem = error.message ?: "无法读取预览" }
+        catch (error: OutOfMemoryError) { problem = "预览内存不足，请关闭其他应用后重试" }
+        finally { loading = false }
     }
     // Compose can still be drawing a previous Image when selection changes; GC owns these small previews.
     Box(Modifier.fillMaxWidth().aspectRatio(source.size.width.toFloat() / source.size.height), contentAlignment = Alignment.Center) {
         bitmap?.let { Image(it.asImageBitmap(), contentDescription = source.name,
             modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
             ?: if (problem != null) Text(problem.orEmpty()) else CircularProgressIndicator(Modifier.size(24.dp))
+        if (loading && bitmap != null) CircularProgressIndicator(Modifier.align(Alignment.BottomEnd).padding(12.dp).size(20.dp))
     }
+    problem?.takeIf { bitmap != null }?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+    TextButton(onClick = { original = !original }) { Text(if (original) "正在查看原图 · 查看处理效果" else "查看原图") }
 }
 
 @Composable
