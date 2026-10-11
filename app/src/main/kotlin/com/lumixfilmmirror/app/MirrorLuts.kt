@@ -28,6 +28,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,17 +71,28 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     var choosingSecond by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(initialSecond) { choosingSecond = initialSecond }
     var favourites by rememberSaveable { mutableStateOf(false) }
-    var detailOpen by remember { mutableStateOf(false) }
-    var detailCard by remember { mutableStateOf<MirrorLutCard?>(null) }
-    var origin by remember { mutableStateOf("") }
+    var detailKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var detailSnapshot by rememberSaveable { mutableStateOf<String?>(null) }
+    val detailOpen = detailKey != null
+    var origin by rememberSaveable { mutableStateOf("") }
     var importMenu by remember { mutableStateOf(false) }
     var requestedSelection by rememberSaveable { mutableStateOf<String?>(null) }
+    var requestedSecond by rememberSaveable { mutableStateOf(false) }
     var favouriteIndex by rememberSaveable { mutableIntStateOf(0) }
+    var favouriteRevealPlayed by rememberSaveable { mutableStateOf(false) }
     val galleryScroll = androidx.compose.foundation.lazy.rememberLazyListState()
     val pages = remember { mutableStateMapOf<String, List<LumixLabLut>>() }
     var localSubjects by remember { mutableStateOf<Map<String, Set<LutSubject>>>(emptyMap()) }
     val localCards = state.luts.map { it.galleryCard() }
+    val rememberedDetail = remember(detailSnapshot) { detailSnapshot?.let { runCatching { restoreLutDetailSnapshot(it) }.getOrNull() } }
+    val resolvedDetailCard = localCards.firstOrNull { it.key == detailKey } ?: rememberedDetail?.takeIf { "official:${it.code}" == detailKey }?.let { item ->
+        MirrorLutCard(state.luts.firstOrNull { it.lumixLabSource?.code == item.code }, item)
+    }
+    var lastDetailCard by remember { mutableStateOf<MirrorLutCard?>(null) }
+    val detailCard = resolvedDetailCard ?: lastDetailCard
     val duration = if (LocalMirrorReducedMotion.current) 0 else 420
+    val columns = if (LocalConfiguration.current.screenWidthDp < 340 || LocalDensity.current.fontScale > 1.3f) 2 else 3
+    val expandedCount = columns * 2
     val scope = rememberCoroutineScope()
     LaunchedEffect(state.luts, detailOpen) {
         try {
@@ -97,13 +109,16 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
         if (official) {
             if (browser.genres.isEmpty() && !browser.genresLoading) workspace.officialLuts.loadGenres()
             val key = expanded ?: "all"
-            if (key !in pages) workspace.refreshOfficialLuts(genreCode = key.takeUnless { it == "all" })
+            workspace.selectOfficialLutCategory(key.takeUnless { it == "all" })
         }
     }
     LaunchedEffect(requestedSelection, state.officialLutDownload, state.luts) {
         val code = requestedSelection ?: return@LaunchedEffect
         val downloaded = state.luts.firstOrNull { it.lumixLabSource?.code == code }
-        if (downloaded != null && !state.busy) { requestedSelection = null; onChoose(downloaded, choosingSecond) }
+        if (downloaded != null && !state.busy) {
+            requestedSelection = null; detailKey = null; workspace.officialLuts.closeDetail()
+            onChoose(downloaded, requestedSecond)
+        }
         else if (state.officialLutDownload?.code == code && state.officialLutDownload?.status in
             setOf(OfficialLutDownloadStatus.FAILED, OfficialLutDownloadStatus.CANCELLED)) requestedSelection = null
     }
@@ -122,14 +137,22 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
             savedLuts = card.official?.let { item -> (current.savedLuts + item).distinctBy { it.code } } ?: current.savedLuts) }
     }
     fun open(card: MirrorLutCard, location: String) {
-        detailCard = card; origin = location; detailOpen = true
-        card.official?.let { item ->
+        lastDetailCard = card
+        if (favourites) favouriteRevealPlayed = true
+        detailKey = card.key; detailSnapshot = card.official?.detailSnapshot(); origin = location
+    }
+    LaunchedEffect(detailKey, state.recovering) {
+        if (detailKey != null && !state.recovering && resolvedDetailCard == null) {
+            detailKey = null; workspace.notice("这款本地 LUT 已不在目录中，请重新选择")
+        }
+        if (resolvedDetailCard != null) lastDetailCard = resolvedDetailCard
+        if (detailKey != null) resolvedDetailCard?.official?.let { item ->
             // The official browser needs a language query before opening an offline remembered card.
             if (browser.query == null) workspace.refreshOfficialLuts()
             workspace.officialLuts.openDetail(item.code)
         }
     }
-    fun closeDetail() { detailOpen = false; requestedSelection = null; workspace.officialLuts.closeDetail() }
+    fun closeDetail() { detailKey = null; requestedSelection = null; workspace.officialLuts.closeDetail() }
     BackHandler(detailOpen || favourites) { if (detailOpen) closeDetail() else favourites = false }
     LaunchedEffect(detailOpen, favourites) { onFullscreen(detailOpen || favourites) }
     DisposableEffect(Unit) { onDispose { onFullscreen(false) } }
@@ -147,14 +170,17 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                     LutDetail(card, origin, state, workspace, browser, personal, choosingSecond, shared, visibility,
                         onBack = ::closeDetail, onFavourite = { toggle(card) }, onSlot = { choosingSecond = it }, onSelect = {
                             val asset = card.local ?: state.luts.firstOrNull { it.lumixLabSource?.code == card.official?.code }
-                            if (asset != null) onChoose(asset, choosingSecond)
+                            if (asset != null) { closeDetail(); onChoose(asset, choosingSecond) }
                             else card.official?.let { item ->
-                                if (workspace.downloadOfficialLut(item.code)) requestedSelection = item.code
+                                if (workspace.downloadOfficialLut(item.code)) {
+                                    requestedSecond = choosingSecond; requestedSelection = item.code
+                                }
                             }
                         })
                 }
                 "favourites" -> FavouriteFan(favouriteCards, state, workspace, personal, shared, visibility,
                     initialPage = favouriteIndex, onPage = { favouriteIndex = it },
+                    reveal = !favouriteRevealPlayed, onReveal = { favouriteRevealPlayed = true },
                     onClose = { favourites = false }, onOpen = ::open, onFavourite = ::toggle)
                 else -> Box(Modifier.fillMaxSize()) {
                     val scroll = galleryScroll
@@ -208,19 +234,19 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                                         Text(if (official) "展开分类加载创作者作品" else "此分类还没有 LUT", color = tones.secondaryInk,
                                             style = MaterialTheme.typography.bodySmall)
                                     }
-                                    cards.take(if (focus || query.isNotBlank()) 6 else 3).chunked(3).forEach { row ->
+                                    cards.take(if (focus || query.isNotBlank()) expandedCount else columns).chunked(columns).forEach { row ->
                                         Row(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             row.forEach { card ->
                                                 val location = "${category.key}:${card.key}"
                                                 Polaroid(card, location, state, workspace, personal, shared, visibility, Modifier.weight(1f),
                                                     onClick = { open(card, location) }, onFavourite = { toggle(card) })
                                             }
-                                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                                         }
                                     }
-                                    if (focus && cards.size > 6) LazyRow(contentPadding = PaddingValues(horizontal = 20.dp),
+                                    if (focus && cards.size > expandedCount) LazyRow(contentPadding = PaddingValues(horizontal = 20.dp),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        items(cards.drop(6), key = { it.key }) { card ->
+                                        items(cards.drop(expandedCount), key = { it.key }) { card ->
                                             val location = "more:${category.key}:${card.key}"
                                             Polaroid(card, location, state, workspace, personal, shared, visibility, Modifier.width(112.dp),
                                                 onClick = { open(card, location) }, onFavourite = { toggle(card) })
@@ -240,7 +266,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                                 unfocusedContainerColor = tones.paperHighlight))
                     }
                     RoundAction("查看收藏", DotGlyph.STAR, Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 116.dp),
-                        onClick = { favourites = true })
+                        onClick = { favouriteRevealPlayed = false; favourites = true })
                     RoundAction("导入或下载 LUT", DotGlyph.PLUS, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 116.dp),
                         onClick = { importMenu = true })
                 }
@@ -263,7 +289,7 @@ private fun SlotStrip(state: WorkspaceState, second: Boolean, onSlot: (Boolean) 
     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         for (slot in listOf(false, true)) {
             val id = if (slot) state.lutRecipe.second.id else state.lutRecipe.first.id
-            FilterChip(second == slot, { onSlot(slot) }, modifier = Modifier.weight(1f), label = {
+            FilterChip(second == slot, { onSlot(slot) }, enabled = !state.busy, modifier = Modifier.weight(1f), label = {
                 Text("LUT ${if (slot) 2 else 1} · ${state.luts.firstOrNull { it.id == id }?.name ?: "选择"}",
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             })
@@ -277,8 +303,11 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
     modifier: Modifier, large: Boolean = false, recommendation: Boolean = false, onClick: () -> Unit, onFavourite: () -> Unit) {
     var bitmap by remember(card.key, state.current?.id, large) { mutableStateOf<Bitmap?>(null) }
     var colours by remember(card.key, state.current?.id) { mutableStateOf<LutExampleColours?>(null) }
-    var error by remember(card.key, state.current?.id) { mutableStateOf<String?>(null) }
-    LaunchedEffect(card.key, state.current?.id, large) {
+    var error by remember(card.key, state.current?.id, large) { mutableStateOf<String?>(null) }
+    var retry by rememberSaveable(card.key) { mutableIntStateOf(0) }
+    var loading by remember(card.key, state.current?.id, large) { mutableStateOf(false) }
+    LaunchedEffect(card.key, card.official?.thumbnail, state.current?.id, large, retry) {
+        loading = true; error = null
         try {
             if (card.official != null) {
                 val example = workspace.processor.officialLutCatalogue.example(card.official, if (large) 1280 else 320)
@@ -292,6 +321,7 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { error = e.message ?: "预览暂不可用" }
         catch (_: OutOfMemoryError) { error = "预览内存不足" }
+        finally { loading = false }
     }
     val swatch = colours?.swatches?.firstOrNull()
     val background = swatch?.let { Color(it.argb) } ?: LocalFilmMaterials.current.paperHighlight
@@ -302,8 +332,13 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
     val photoContent: @Composable (Modifier) -> Unit = { photoModifier ->
         Box(photoModifier.background(Color.Black.copy(.08f)), contentAlignment = Alignment.Center) {
             bitmap?.let { Image(it.asImageBitmap(), card.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-                ?: Text(if (error != null) "预览不可用" else if (card.official != null) "加载例图…" else "导入照片\n查看效果",
-                    Modifier.padding(8.dp), color = ink, fontSize = 11.sp)
+            if (error != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("预览不可用", color = ink, fontSize = 11.sp)
+                TextButton(onClick = { retry++ }) { Text("重试", color = ink) }
+            } else if (bitmap == null) {
+                if (loading && (card.official != null || state.current != null)) CircularProgressIndicator(Modifier.size(20.dp), color = ink, strokeWidth = 2.dp)
+                else Text("导入照片\n查看效果", Modifier.padding(8.dp), color = ink, fontSize = 11.sp)
+            }
         }
     }
     val favouriteContent: @Composable () -> Unit = {
@@ -332,7 +367,8 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
         photoContent(Modifier.fillMaxWidth().aspectRatio(1f))
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(card.title, Modifier.weight(1f).padding(start = 4.dp), fontFamily = MirrorFonts.Handwriting,
-                fontSize = if (large) 28.sp else 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = ink)
+                fontSize = if (large) 28.sp else 14.sp, lineHeight = if (large) 32.sp else 17.sp,
+                maxLines = if (large) 1 else 2, overflow = TextOverflow.Ellipsis, color = ink)
             favouriteContent()
         }
         if (large) Text(if (card.official != null) "创作者例图" else "当前照片 · 单 LUT 预览", color = ink,
@@ -385,6 +421,8 @@ private fun LutDetail(card: MirrorLutCard, origin: String, state: WorkspaceState
                     if (browser.detailLoading) "正在加载创作者介绍…" else browser.detailError ?: "创作者暂未提供介绍。"
                     else "此 LUT 使用导入照片显示效果，可独立调整强度，并与第二款 LUT 叠加。")
                 (info?.photoStyle ?: card.local?.photoStyle)?.let { Text("建议输入照片风格：$it", color = tones.secondaryInk) }
+                if (card.official != null && browser.detailCode == card.official.code && browser.detailError != null)
+                    TextButton(onClick = { workspace.officialLuts.openDetail(card.official.code) }) { Text("重试加载介绍") }
             }
             if (card.local != null) item {
                 Text("题材分类", style = MaterialTheme.typography.titleSmall)
@@ -419,16 +457,18 @@ private fun LutDetail(card: MirrorLutCard, origin: String, state: WorkspaceState
 private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, workspace: WorkspaceViewModel,
     personal: MirrorPersonalState, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope,
     initialPage: Int, onPage: (Int) -> Unit,
+    reveal: Boolean, onReveal: () -> Unit,
     onClose: () -> Unit, onOpen: (MirrorLutCard, String) -> Unit, onFavourite: (MirrorLutCard) -> Unit) {
     val tones = LocalFilmMaterials.current
-    var entered by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { entered = true }
+    var entered by remember { mutableStateOf(!reveal) }
+    LaunchedEffect(Unit) { entered = true; onReveal() }
     val progress by animateFloatAsState(if (entered) 1f else 0f,
         tween(if (LocalMirrorReducedMotion.current) 0 else 480, easing = MirrorEase), label = "favourites-circle")
     val originPadding = with(LocalDensity.current) { 46.dp.toPx() }
+    val originBottom = with(LocalDensity.current) { 142.dp.toPx() }
     val shape = GenericShape { size, _ ->
         val radius = hypot(size.width, size.height) * progress
-        val cx = originPadding; val cy = size.height - originPadding
+        val cx = originPadding; val cy = size.height - originBottom
         addOval(Rect(cx - radius, cy - radius, cx + radius, cy + radius))
     }
     Box(Modifier.fillMaxSize().clip(shape).background(Brush.verticalGradient(listOf(tones.paperHighlight, tones.background)))) {
@@ -437,6 +477,9 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
             if (cards.isEmpty()) Text("还没有收藏。点击任意拍立得上的星星，留下喜欢的色彩。", Modifier.padding(24.dp))
             else {
                 val pager = rememberPagerState(initialPage = initialPage.coerceIn(0, cards.lastIndex), pageCount = { cards.size })
+                LaunchedEffect(cards.map { it.key }) {
+                    if (pager.currentPage > cards.lastIndex) pager.scrollToPage(cards.lastIndex)
+                }
                 val haptics = LocalHapticFeedback.current
                 var last by remember { mutableIntStateOf(pager.currentPage) }
                 LaunchedEffect(pager.currentPage) {

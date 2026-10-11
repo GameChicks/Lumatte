@@ -58,6 +58,12 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
                 PhotoStrip(state, workspace)
                 state.current?.rawNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk) }
             }
+            if (state.failures.any { it.id == null }) item {
+                Text("部分照片未导入", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleSmall)
+                state.failures.filter { it.id == null }.forEach { failure ->
+                    Text("${failure.name}：${failure.reason}", style = MaterialTheme.typography.bodySmall)
+                }
+            }
             if (state.treatment == PhotoTreatment.FILM) item { FilmControls(state, workspace, onChooseFilm) }
             else if (state.treatment == PhotoTreatment.LUT) item { LutControls(state, workspace, onChooseLut) }
             item { OutputControls(state, workspace) }
@@ -77,15 +83,16 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
     var bitmap by remember(source.id, frame) { mutableStateOf<Bitmap?>(null) }
     var problem by remember(source.id, frame) { mutableStateOf<String?>(null) }
     var loading by remember(source.id, frame) { mutableStateOf(true) }
-    LaunchedEffect(source.id, recipe, if (frame) state.frame else null, if (frame) state.output else null, state.luts) {
+    var retry by rememberSaveable(source.id.value, frame) { mutableIntStateOf(0) }
+    LaunchedEffect(source.id, recipe, if (frame) state.frame else null, if (frame) state.output else null, state.luts, retry) {
         loading = true; problem = null
         try {
             delay(160)
             val result = if (frame) workspace.previewExportPhoto(source.id) else workspace.previewEditedPhoto(source.id, original = original)
             bitmap = result; onReady?.invoke(result)
         } catch (error: CancellationException) { throw error }
-        catch (error: Exception) { problem = error.message ?: "预览暂不可用" }
-        catch (_: OutOfMemoryError) { problem = "预览内存不足，可稍后重试" }
+        catch (error: Exception) { bitmap = null; problem = error.message ?: "预览暂不可用" }
+        catch (_: OutOfMemoryError) { bitmap = null; problem = "预览内存不足，可稍后重试" }
         finally { loading = false }
     }
     val ratio = if (frame) runCatching { workspace.exportLayout(source.id).canvas.let { it.width.toFloat() / it.height } }.getOrDefault(1f)
@@ -94,7 +101,10 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
         contentAlignment = Alignment.Center) {
         bitmap?.let { Image(it.asImageBitmap(), source.name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit, colorFilter = colourFilter) }
         if (loading) CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
-        if (problem != null) Text(problem.orEmpty(), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
+        if (problem != null) Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(problem.orEmpty(), color = MaterialTheme.colorScheme.error)
+            TextButton(onClick = { retry++ }) { Text("重新加载预览") }
+        }
     }
 }
 

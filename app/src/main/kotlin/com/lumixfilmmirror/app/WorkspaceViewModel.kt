@@ -60,6 +60,8 @@ enum class OfficialLutDownloadStatus { RUNNING, SAVED, CANCELLED, FAILED }
 data class OfficialLutDownloadState(val code: String, val status: OfficialLutDownloadStatus,
     val stage: OfficialLutDownloadStage?, val assetId: String? = null, val error: String? = null)
 
+data class PhotoImportResult(val requestId: String, val batchId: String?, val imported: List<PhotoId>)
+
 data class WorkspaceState(
     val photos: List<SourceImage> = emptyList(),
     val processingBatches: List<ProcessingBatch> = emptyList(),
@@ -77,6 +79,7 @@ data class WorkspaceState(
     val frame: FrameOptions = FrameOptions(),
     val destination: ExportDestination = ExportDestination.Gallery,
     val importing: Boolean = false,
+    val photoImportResult: PhotoImportResult? = null,
     val exporting: Boolean = false,
     val processingStage: PhotoProcessingStage? = null,
     val processingPhotoId: PhotoId? = null,
@@ -516,6 +519,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         officialLuts.refresh(LumixLabLutQuery(language, genreCode = genreCode, creatorCode = creatorCode))
     }
 
+    fun selectOfficialLutCategory(genreCode: String?) {
+        officialLuts.selectQuery(LumixLabLutQuery(processor.officialLutLanguage(), genreCode = genreCode))
+    }
+
     /** Download never overwrites a slot or starts export. Selection remains an explicit batch edit. */
     fun downloadOfficialLut(code: String, language: String = processor.officialLutLanguage()): Boolean {
         if (mutable.value.busy || officialLutDownloadJob?.isActive == true) return false
@@ -638,20 +645,23 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun importImages(uris: List<Uri>, newBatch: Boolean = false) {
-        if (mutable.value.busy || camera.cameraState.value.busy || uris.isEmpty()) return
+    fun importImages(uris: List<Uri>, newBatch: Boolean = false, requestId: String = UUID.randomUUID().toString()): Boolean {
+        if (mutable.value.busy || camera.cameraState.value.busy || uris.isEmpty()) return false
         val currentBatch = mutable.value.processingBatch?.id?.takeUnless { newBatch }
-        mutable.update { it.copy(importing = true, failures = emptyList(), notice = null) }
+        mutable.update { it.copy(importing = true, photoImportResult = null, failures = emptyList(), notice = null) }
         viewModelScope.launch {
+            var importedBatch: String? = null
+            val imported = mutableListOf<PhotoId>()
             try {
                 val batchId = currentBatch ?: store.createProcessingBatch().also(::showCreatedBatch).id
+                importedBatch = batchId
                 for (uri in uris) {
                     coroutineContext.ensureActive()
                     try {
                         val id = PhotoId(UUID.randomUUID().toString())
                         store.reserveLocalPhoto(batchId, id)
                         val photo = importer.importImage(uri, photoId = id)
-                        withContext(NonCancellable) { store.save(photo) }
+                        withContext(NonCancellable) { store.save(photo); imported += photo.id }
                     } catch (error: CancellationException) { throw error }
                     catch (error: Exception) {
                         mutable.update { it.copy(failures = it.failures + FailedPhoto(null, uri.lastPathSegment.orEmpty(),
@@ -660,8 +670,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { mutable.update { it.copy(notice = error.message ?: "无法建立导入批次") } }
-            finally { mutable.update { it.copy(importing = false) } }
+            finally { mutable.update { it.copy(importing = false,
+                photoImportResult = PhotoImportResult(requestId, importedBatch, imported.toList())) } }
         }
+        return true
     }
 
     private fun showCreatedBatch(batch: ProcessingBatch) {

@@ -45,3 +45,15 @@ class MirrorPreferences(context: Context) {
 }
 
 internal fun CameraDevice.rememberedIdentity(): String = udn.ifBlank { "model:$model:$friendlyName" }
+
+/** Small metadata snapshot for restoring a detail page; the client still validates all image URLs. */
+internal fun LumixLabLut.detailSnapshot(): String = JSONObject().put("code", code).put("title", title)
+    .put("creator-code", creator?.code.orEmpty()).put("creator", creator?.name.orEmpty())
+    .put("avatar", creator?.icon?.path.orEmpty()).put("thumbnail", thumbnail?.path.orEmpty()).toString()
+
+internal fun restoreLutDetailSnapshot(value: String): LumixLabLut = JSONObject(value).let { item ->
+    fun image(key: String) = item.optString(key).takeIf { it.isNotBlank() }?.let { LumixLabImageRef(it, null, null, null) }
+    LumixLabLut(item.getString("code"), item.getString("title"),
+        LumixLabCreator(item.optString("creator-code").takeIf { it.isNotBlank() },
+            item.optString("creator").takeIf { it.isNotBlank() }, image("avatar")), image("thumbnail"), null)
+}

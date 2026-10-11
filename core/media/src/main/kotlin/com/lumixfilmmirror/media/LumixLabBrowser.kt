@@ -53,6 +53,29 @@ class LumixLabBrowser(private val client: LumixLabCatalogueClient, private val s
     private var listRevision = 0L
     private var detailRevision = 0L
     private var genreRevision = 0L
+    private val loadedQueries = linkedMapOf<LumixLabLutQuery, LumixLabBrowserState>()
+
+    private fun rememberLoadedQuery() {
+        val current = mutable.value
+        val query = current.query ?: return
+        if (current.pageLoading || (current.items.isEmpty() && current.pageError != null)) return
+        loadedQueries.remove(query)
+        loadedQueries[query] = current
+        while (loadedQueries.size > 8) loadedQueries.remove(loadedQueries.keys.first())
+    }
+
+    /** Revisit a loaded category with its continuation offset; explicit refresh still fetches anew. */
+    fun selectQuery(query: LumixLabLutQuery) {
+        require(query.offset == 0 && query.limit in 1..64)
+        val snapshot = query.copy(countries = query.countries.toList())
+        if (mutable.value.query == snapshot) return
+        rememberLoadedQuery()
+        val saved = loadedQueries[snapshot] ?: return refresh(snapshot)
+        ++listRevision; pageJob?.cancel(); colourJob?.cancel(); closeDetail()
+        mutable.update { it.copy(query = snapshot, items = saved.items, nextOffset = saved.nextOffset,
+            pageLoading = false, pageError = saved.pageError, colours = saved.colours,
+            coloursLoading = false, coloursCompleted = 0, coloursTotal = 0, exampleErrors = saved.exampleErrors) }
+    }
 
     fun loadGenres() {
         genreJob?.cancel()
@@ -71,6 +94,8 @@ class LumixLabBrowser(private val client: LumixLabCatalogueClient, private val s
     fun refresh(query: LumixLabLutQuery) {
         require(query.offset == 0 && query.limit in 1..64) { "新目录需从 offset 0 开始" }
         val snapshot = query.copy(countries = query.countries.toList())
+        rememberLoadedQuery()
+        loadedQueries.remove(snapshot)
         pageJob?.cancel(); colourJob?.cancel()
         val revision = ++listRevision
         closeDetail()
@@ -111,7 +136,10 @@ class LumixLabBrowser(private val client: LumixLabCatalogueClient, private val s
                 }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { if (revision == listRevision) mutable.update { it.copy(pageError = error.message ?: "LUT 目录加载失败") } }
-            finally { if (revision == listRevision) mutable.update { it.copy(pageLoading = false) } }
+            finally { if (revision == listRevision) {
+                mutable.update { it.copy(pageLoading = false) }
+                rememberLoadedQuery()
+            } }
         }
     }
 

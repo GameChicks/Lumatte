@@ -50,6 +50,8 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
     var transferDestination by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedImportTreatment by rememberSaveable { mutableStateOf<String?>(null) }
     var importAccepted by rememberSaveable { mutableStateOf(false) }
+    var importRequest by rememberSaveable { mutableStateOf<String?>(null) }
+    var importCreatesBatch by rememberSaveable { mutableStateOf(true) }
     var pendingFilm by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingLut by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingLutSecond by rememberSaveable { mutableStateOf(false) }
@@ -70,13 +72,21 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
         } else executeTransfer(target)
     }
     val photos = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) { importAccepted = true; workspace.importImages(uris, newBatch = pane != "editor" && pane != "export") }
-        else { selectedImportTreatment = null; pendingFilm = null; pendingLut = null }
+        val request = importRequest
+        if (uris.isNotEmpty() && request != null) {
+            importAccepted = workspace.importImages(uris, newBatch = importCreatesBatch, requestId = request)
+            if (!importAccepted) {
+                selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importRequest = null
+                workspace.notice("当前任务正在执行，待完成后重新导入照片")
+            }
+        } else { selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importRequest = null; importAccepted = false }
     }
     val luts = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> workspace.importLuts(uris) }
     val importPhotos: (PhotoTreatment) -> Unit = { treatment ->
         if (!state.busy) {
             importAccepted = false
+            importRequest = java.util.UUID.randomUUID().toString()
+            importCreatesBatch = pane != "editor" && pane != "export"
             selectedImportTreatment = treatment.name
             photos.launch(arrayOf("image/jpeg", "image/x-panasonic-rw2", "image/x-panasonic-raw", "application/octet-stream"))
         }
@@ -102,17 +112,30 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
             }
         }
     }
-    LaunchedEffect(state.importing, state.photos, state.busy, selectedImportTreatment, importAccepted) {
-        if (importAccepted && !state.busy && state.photos.isNotEmpty() && selectedImportTreatment != null) {
+    LaunchedEffect(state.photoImportResult, state.processingBatchId, state.photos, state.busy, selectedImportTreatment, importAccepted) {
+        val result = state.photoImportResult
+        if (importAccepted && !state.busy && result == null) {
+            selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importAccepted = false; importRequest = null
+            workspace.notice("已恢复工作台，请确认上次导入的照片后继续编辑")
+            return@LaunchedEffect
+        }
+        if (importAccepted && !state.busy && selectedImportTreatment != null && result != null && result.requestId == importRequest) {
+            if (result.imported.isEmpty()) {
+                selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importAccepted = false; importRequest = null
+                workspace.notice((listOf("本次没有成功导入照片") + state.failures.take(2).map { "${it.name}：${it.reason}" }).joinToString("\n"))
+                return@LaunchedEffect
+            }
+            // Room may publish the new batch after the import coroutine finishes.
+            if (state.processingBatchId != result.batchId || result.imported.any { id -> state.photos.none { it.id == id } })
+                return@LaunchedEffect
             val proceedToEditor = pendingFilm != null || pendingLut != null
             val treatment = PhotoTreatment.valueOf(requireNotNull(selectedImportTreatment))
             workspace.treatment(treatment)
             pendingFilm?.let { workspace.updateFilm(FilmParameters(presetId = it)) }
             pendingLut?.let { workspace.selectLutSlot(it, pendingLutSecond) }
-            selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importAccepted = false
+            selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importAccepted = false; importRequest = null
             // Import from a tab stays in selection. A chosen stock/LUT proceeds to its preview.
-            if (treatment == PhotoTreatment.ORIGINAL) pane = null
-            else if (proceedToEditor) pane = "editor"
+            if (proceedToEditor) pane = "editor"
         }
     }
     LaunchedEffect(camera.activeTransferBatch) {
@@ -120,6 +143,10 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
             transferHidden = false
             if (transferDestination != null) { transferBatch = id; noticedTransferStart = true }
         }
+    }
+    LaunchedEffect(camera.problem, camera.operationRunning, camera.activeTransferBatch) {
+        if (transferDestination != null && !noticedTransferStart && camera.activeTransferBatch == null &&
+            !camera.operationRunning && camera.problem != null) transferDestination = null
     }
     LaunchedEffect(camera.activeTransferBatch, state.busy, state.processingBatchId, noticedTransferStart, transfers) {
         val id = transferBatch

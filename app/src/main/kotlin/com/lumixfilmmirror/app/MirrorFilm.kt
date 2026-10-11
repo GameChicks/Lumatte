@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -80,7 +81,8 @@ internal fun MirrorFilm(state: WorkspaceState, onImport: () -> Unit, onChoose: (
                     val films = state.filmPresets.filter { it.category == shownCategory }
                     FilmCarousel(films, shownCategory, positions[route] ?: 0, armed, reduced, shared, visibility,
                         onBack = back, onPage = { page -> positions = HashMap(positions).apply { put(route, page) } },
-                        onUserScroll = { armed = true }, onDetail = { detailId = it.id })
+                        onUserScroll = { armed = true }, onDetail = { detailId = it.id },
+                        onCategory = { selected -> categoryName = selected.name; armed = true })
                 }
                 else -> state.filmPresets.firstOrNull { it.id == route }?.let { film ->
                     FilmDetail(film, shared, visibility, onBack = back, onChoose = {
@@ -95,6 +97,7 @@ internal fun MirrorFilm(state: WorkspaceState, onImport: () -> Unit, onChoose: (
 @Composable
 private fun FilmCategories(state: WorkspaceState, positions: Map<String, Int>, onImport: () -> Unit, shared: SharedTransitionScope,
     visibility: AnimatedVisibilityScope, onCategory: (FilmCategory) -> Unit) {
+    val reduced = LocalMirrorReducedMotion.current
     LazyColumn(contentPadding = PaddingValues(bottom = 172.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { PageHeading("ANALOG / DIGITAL", "Film", onImport) }
         if (state.photos.isEmpty()) item {
@@ -110,13 +113,14 @@ private fun FilmCategories(state: WorkspaceState, positions: Map<String, Int>, o
                 Column(Modifier.padding(20.dp)) {
                     Text("0${index + 1} / ${category.label}", fontSize = 11.sp, color = Color(0xFF24241E))
                     val headingMorph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("category-${category.name}"), visibility,
-                        boundsTransform = { _, _ -> tween(420, easing = MirrorEase) }) }
+                        boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
                     Text(category.editorialTitle(), headingMorph, fontFamily = MirrorFonts.Editorial, fontSize = 52.sp,
                         color = Color(0xFF171916), maxLines = 1)
                     Text("${state.filmPresets.count { it.category == category }} 款胶卷", fontSize = 12.sp, color = Color(0xFF31342B))
                 }
                 representative?.let { film ->
-                    val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility) }
+                    val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility,
+                        boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
                     FilmCartridge(film, Modifier.align(Alignment.CenterEnd).width(126.dp).height(176.dp).then(morph)
                         .graphicsLayer { rotationZ = 12f })
                 }
@@ -129,7 +133,7 @@ private fun FilmCategories(state: WorkspaceState, positions: Map<String, Int>, o
 @Composable
 private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initial: Int, armed: Boolean,
     reduced: Boolean, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope, onBack: () -> Unit,
-    onPage: (Int) -> Unit, onUserScroll: () -> Unit, onDetail: (FilmPreset) -> Unit) {
+    onPage: (Int) -> Unit, onUserScroll: () -> Unit, onDetail: (FilmPreset) -> Unit, onCategory: (FilmCategory) -> Unit) {
     val tones = LocalFilmMaterials.current
     val pager = rememberPagerState(initialPage = initial.coerceIn(0, maxOf(0, films.lastIndex)), pageCount = { films.size })
     val haptics = LocalHapticFeedback.current
@@ -160,7 +164,8 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
                     Text(films[index].name, style = MaterialTheme.typography.titleSmall)
                     if (centre > .9f) TextButton(onClick = { onDetail(films[index]) }) { Text("查看介绍 →") }
                 }
-                val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${films[index].id}"), visibility) }
+                val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${films[index].id}"), visibility,
+                    boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
                 FilmCartridge(films[index], Modifier.weight(.56f).height(pageHeight - 6.dp).then(morph)
                     .graphicsLayer {
                         scaleX = .72f + centre * .28f; scaleY = scaleX
@@ -178,7 +183,11 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
             Text(category.editorialTitle(), Modifier.padding(start = 16.dp).then(headingMorph), fontFamily = MirrorFonts.Editorial, fontSize = 30.sp)
         }
         Column(Modifier.align(Alignment.BottomStart).padding(24.dp)) {
-            Text(category.editorialTitle(), fontFamily = MirrorFonts.Editorial, fontSize = 38.sp)
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilmCategory.entries.forEach { entry -> item(key = entry.name) {
+                    FilterChip(category == entry, { if (category != entry) onCategory(entry) }, label = { Text(entry.label) })
+                } }
+            }
             Text(if (reduced) "上下滑动选卷 · 点击查看介绍" else "上下滑动选卷 · 停留片刻查看介绍",
                 color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall)
         }
@@ -189,6 +198,7 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
 private fun FilmDetail(film: FilmPreset, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope,
     onBack: () -> Unit, onChoose: () -> Unit) {
     val tones = LocalFilmMaterials.current
+    val reduced = LocalMirrorReducedMotion.current
     Column(Modifier.fillMaxSize().background(tones.background)) {
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item { RoundAction("返回选卷", DotGlyph.LEFT, onClick = onBack) }
@@ -198,7 +208,8 @@ private fun FilmDetail(film: FilmPreset, shared: SharedTransitionScope, visibili
                         Text(film.category.label, style = MaterialTheme.typography.labelSmall, color = tones.secondaryInk)
                         Text(film.name, fontFamily = MirrorFonts.Editorial, fontSize = 42.sp, lineHeight = 44.sp)
                     }
-                    val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility) }
+                    val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility,
+                        boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
                     FilmCartridge(film, Modifier.width(158.dp).height(255.dp).then(morph))
                 }
             }
