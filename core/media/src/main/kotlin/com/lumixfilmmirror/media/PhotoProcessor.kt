@@ -30,6 +30,8 @@ class PhotoProcessor(context: Context) {
     private val luts = LutLibrary(context)
     private val films = FilmCatalogue(context)
     private val lutGallery = LutGalleryLibrary(context)
+    /** Explicit Internet requests only. Local catalogue/preview/export do not contact Lumix Lab. */
+    val officialLutCatalogue by lazy { LumixLabCatalogueClient() }
     private val mobileFilmModels = MobileFilmModelLibrary(context)
     private val previewGate = Semaphore(1)
     private val previewCache = EffectPreviewCache()
@@ -43,6 +45,12 @@ class PhotoProcessor(context: Context) {
     }
 
     suspend fun importLut(uri: Uri): LutAsset = luts.import(uri)
+    /** Explicit download action; returns a normal offline asset usable in either LUT slot. */
+    suspend fun downloadOfficialLut(code: String, language: String): LutAsset {
+        val detail = officialLutCatalogue.detail(code, language)
+        val cube = officialLutCatalogue.downloadCube(detail)
+        return luts.importOfficial(detail, cube)
+    }
     /** Display metadata only; the caller keeps the existing processing catalogue for rendering. */
     suspend fun loadLutGallery(catalogue: ProcessingCatalogue): LutGallerySnapshot = lutGallery.load(catalogue.luts)
     suspend fun setLutSubjects(asset: LutAsset, subjects: Set<LutSubject>): LutGalleryEntry = lutGallery.setSubjects(asset, subjects)

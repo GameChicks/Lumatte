@@ -74,7 +74,8 @@ internal class CubeLut(val title: String, private val oneSize: Int, private val 
             return result
         }
 
-        fun parse(text: String, fallbackName: String): CubeLut {
+        fun parse(text: String, fallbackName: String, checkCancellation: () -> Unit = {}): CubeLut {
+            checkCancellation()
             var title = fallbackName.take(200)
             var oneSize = 0; var threeSize = 0; var data: FloatArray? = null; var written = 0
             var domainMin = floatArrayOf(0f, 0f, 0f); var domainMax = floatArrayOf(1f, 1f, 1f)
@@ -85,6 +86,7 @@ internal class CubeLut(val title: String, private val oneSize: Int, private val 
                 while (true) {
                     val raw = reader.readLine() ?: break
                     lineNumber++
+                    if (lineNumber % 128 == 0) checkCancellation()
                     require(raw.length <= 4096) { "LUT 第 $lineNumber 行过长" }
                     var quoted = false
                     val comment = raw.indexOfFirst { character ->
@@ -130,6 +132,7 @@ internal class CubeLut(val title: String, private val oneSize: Int, private val 
             require((oneRange == null && threeRange == null) || ("DOMAIN_MIN" !in headers && "DOMAIN_MAX" !in headers)) {
                 "LUT 同时声明两套输入范围，请使用单一范围格式"
             }
+            checkCancellation()
             return CubeLut(title, oneSize, threeSize, values.copyOfRange(0, oneSize * 3),
                 values.copyOfRange(oneSize * 3, values.size), minimum(oneRange), maximum(oneRange), minimum(threeRange), maximum(threeRange))
         }

@@ -18,13 +18,14 @@ import java.security.MessageDigest
 import kotlin.coroutines.coroutineContext
 
 class LutAsset internal constructor(val id: String, val name: String, val builtin: Boolean,
-    internal val table: CubeLut, val photoStyle: String? = null)
+    internal val table: CubeLut, val photoStyle: String? = null, val lumixLabSource: LumixLabLutSource? = null)
 data class LutLibrarySnapshot(val assets: List<LutAsset>, val problems: List<String>)
 
 /** Copies user LUTs into application-owned storage; originals and creator files are never modified. */
 class LutLibrary(context: Context) {
     private val context = context.applicationContext
     private val root = File(this.context.filesDir, "lut-library")
+    private val official = LumixLabLutStore(root)
     private data class Bundled(val id: String, val name: String, val style: String? = null)
     private val bundled = listOf(
         Bundled("fresh-bright", "Fresh Bright", "STD"),
@@ -62,8 +63,11 @@ class LutLibrary(context: Context) {
                 } catch (error: java.io.IOException) { problems += "$id：LUT 读取失败" }
                 catch (error: IllegalArgumentException) { problems += "$id：LUT 数据无效" }
             }
-        LutLibrarySnapshot(assets, problems)
+        val downloaded = official.load()
+        LutLibrarySnapshot(assets + downloaded.assets, problems + downloaded.problems)
     }
+
+    internal suspend fun importOfficial(detail: LumixLabLutDetail, cube: ByteArray): LutAsset = official.save(detail, cube)
 
     suspend fun import(uri: Uri): LutAsset = withContext(Dispatchers.IO) {
         val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {

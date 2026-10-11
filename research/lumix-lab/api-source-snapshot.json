@@ -8,7 +8,7 @@
   "tool": "JADX 1.5.6, selected classes, no resources or app execution",
   "baseUrl": "https://lumix-base.jpn.panasonic.com/lutapi/v2/",
   "clientHeaderName": "lutapp-api-key",
-  "evidenceLevel": "static decompiled request declarations only; no network requests",
+  "evidenceLevel": "selected declarations and callers statically recovered; own client source implemented; no Lab requests or Android execution",
   "sources": [
     {
       "file": "tools/.cache/lumix-lab/h6.a.java",
@@ -37,6 +37,38 @@
     {
       "file": "tools/.cache/lumix-lab/CommunityLutTopPostBean.java",
       "sha256": "2398773ab47e82cbcd797f33ea6dad991cd7d7ad9e801969da7eb56f5682229e"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/z5.Z2.java",
+      "sha256": "ca77d14d1d42e5e14b44d4f54f7946d147805425eb5de9fee991c422a710f5e6"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/z5.P2.java",
+      "sha256": "9b453f50cc69ee12f02080c79339aaa711550927f814a8a4098f8925bae0c1c3"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/z5.s3.java",
+      "sha256": "410b5b4bc4e111844af7885deaa86dc2b2c1e27302c87e7cb0a085662a33f80f"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/com.panasonic.jp.lumixlab.bean.CommunityGenresBean.java",
+      "sha256": "0d97419798ca67fcf6bae4bd7e05508d57ddb7a36894d9cbb41a64ab9dfc7e90"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/com.panasonic.jp.lumixlab.bean.CommunityFilterBean.java",
+      "sha256": "14deea7d22d7440ef3717e6106985dfdd4fc6df779df38d19bb72c63588268f6"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/com.panasonic.jp.lumixlab.bean.CommunityDownloadBean.java",
+      "sha256": "580f1d9c6a14287bbe48bcf1cafd710d595d8819e232909409942d978a34c106"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/CommunityDownloadFragment.java",
+      "sha256": "53b85ae48f9b1f0f2965b28c81defc4c3cc48e9ed6fee07a7c9cb575b63c6d94"
+    },
+    {
+      "file": "tools/.cache/lumix-lab/LabLocaleAndLutUtil.java",
+      "sha256": "8062872d76b2bf6847a85fe6765d43a29c4701190a81b26659ec0134b9f95ebb"
     }
   ],
   "requests": [
@@ -121,10 +153,35 @@
     }
   },
   "remaining": [
-    "actual caller-provided key/language/region values",
-    "required/optional field behavior",
-    "response field schemas and HTTPS image origins",
-    "normal server access and conditions",
-    "ZIP members and VLT parsing"
+    "app_lang resource values and language mapping",
+    "normal current server access and conditions",
+    "actual response/body validity and mandatory optional behavior",
+    "real image format/origin/redirect behavior",
+    "actual ZIP members and parsed cube compatibility",
+    "grid33 callers and VLT parsing"
+  ],
+  "confirmedCalls": {
+    "listSort": {
+      "order": "desc",
+      "source": "z5.P2",
+      "key": "created"
+    },
+    "pagination": "limit/offset string; P2 limit 50, offset current item count",
+    "detail": "CommunityDownloadFragment sets code and language, no key",
+    "download": "z5.Z2 sets code and key grid17; key is a file-grid selector",
+    "imageOrigin": "CommunityDownloadFragment prepends https://lumix-base.jpn.panasonic.com to thumbnail path/path_original",
+    "zip": "CommunityDownloadFragment.o0 iterates ZIP members and selects .cube",
+    "language": "util.v.E returns Android R.string.app_lang; resource mapping not recovered"
+  },
+  "responseSchemas": {
+    "genres": "root.genres[]: code/title/thumbnail/top[].region+thumbnail",
+    "filter": "root.filter[]: code/title/creator/thumbnail/download_number",
+    "detail": "root object: code/title/overview/photo_style/_locale/creator/thumbnail/file.grid17+grid33",
+    "creator": "code/name/icon",
+    "image": "path, optional path_original; width/height String or int in different DTOs"
+  },
+  "recoveryLimitations": [
+    "CommunityDownloadFragment and util.v JADX output written, command exit 1: util.v.Q RegionMaker error; E and selected request/image/ZIP methods inspected; Q not used",
+    "Own DEX instruction-word scanner finds candidate caller names only; hits confirmed in selected JADX methods"
   ]
 }

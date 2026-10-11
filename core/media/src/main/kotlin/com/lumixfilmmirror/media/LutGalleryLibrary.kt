@@ -19,10 +19,11 @@ enum class LutSubject(val label: String) {
     DAILY("日常"), NATURE("自然"), STREET("街头"), PORTRAIT("人像"),
     ARCHITECTURE("建筑"), NIGHT("夜景"), OTHER("其他")
 }
-enum class LutGallerySource { ALL, BUNDLED, LOCAL }
+enum class LutGallerySource { ALL, BUNDLED, LOCAL, OFFICIAL }
 
 data class LutGalleryEntry(val id: String, val name: String, val builtin: Boolean, val photoStyle: String?,
-    val subjects: Set<LutSubject>, val exampleColours: LutExampleColours? = null)
+    val subjects: Set<LutSubject>, val exampleColours: LutExampleColours? = null,
+    val lumixLabSource: LumixLabLutSource? = null)
 data class LutGallerySnapshot(val entries: List<LutGalleryEntry>, val problems: List<String>)
 /** Returned card image is caller-owned; recycle it on replacement/disposal. */
 data class LutCardPreview(val lutId: String, val image: Bitmap, val colours: LutExampleColours)
@@ -41,7 +42,12 @@ object LutGalleryFilter {
         val text = query.text.trim()
         return entries.filter { entry ->
             (text.isEmpty() || entry.name.contains(text, ignoreCase = true) || entry.photoStyle?.contains(text, ignoreCase = true) == true) &&
-                (query.source == LutGallerySource.ALL || entry.builtin == (query.source == LutGallerySource.BUNDLED)) &&
+                (when (query.source) {
+                    LutGallerySource.ALL -> true
+                    LutGallerySource.BUNDLED -> entry.builtin
+                    LutGallerySource.LOCAL -> !entry.builtin && entry.lumixLabSource == null
+                    LutGallerySource.OFFICIAL -> entry.lumixLabSource != null
+                }) &&
                 (query.subject == null || query.subject in entry.subjects) &&
                 (query.exampleMode == null || entry.exampleColours?.mode == query.exampleMode) &&
                 (query.family == null || (entry.exampleColours?.familyWeights?.get(query.family) ?: 0f).let {
@@ -63,7 +69,7 @@ internal class LutGalleryLibrary(context: Context) {
                 val subjects = try { readSubjects(asset.id) }
                 catch (error: CancellationException) { throw error }
                 catch (error: Exception) { problems += "${asset.name}：题材标签读取失败"; emptySet() }
-                LutGalleryEntry(asset.id, asset.name, asset.builtin, asset.photoStyle, subjects)
+                LutGalleryEntry(asset.id, asset.name, asset.builtin, asset.photoStyle, subjects, lumixLabSource = asset.lumixLabSource)
             }
             LutGallerySnapshot(entries, problems)
         }
@@ -84,7 +90,7 @@ internal class LutGalleryLibrary(context: Context) {
                     coroutineContext.ensureActive()
                     atomic.finishWrite(output)
                 } catch (error: Throwable) { atomic.failWrite(output); throw error }
-                LutGalleryEntry(asset.id, asset.name, asset.builtin, asset.photoStyle, snapshot)
+                LutGalleryEntry(asset.id, asset.name, asset.builtin, asset.photoStyle, snapshot, lumixLabSource = asset.lumixLabSource)
             }
         }
     }
@@ -118,6 +124,6 @@ internal class LutGalleryLibrary(context: Context) {
 
     companion object {
         private val gate = Mutex() // AtomicFile is not a cross-instance locking primitive.
-        private val ID = Regex("(?:bundled-[a-z0-9-]{1,80}|local-[0-9a-f]{64})")
+        private val ID = Regex("(?:bundled-[a-z0-9-]{1,80}|(?:local|lab)-[0-9a-f]{64})")
     }
 }

@@ -73,3 +73,5 @@ RAW 原生补充路径与工具链声明见 [RAW 预览记录](raw-preview.md)�
 队列、服务和工作台持久化细节见 [存储与恢复](storage-and-transfer.md)。前台服务源码已接入，进程退出后仍由用户继续未完成任务；未经设备验证，不宣称后台传输已实际通过。未编译，因此 Room schema JSON 尚未生成。
 
 2026-10-10 的“先记录性能问题”已被 2026-10-11 要求继续移动端优化覆盖，曝光补偿与相纸曝光也合为单一参数。Halation、黑柔和统一曝光由功能接口提供，专业参数内置；UI 由另一个前端负责。具体记录见 [胶片引擎待办](../product/film-engine-open-questions.md)。
+
+官方 LUT 功能继续恢复有限调用方／响应 DTO，确认 created/desc 字符串分页、grid17 下载 key 和 ZIP 内 cube。新增独立 HTTPS 分类／列表／详情、受限软件例图＋CREATOR_EXAMPLE Palette 和用户显式 grid17 下载源码；来源与表保存到一个 lab-…lfmlab 原子容器，按稳定 ID 接现有双槽与离线导出，图库增 OFFICIAL 筛选。未采用 JADX 不完整的 v.Q 方法，没有旧账户／数据库导入。语言资源映射、服务器条件／真实返回仍待确认；没有编译、网络请求、实际图像或下载运行、测试或打包。接口与限制见 [官方目录与下载](lumix-lab-catalogue.md)。

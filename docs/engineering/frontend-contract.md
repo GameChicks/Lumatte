@@ -65,7 +65,9 @@ LUT 图库后端新增 `loadLutGallery(catalogue)`、`setLutSubjects(asset, subj
 
 `core/model` 的 `FramePreset/FrameOptions/BatchExportOptions` 已接入画框绘制与 Room 7 批次保存。11 项含无框使用恢复比例和素材，在效果后、JPEG 编码前绘制；整批一个预设和设置，每张使用自身方向、EXIF 和取色。设置说明、各行字体／自定义素材键及源代码证据边界见 [画框功能](frame-export.md)。这是功能源码，尚未渲染、编译或与旧包对照。
 
-正式选卷暗盒滚动、400 ms 介绍及返回位置保留由前端管理，不进入影像引擎。例图 Palette 与筛选后端已接入源码；LUT 创作者网络目录、官方例图取得和服务器下载尚未具备可用客户端，不要把当前本地目录标为官方云端。
+正式选卷暗盒滚动、400 ms 介绍及返回位置保留由前端管理，不进入影像引擎。`PhotoProcessor.officialLutCatalogue` 新增 `genres()`、`luts(query)`、`detail(code, language)`、`example(lut)` 的独立 HTTPS 源码接口；`example` 返回调用方持有的小图与 `CREATOR_EXAMPLE` 取色信息，须回收图片。`downloadOfficialLut(code, language)` 显式获取详情、下载 grid17 ZIP、提取／解析 cube 并原子保存，返回可放入两个槽任意一个的离线 `LutAsset`。完成后重新 `loadCatalogue()`，以稳定的 `lab-…` ID 保存配方；下载项有 `lumixLabSource`，图库可用新增 `OFFICIAL` 来源过滤。构造处理器或加载本地目录不会发送网络请求。
+
+列表的 `language` 为调用方显式提供的服务语言值，尚未恢复 `app_lang` 资源映射。`nextOffset` 只给继续请求的位置，无总数／下一页存在性保证。获取和下载失败应显示错误，保留内置／本地工作流；不要把网络 DTO 的 `code` 当成本地可渲染 LUT ID。源码尚未编译、请求官方服务器或运行下载，不显示“已连接官方目录”或成功下载。分页／图像限制、原子文件、来源和证据见 [官方目录接口](lumix-lab-catalogue.md)。
 
 `PhotoProcessor.mobileFilmModelsInfo()` 可读取已打入资源目录的移动胶片模型 ID、相纸、正负片、版本、来源提交和缓存信息，不加载全部表或初始化 GPU。缺失／不支持的目录返回 problems，取消正常传播。这个资料入口不是实际渲染后端状态，不展示“已加速”或技术引擎选择；预览／导出已接 GLES 图块和从原图重做的 CPU 后备源码，共用模型与共享画框，尚未运行验证。实现与空间／颗粒近似见 [图像后端](mobile-film-rendering.md)。
 
