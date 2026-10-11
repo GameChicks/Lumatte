@@ -46,7 +46,7 @@ class PhotoProcessor(context: Context) {
     fun exportLayout(source: SourceImage, options: BatchExportOptions) =
         FrameLayouts.plan(options.jpeg.contentSize(source.size), options.frame)
     fun lutBackend(): LutBackend = NativeLutRenderer.backend()
-    fun filmBackend(): FilmBackend = FilmBackend.MOBILE_NATIVE_CPU
+    fun filmBackend(): FilmBackend = FilmBackend.MOBILE_GLES3_WITH_CPU_FALLBACK
     /** Packaged model data and its cache only; this does not switch or initialize the film backend. */
     suspend fun mobileFilmModelsInfo(): MobileFilmModelsInfo = mobileFilmModels.info()
     suspend fun previewCacheInfo(): PreviewCacheInfo = previewGate.withPermit { previewCache.info() }

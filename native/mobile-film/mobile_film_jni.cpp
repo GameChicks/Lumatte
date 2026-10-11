@@ -1,4 +1,4 @@
-#include "mobile_film_core.hpp"
+#include "mobile_film_gles.hpp"
 #include <jni.h>
 #include <android/bitmap.h>
 #include <atomic>
@@ -95,15 +95,28 @@ extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFil
 extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFilmBridge_releaseTask(JNIEnv*, jobject, jlong handle) {
     delete reinterpret_cast<Task*>(handle);
 }
+extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFilmBridge_releaseIdleGpu(JNIEnv*, jobject) {
+    lfm::mobile::release_idle_gles();
+}
 extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFilmBridge_render(JNIEnv* env, jobject, jlong handle,
     jobject bitmap, jobjectArray tables, jintArray sizes, jfloatArray bounds, jfloatArray controls,
-    jint source_width, jint source_height, jlong seed) {
+    jint source_width, jint source_height, jlong seed, jboolean prefer_gpu, jstring model_key) {
     try {
         const auto* task = reinterpret_cast<Task*>(handle);
         if (!task || !bitmap || source_width <= 0 || source_height <= 0) throw std::invalid_argument("Invalid mobile film request");
         task->check();
         const auto model = read_model(env, tables, sizes, bounds, *task);
         const auto effects = read_effects(env, controls);
+        std::string key;
+        if (prefer_gpu) {
+            if (!model_key) throw std::invalid_argument("Film GPU model key missing");
+            const char* text = env->GetStringUTFChars(model_key, nullptr);
+            if (!text) throw PendingJavaError{};
+            try { key = text; }
+            catch (...) { env->ReleaseStringUTFChars(model_key, text); throw; }
+            env->ReleaseStringUTFChars(model_key, text);
+            if (key.empty()) throw std::invalid_argument("Film GPU model key empty");
+        }
         AndroidBitmapInfo info{};
         if (AndroidBitmap_getInfo(env, bitmap, &info) != ANDROID_BITMAP_RESULT_SUCCESS || info.width == 0 || info.height == 0 ||
             info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 || (info.flags & ANDROID_BITMAP_FLAGS_IS_HARDWARE) ||
@@ -111,10 +124,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFil
             throw std::invalid_argument("Mobile film needs a software RGBA bitmap");
         task->check();
         BitmapLock lock(env, bitmap);
-        lfm::mobile::render_cpu({static_cast<uint8_t*>(lock.pixels), info.width, info.height, info.stride}, model, effects,
+        const lfm::mobile::Image image{static_cast<uint8_t*>(lock.pixels), info.width, info.height, info.stride};
+        if (prefer_gpu) lfm::mobile::render_gles(image, model, effects, key,
+            uint32_t(source_width), uint32_t(source_height), uint64_t(seed), [&] { task->check(); });
+        else lfm::mobile::render_cpu(image, model, effects,
             uint32_t(source_width), uint32_t(source_height), uint64_t(seed), [&] { task->check(); });
     } catch (const PendingJavaError&) { /* Retain the original JVM exception. */ }
     catch (const Cancelled&) { java_error(env, "java/util/concurrent/CancellationException", "Mobile film cancelled"); }
+    catch (const lfm::mobile::GlesError& error) { java_error(env, "com/lumixfilmmirror/media/MobileFilmGpuFailure", error.what()); }
     catch (const std::bad_alloc&) { java_error(env, "java/lang/OutOfMemoryError", "Mobile film requires more memory"); }
     catch (const std::invalid_argument& error) { java_error(env, "java/lang/IllegalArgumentException", error.what()); }
     catch (const std::exception& error) { java_error(env, "java/lang/IllegalStateException", error.what()); }

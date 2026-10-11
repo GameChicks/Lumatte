@@ -18,7 +18,7 @@
 | `previewExport(source, recipe, catalogue, options, longEdge, frameNumber)` | 处理效果＋画框预览，长边约束完整画布，默认 960 |
 | `importFrameImage(uri)` / `importFrameFont(uri)` | 导入私有素材副本并返回键，原件不改写 |
 | `lutBackend()` | 查询原生库加载对应的 `NATIVE_CPU`／`KOTLIN_CPU`；不证明速度或胶片 GPU 可用 |
-| `filmBackend()` | 返回配置源码路径 `MOBILE_NATIVE_CPU`，不加载库或证明性能；不增加 UI 引擎选择 |
+| `filmBackend()` | 返回配置源码路径 `MOBILE_GLES3_WITH_CPU_FALLBACK`，不初始化 GPU、不表示本次实际后端或性能；不增加 UI 引擎选择 |
 | `previewCacheInfo()` / `clearPreviewCache()` | 读取实际效果缓存统计，或等待当前预览安全结束后清理；预算 8 MiB／2 项 |
 | `clearProcessingCaches()` | 等待预览和已排队原生任务，清理效果与模型缓存；不删除配方、素材或成片 |
 | `requestMemoryTrim()` | 合并式异步处理缓存清理，用于应用内存／后台回调，不取消导出 |
@@ -32,7 +32,7 @@
 
 预览缓存只保留照片效果，画框／文字在其后绘制；原图、配方、表对象及实际照片处理尺寸共同决定失效。仅换签名等且处理尺寸不变时可复用光谱／LUT 结果。缓存位图不借给前端，所有返回图独立持有；8 MiB 不含前端图、临时图和 GPU。正式导出不读取小图缓存。后端、清理及数值证据边界见 [手机优化源码](mobile-processing.md)。
 
-`clearPreviewCache()` 仅清理位图 LRU。`clearProcessingCaches()` 另排队等待移动原生 CPU 工作结束，再丢弃模型缓存引用，不取消导出或破坏当前借用模型；CPU 没有跨任务图像池。下一次胶片请求按需加载模型，私有数值资产保留。该操作可能等待正在渲染的大图，不在主线程阻塞等待，不在每次调整参数后调用。应用后台回调通过 `requestMemoryTrim()` 请求同一路径；后续排入的导出仍会按需重新分配资源，不能将清理当作强制内存上限。
+`clearPreviewCache()` 仅清理位图 LRU。`clearProcessingCaches()` 另排队等待移动原生工作结束，在所属 worker 释放 GLES 上下文／纹理，再丢弃模型缓存引用，不取消导出或破坏当前借用模型。下一次胶片请求按需加载模型／分配资源，私有数值资产保留。该操作可能等待正在渲染的大图，不在主线程阻塞等待，不在每次调整参数后调用。应用后台回调通过 `requestMemoryTrim()` 请求同一路径；后续排入的导出仍会按需重新分配资源，不能将清理当作强制内存上限。
 
 ## 复用工作台状态与批量逻辑
 
@@ -65,7 +65,7 @@ Room 8 已接入不可变导出快照和每项结果，`state.exportRuns/exportR
 
 正式选卷暗盒滚动、400 ms 介绍及返回位置保留由前端管理，不进入影像引擎。LUT 创作者目录、例图 Palette、官方服务器下载尚未具备可用接口；不要把当前本地目录标为官方云端。
 
-`PhotoProcessor.mobileFilmModelsInfo()` 可读取已打入资源目录的移动胶片模型 ID、相纸、正负片、版本、来源提交和缓存信息，不加载全部表或初始化 GPU。缺失／不支持的目录返回 problems，取消正常传播。这个资料入口不是实际渲染后端状态，不展示“已加速”或技术引擎选择；预览／导出已接移动 CPU 源码，共用模型与共享画框，尚未运行验证。实现与空间／颗粒近似见 [图像后端](mobile-film-rendering.md)。
+`PhotoProcessor.mobileFilmModelsInfo()` 可读取已打入资源目录的移动胶片模型 ID、相纸、正负片、版本、来源提交和缓存信息，不加载全部表或初始化 GPU。缺失／不支持的目录返回 problems，取消正常传播。这个资料入口不是实际渲染后端状态，不展示“已加速”或技术引擎选择；预览／导出已接 GLES 图块和从原图重做的 CPU 后备源码，共用模型与共享画框，尚未运行验证。实现与空间／颗粒近似见 [图像后端](mobile-film-rendering.md)。
 
 ## 设计资料
 

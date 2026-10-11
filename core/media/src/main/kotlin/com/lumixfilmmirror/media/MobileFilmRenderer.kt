@@ -20,21 +20,26 @@ internal object NativeMobileFilmBridge {
     external fun createTask(): Long
     external fun cancelTask(handle: Long)
     external fun releaseTask(handle: Long)
+    external fun releaseIdleGpu()
     external fun render(handle: Long, bitmap: Bitmap, tables: Array<FloatArray>, sizes: IntArray,
-        bounds: FloatArray, controls: FloatArray, sourceWidth: Int, sourceHeight: Int, seed: Long)
+        bounds: FloatArray, controls: FloatArray, sourceWidth: Int, sourceHeight: Int, seed: Long,
+        preferGpu: Boolean, modelKey: String)
 }
 
-/** Independent image backend; no reference-engine substitution on failure or partial output reuse. */
-internal class MobileFilmCpuEngine(private val models: MobileFilmModelLibrary) {
-    /** No persistent native pool; drain current work before callers discard model caches. */
+/** Native GPU errors require decoding a fresh input; cancellation and memory errors retain their type. */
+internal class MobileFilmGpuFailure(message: String) : Exception(message)
+
+/** CPU/GLES share one worker; EGL resources are only touched on their owning thread. */
+internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
+    /** Drain pending work before releasing GPU resources. Never load native code just to trim caches. */
     suspend fun awaitIdle() = withContext(NonCancellable) {
-        val finished = CompletableDeferred<Unit>()
-        executor.execute { finished.complete(Unit) }
-        finished.await()
+        val finished = CompletableDeferred<Result<Unit>>()
+        executor.execute { finished.complete(runCatching { if (nativeUsed) NativeMobileFilmBridge.releaseIdleGpu() }) }
+        finished.await().getOrThrow()
     }
 
-    suspend fun render(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize) {
-        check(NativeMobileFilmBridge.available) { "移动胶片原生 CPU 库不可用" }
+    suspend fun render(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize, preferGpu: Boolean) {
+        check(NativeMobileFilmBridge.available) { "移动胶片原生库不可用" }
         val model = models.load(plan.preset)
         coroutineContext.ensureActive()
         require(bitmap.isMutable && bitmap.config == Bitmap.Config.ARGB_8888) { "移动胶片输入需为可写 sRGB 位图" }
@@ -51,8 +56,10 @@ internal class MobileFilmCpuEngine(private val models: MobileFilmModelLibrary) {
             if (effect.grainActive) 1f else 0f, effect.particleAreaUm2,
             *effect.particleScale, *effect.densityFloor, *effect.grainUniformity,
             *effect.densityMaximum, *effect.halationStrength, *effect.halationSigmaUm, effect.filmFormatMm)
+        val modelKey = "${model.info.modelVersion}:${model.info.sourceCommit}:${model.info.stockId}:${model.info.printId}"
         val task = NativeMobileFilmBridge.createTask()
         check(task != 0L) { "无法建立移动胶片任务" }
+        nativeUsed = true
         val taskLock = Any()
         var released = false
         val finished = CompletableDeferred<Unit>()
@@ -64,7 +71,9 @@ internal class MobileFilmCpuEngine(private val models: MobileFilmModelLibrary) {
                 try {
                     executor.execute {
                         val result = runCatching { NativeMobileFilmBridge.render(task, bitmap, tables, sizes, bounds,
-                            controls, effectiveInput.width, effectiveInput.height, plan.grainSeed) }
+                            controls, effectiveInput.width, effectiveInput.height, plan.grainSeed,
+                            preferGpu && FilmEngine.canUseGpu(), modelKey) }
+                        if (result.exceptionOrNull() is MobileFilmGpuFailure) FilmEngine.disableGpuForProcess()
                         synchronized(taskLock) { NativeMobileFilmBridge.releaseTask(task); released = true }
                         finished.complete(Unit)
                         continuation.resumeWith(result)
@@ -82,6 +91,7 @@ internal class MobileFilmCpuEngine(private val models: MobileFilmModelLibrary) {
     }
 
     companion object {
+        @Volatile private var nativeUsed = false
         private val executor = Executors.newSingleThreadExecutor { job -> Thread(job, "lfm-mobile-film").apply { isDaemon = true } }
     }
 }

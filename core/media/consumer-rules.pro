@@ -4,3 +4,4 @@
 -keep class com.lumixfilmmirror.media.NativeFilmBridge { native <methods>; }
 -keep class com.lumixfilmmirror.media.NativeLutBridge { native <methods>; }
 -keep class com.lumixfilmmirror.media.NativeMobileFilmBridge { native <methods>; }
+-keep class com.lumixfilmmirror.media.MobileFilmGpuFailure { public <init>(java.lang.String); }

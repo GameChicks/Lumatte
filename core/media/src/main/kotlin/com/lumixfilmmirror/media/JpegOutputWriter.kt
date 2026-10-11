@@ -73,7 +73,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                 var pixels = decode(source, size)
                 try {
                     onStage(PhotoProcessingStage.RENDERING)
-                    film?.let { filmEngine.render(pixels, it, source.size) }
+                    film?.let { renderFilm(source, size, it, pixels) { fresh -> pixels = fresh } }
                     val renderContext = coroutineContext
                     lut?.render(pixels, source) { renderContext.ensureActive() }
                     if (frame.preset != FramePreset.NONE) {
@@ -125,9 +125,9 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         film: FilmRenderPlan?, checkActive: () -> Unit): Bitmap {
         require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
         checkActive()
-        val pixels = decode(source, size)
+        var pixels = decode(source, size)
         try {
-            film?.let { filmEngine.render(pixels, it, source.size) }
+            film?.let { renderFilm(source, size, it, pixels) { fresh -> pixels = fresh } }
             lut?.render(pixels, source, checkActive)
             checkActive()
             return pixels
@@ -137,6 +137,20 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
     internal fun framePreview(pixels: Bitmap, source: SourceImage, options: FrameOptions,
         layout: com.lumixfilmmirror.model.FrameLayout, stock: FilmPreset?, frameNumber: Int, checkActive: () -> Unit) =
         frames.render(pixels, source, options, layout, stock, frameNumber, checkActive)
+
+    /** GPU may have committed earlier tiles. CPU must start from the private immutable JPEG. */
+    private suspend fun renderFilm(source: SourceImage, size: PixelSize, plan: FilmRenderPlan,
+        initial: Bitmap, onReset: (Bitmap) -> Unit) {
+        try { filmEngine.render(initial, plan, source.size) }
+        catch (error: MobileFilmGpuFailure) {
+            coroutineContext.ensureActive()
+            filmEngine.disableGpu()
+            initial.recycle()
+            val fresh = decode(source, size)
+            onReset(fresh) // Transfer cleanup ownership before the next cancellable operation.
+            filmEngine.renderCpu(fresh, plan, source.size)
+        }
+    }
 
     private fun decode(source: SourceImage, size: PixelSize): Bitmap {
         val ratio = minOf(source.size.width.toFloat() / size.width, source.size.height.toFloat() / size.height)
