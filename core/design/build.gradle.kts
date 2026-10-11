@@ -18,5 +18,6 @@ dependencies {
     api(platform("androidx.compose:compose-bom:2025.10.00"))
     api("androidx.compose.material3:material3")
     api("androidx.compose.foundation:foundation")
+    api("androidx.compose.animation:animation")
     api("androidx.compose.ui:ui")
 }

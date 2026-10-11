@@ -148,7 +148,9 @@ class PhotoProcessor(context: Context) {
             lut = (recipe as? PhotoRecipe.Lut)?.let { luts.plan(it.parameters, catalogue.luts) },
             film = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed) },
             frame = frame, frameNumber = frameNumber,
-            onStage = onStage, onTargetCreated = onTargetCreated, onPublished = onPublished)
+            onStage = onStage, onTargetCreated = onTargetCreated, onPublished = onPublished,
+            preserveEmbeddedJpeg = recipe == PhotoRecipe.Original && output.dimensionPercent == 100 &&
+                output.compressionQuality == 100 && frame.preset == com.lumixfilmmirror.model.FramePreset.NONE)
 
     /** Complete composition preview. longEdge bounds the final canvas, including frame and text. */
     suspend fun previewExport(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,

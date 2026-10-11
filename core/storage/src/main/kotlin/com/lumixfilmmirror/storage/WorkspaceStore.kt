@@ -70,7 +70,7 @@ class WorkspaceStore(context: Context) {
         dao.saveFrameRecipe(BatchFrameRecipeRow(batchId, FrameOptionsCodec.write(frame)))
     suspend fun finish(task: TransferTask, photo: SourceImage, bytes: Long) = dao.finish(task.id, row(photo), bytes)
     suspend fun reserveVideo(task: TransferTask, uri: String, bytes: Long) = dao.reserveVideo(task.id, uri, bytes)
-    suspend fun finishVideo(task: TransferTask, uri: String, bytes: Long) = dao.finishVideo(task.id, uri, bytes)
+    suspend fun finishVideo(task: TransferTask, uri: String, bytes: Long) = dao.finishVideo(task.id, uri, bytes, System.currentTimeMillis())
     suspend fun batch(id: String): List<TransferTask> = dao.batch(id)
     suspend fun transferSnapshot(): List<TransferTask> = dao.transferSnapshot()
     suspend fun task(id: String): TransferTask? = dao.task(id)

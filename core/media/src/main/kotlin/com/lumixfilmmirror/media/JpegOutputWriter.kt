@@ -61,11 +61,22 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         frameNumber: Int = 1,
         onStage: suspend (PhotoProcessingStage) -> Unit = {},
         onTargetCreated: suspend (Uri) -> Unit = {},
-        onPublished: suspend (Uri) -> Unit = {}): Uri = withContext(Dispatchers.IO) {
+        onPublished: suspend (Uri) -> Unit = {},
+        preserveEmbeddedJpeg: Boolean = false): Uri = withContext(Dispatchers.IO) {
         JpegExportAccess.mutex.withLock {
             require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
             require(frameNumber > 0)
             onStage(PhotoProcessingStage.PREPARING)
+            if (preserveEmbeddedJpeg) {
+                require(lut == null && film == null && frame.preset == FramePreset.NONE && settings.dimensionPercent == 100)
+                coroutineContext.ensureActive()
+                val name = "LFM-original-${UUID.randomUUID()}.jpg"
+                onStage(PhotoProcessingStage.PUBLISHING)
+                return@withLock when (destination) {
+                    ExportDestination.Gallery -> publishGallery(source.jpeg, name, onTargetCreated, onPublished)
+                    is ExportDestination.Folder -> publishFolder(source, source.jpeg, name, destination.treeUri, onTargetCreated, onPublished)
+                }
+            }
             val size = settings.contentSize(source.size)
             val layout = FrameLayouts.plan(size, frame)
             val temp = cache.newTemporaryFile()

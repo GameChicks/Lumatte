@@ -10,7 +10,7 @@ import java.io.IOException
 /** Bounded software example images. Network content type alone is never sufficient. */
 internal object LutExampleDecoder {
     fun decode(bytes: ByteArray, longEdge: Int): Bitmap {
-        require(bytes.size in 1..(4 * 1024 * 1024) && longEdge in 64..384)
+        require(bytes.size in 1..(4 * 1024 * 1024) && longEdge in 64..1280)
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         if (bounds.outMimeType !in setOf("image/jpeg", "image/png", "image/webp") ||

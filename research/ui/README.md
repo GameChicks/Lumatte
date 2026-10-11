@@ -1,4 +1,6 @@
-# 前端参考资产（不加入应用构建）
+# 前端参考资产与副本来源
+
+2026-10-12：本轮用户重新直接要求实施正式 UI。指定字体与 Playfair / Dancing Script 的选定副本已经接入 core/design，参考原件仍保留。本轮副本清单为 fonts/app-font-manifest.json，原清单不改写；完整来源与许可状态见 ../../docs/design/assets.md。下文“未加入构建”是 2026-10-11 交接时的历史状态。
 
 用户 2026-10-11 指定字体，随后明确 UI 由另一个前端负责。字体从 Windows 字体登记解析到 `C:/Users/lenovo/AppData/Local/Microsoft/Windows/Fonts/`，仅复制指定文件；原件未修改。`fonts/font-manifest.json` 记录副本字节和 SHA-256。
 

@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             FilmMirrorTheme {
                 val workspace: WorkspaceViewModel = viewModel()
-                WorkspaceScreen(workspace)
+                MirrorScreen(workspace)
             }
         }
     }

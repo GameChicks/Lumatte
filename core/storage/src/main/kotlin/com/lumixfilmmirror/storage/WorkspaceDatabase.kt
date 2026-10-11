@@ -46,6 +46,7 @@ data class TransferTask(
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(defaultValue = "NULL") val savedUri: String? = null,
     @ColumnInfo(defaultValue = "NULL") val cameraAcknowledgement: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val completedAt: Long? = null,
 )
 
 enum class TransferState { QUEUED, RUNNING, DOWNLOADED, PUBLISHING, PAUSED, FAILED, IMPORTED, SAVED, CANCELLED }
@@ -202,8 +203,11 @@ internal abstract class WorkspaceDao {
     }
     @Query("UPDATE transfers SET savedUri = :uri, state = 'PUBLISHING', bytesReceived = :bytes, error = NULL WHERE id = :id AND state NOT IN ('IMPORTED', 'SAVED')")
     abstract suspend fun reserveVideo(id: String, uri: String, bytes: Long)
-    @Query("UPDATE transfers SET savedUri = :uri, state = 'SAVED', bytesReceived = :bytes, error = NULL WHERE id = :id AND state NOT IN ('IMPORTED', 'SAVED')")
-    abstract suspend fun finishVideo(id: String, uri: String, bytes: Long)
+    @Query("UPDATE transfers SET savedUri = :uri, state = 'SAVED', bytesReceived = :bytes, error = NULL, completedAt = :completedAt WHERE id = :id AND state NOT IN ('IMPORTED', 'SAVED')")
+    abstract suspend fun finishVideo(id: String, uri: String, bytes: Long, completedAt: Long)
+
+    @Query("UPDATE transfers SET completedAt = :completedAt WHERE id = :id AND state = 'IMPORTED' AND completedAt IS NULL")
+    abstract suspend fun markTransferCompleted(id: String, completedAt: Long)
 
     @Transaction
     open suspend fun finish(id: String, photo: PhotoRow, bytes: Long) {
@@ -212,12 +216,13 @@ internal abstract class WorkspaceDao {
         reserveProcessingPhoto(task.batchId, photo.id, task.ordinal.toLong())
         savePhoto(photo)
         checkpoint(id, "IMPORTED", bytes, null)
+        markTransferCompleted(id, System.currentTimeMillis())
     }
 }
 
 @Database(entities = [PhotoRow::class, TransferTask::class, IncomingTransfer::class,
     ProcessingBatchRow::class, ProcessingEntryRow::class, BatchLutRecipeRow::class, BatchEditRecipeRow::class,
-    BatchFrameRecipeRow::class, ExportRunRow::class, ExportItemRow::class], version = 8, exportSchema = true)
+    BatchFrameRecipeRow::class, ExportRunRow::class, ExportItemRow::class], version = 9, exportSchema = true)
 internal abstract class WorkspaceDatabase : RoomDatabase() {
     abstract fun workspace(): WorkspaceDao
     abstract fun exports(): ExportQueueDao
@@ -271,10 +276,15 @@ internal abstract class WorkspaceDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_export_items_photoId ON export_items(photoId)")
             }
         }
+        private val version8To9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transfers ADD COLUMN completedAt INTEGER DEFAULT NULL")
+            }
+        }
         @Volatile private var instance: WorkspaceDatabase? = null
         fun get(context: Context): WorkspaceDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, WorkspaceDatabase::class.java,
-                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4, version4To5, version5To6, version6To7, version7To8).build().also { instance = it }
+                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4, version4To5, version5To6, version6To7, version7To8, version8To9).build().also { instance = it }
         }
     }
 }

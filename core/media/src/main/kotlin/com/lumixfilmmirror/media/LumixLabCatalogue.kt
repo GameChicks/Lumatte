@@ -98,7 +98,7 @@ class LumixLabCatalogueClient {
 
     /** The creator's uploaded thumbnail, never the user's own LUT-processed photo. No disk cache yet. */
     suspend fun example(lut: LumixLabLut, longEdge: Int = 320): LumixLabExample {
-        require(longEdge in 64..384) { "创作者例图长边需在 64～384 像素之间" }
+        require(longEdge in 64..1280) { "创作者例图长边需在 64～1280 像素之间" }
         val code = field(lut.code)
         val path = lut.thumbnail?.path ?: throw LumixLabProtocolException("该 LUT 没有创作者例图")
         // Recovered callers prepend the official origin to root-relative paths. Never guess another CDN.
@@ -130,6 +130,20 @@ class LumixLabCatalogueClient {
     private fun field(value: String): String {
         require(value.isNotBlank() && value.length <= 256 && value.none { it.code < 32 }) { "目录筛选值无效" }
         return value
+    }
+
+    suspend fun creatorAvatar(creator: LumixLabCreator): Bitmap? {
+        val path = creator.icon?.path ?: return null
+        require(path.length <= 4096 && path.none { it.code < 32 })
+        val url = ORIGIN.resolve(path) ?: throw LumixLabProtocolException("头像地址无效")
+        require(url.scheme == "https" && url.host == HOST && url.port == 443 &&
+            url.username.isEmpty() && url.password.isEmpty() && url.fragment == null &&
+            (path.startsWith("/") || path.startsWith("https://"))) { "头像不属于官方 HTTPS 来源" }
+        return exampleGate.withPermit {
+            val bytes = responseBytes(Request.Builder().url(url).header("Accept", "image/*").get().build(),
+                MAX_IMAGE, ResponseKind.IMAGE)
+            withContext(Dispatchers.Default) { LutExampleDecoder.decode(bytes, 96) }
+        }
     }
 
     /** Only the confirmed grid17 download. ZIP decoding never writes server-selected file paths. */

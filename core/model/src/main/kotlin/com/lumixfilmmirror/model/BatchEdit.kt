@@ -5,7 +5,7 @@ value class PhotoId(val value: String)
 
 enum class FilmBatchMode { INDIVIDUAL, FIRST_PHOTO }
 enum class DiffusionGrade(val strength: Float) { OFF(0f), EIGHTH(.125f), QUARTER(.25f), HALF(.5f) }
-enum class PhotoTreatment { LUT, FILM }
+enum class PhotoTreatment { LUT, FILM, ORIGINAL }
 
 /** Three public controls; exposure uses one EV and professional settings stay inside the engine. */
 data class FilmParameters(

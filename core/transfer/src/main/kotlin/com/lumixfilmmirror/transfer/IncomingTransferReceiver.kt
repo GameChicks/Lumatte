@@ -10,7 +10,7 @@ class IncomingTransferReceiver(private val store: WorkspaceStore, private val fi
     suspend fun run(id: String, session: LumixCameraSession,
         onCount: (Int) -> Unit = {},
         onPhase: (TransferTask, TransferPhase) -> Unit = { _, _ -> },
-        onProgress: (TransferTask, DownloadProgress) -> Unit = {},
+        onProgress: (TransferTask, DownloadProgress) -> Unit = { _, _ -> },
         awaitNext: (suspend () -> Unit)? = null,
         onWaiting: (Boolean) -> Unit = {}): TransferResult {
         try {

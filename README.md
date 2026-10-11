@@ -2,7 +2,7 @@
 
 面向松下相机的 Android 照片传输、胶片模拟、LUT 和画框导出应用。
 
-当前按用户最新要求优先完善影像功能，UI 由用户另找前端。双 LUT、10 款用户内置及本地导入已接入；胶片光谱 C++／Vulkan、统一曝光／Halation／黑柔、逐张／首张继承、处理阶段和批次配方已接入源码。11 项含无框的共享画框绘制、导出构图预览、自定义装饰／字体与 Room 7 配置也已接入，通过独立 PhotoProcessor 交给前端。原生引擎、画框实际渲染与移动端性能尚无编译／运行证据；黑白模型等仍需继续。历史恢复及新代码不等于应用已运行；未经要求不测试、不打包。见 [前端接口交接](docs/engineering/frontend-contract.md)、[画框功能](docs/engineering/frame-export.md)。
+2026-10-12 按本轮需求接入正式四入口 UI：连接、Film、LUT、水印。相机卡、多机手势、圆点用量与记录、胶卷惯性与停留详情、拍立得分类 / 收藏 / 双 LUT、一次显影反转及 11 项含无框的共享画框均已接到现有接口。完整规则见 [设计规范](docs/design/specification.md)，当前证据与运行边界见 [实现记录](docs/design/implementation.md)。源码接入和编译不等于原生图像、动画、性能或相机兼容已运行验证；本轮不运行测试或打包。
 
 - `docs/product/`：已确认的交互与产品规则。
 - `research/filmtool/`：自有 Film Companion 的来源索引、恢复源码及报告；不加入应用构建。
@@ -12,15 +12,17 @@
 - `app/`：Android 应用入口、系统浅／深色轻拟物工作台和传输界面。
 - `app/src/main/assets/luts/`：用户提供的内置 LUT 副本；原始 `lut/` 保留为本机输入目录，不重复加入 Git。
 - `research/third-party-sync/`：第三方 Sync APK 分析记录与协议常量；不加入构建。
-- `research/ui/`：指定字体副本和前端参考记录；不加入构建。
-- `third_party/spektralab/`、`native/film/`：固定原生光谱参考、许可与 Android 适配，尚未编译。
-- `native/lut/`：原生 CPU 双 LUT 扫描行与取消适配，保持 Kotlin 后备；效果预览 LRU 和后台清理见 [手机优化源码](docs/engineering/mobile-processing.md)，尚未编译或测量。
+- `research/ui/`：指定字体来源、哈希与前端参考记录；应用使用 core/design 中的独立副本。
+- `third_party/spektralab/`、`native/film/`：固定原生光谱参考、许可与 Android 适配；原型构建记录见 [首包记录](docs/engineering/prototype-package.md)，运行效果未验证。
+- `native/lut/`：原生 CPU 双 LUT 扫描行与取消适配，保持 Kotlin 后备；效果预览 LRU 和后台清理见 [手机优化源码](docs/engineering/mobile-processing.md)，实际速度未测量。
 - `docs/protocol/`：协议依据、范围及逐机型状态。
-- `dist/`：后续原型 APK 和打包交付附属文件；当前只有目录说明，未打包。需要模拟器验证时，镜像、AVD 与运行数据安排在 D 盘。
+- `dist/`：原型 APK、源码编译日志和交付附属文件；已有首包见 [首包记录](docs/engineering/prototype-package.md)。本轮新 UI 没有重新打包。需要模拟器验证时，镜像、AVD 与运行数据安排在 D 盘。
 
 批量规则、RAW 内嵌 JPEG、导出尺寸及系统主题见 [产品决策](docs/product/decisions.md)。
 
 相机范围不包含实时取景、遥控拍摄或参数控制。当前实施进展与剩余任务见 [实施状态](docs/engineering/progress.md)。
+
+以下为此前各功能接入时的历史记录；其中“未编译”描述当时状态。当前四入口 UI 和源码编译状态以 [实现记录](docs/design/implementation.md) 为准，原型包装以 [首包记录](docs/engineering/prototype-package.md) 为准。运行与机型兼容尚未据本轮验证。
 
 手动连接相机 Wi-Fi 已有 WPA2／WPA3／无密码选项，按类型校验输入并检查手机 SAE 能力。蓝牙连接继续沿用原有默认类型；详见 [安全类型](docs/engineering/wifi-security.md)。源码尚未以设备验证。
 

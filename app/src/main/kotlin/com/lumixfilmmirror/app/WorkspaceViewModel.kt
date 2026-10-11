@@ -170,7 +170,41 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private var creatingExport = false
     val cameraState = camera.cameraState
 
+    private val personalStore = MirrorPreferences(application)
+    private val personalMutable = MutableStateFlow(MirrorPersonalState())
+    val personal = personalMutable.asStateFlow()
+    private val personalSaveGate = kotlinx.coroutines.sync.Mutex()
+    private var personalReady = false
+
+    fun updatePersonal(change: (MirrorPersonalState) -> MirrorPersonalState) {
+        if (!personalReady) return
+        personalMutable.update(change)
+        viewModelScope.launch {
+            personalSaveGate.lock()
+            try { personalStore.save(personalMutable.value) }
+            catch (error: Exception) { notice(error.message ?: "个人设置未保存") }
+            finally { personalSaveGate.unlock() }
+        }
+    }
+
+    fun toggleFavourite(id: String) = updatePersonal { current ->
+        current.copy(favourites = if (id in current.favourites) current.favourites - id else current.favourites + id)
+    }
+
+    fun forgetCamera(id: String) = updatePersonal { it.copy(cameras = it.cameras.filterNot { camera -> camera.id == id }) }
+
     init {
+        viewModelScope.launch {
+            try { personalMutable.value = personalStore.read(); personalReady = true }
+            catch (error: Exception) { notice("个人设置读取失败，保留原记录：${error.message}"); return@launch }
+            cameraState.collect { state ->
+                state.device?.takeIf { state.connected }?.let { device ->
+                    val remembered = RememberedCamera(device.rememberedIdentity(), device.model, device.friendlyName)
+                    if (personalMutable.value.cameras.none { it.id == remembered.id })
+                        updatePersonal { it.copy(cameras = it.cameras + remembered) }
+                }
+            }
+        }
         viewModelScope.launch {
             exportExecution.collect { execution ->
                 mutable.update { previous ->
@@ -314,6 +348,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun notice(message: String) { mutable.update { it.copy(notice = message) } }
+    fun clearNotice() { mutable.update { it.copy(notice = null) } }
 
     fun lutPlan(recipe: LutRecipe, assets: List<LutAsset>) = processor.lutPlan(recipe, assets)
 
@@ -324,7 +359,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun photoRecipe(snapshot: WorkspaceState, id: PhotoId, original: Boolean = false): PhotoRecipe {
         require(snapshot.photos.any { it.id == id }) { "照片不在当前批次中" }
-        if (original) return PhotoRecipe.Original
+        if (original || snapshot.treatment == PhotoTreatment.ORIGINAL) return PhotoRecipe.Original
         return if (snapshot.treatment == PhotoTreatment.LUT) PhotoRecipe.Lut(snapshot.lutRecipe)
         else {
             val batch = requireNotNull(snapshot.filmBatch) { "请先选择胶卷" }
@@ -603,9 +638,9 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun importImages(uris: List<Uri>) {
+    fun importImages(uris: List<Uri>, newBatch: Boolean = false) {
         if (mutable.value.busy || camera.cameraState.value.busy || uris.isEmpty()) return
-        val currentBatch = mutable.value.processingBatch?.id
+        val currentBatch = mutable.value.processingBatch?.id?.takeUnless { newBatch }
         mutable.update { it.copy(importing = true, failures = emptyList(), notice = null) }
         viewModelScope.launch {
             try {

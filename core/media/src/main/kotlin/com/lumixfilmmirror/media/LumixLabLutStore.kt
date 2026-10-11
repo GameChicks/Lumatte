@@ -18,7 +18,7 @@ import kotlin.coroutines.coroutineContext
 /** Source information is retained with the LUT. No redistribution license is inferred from availability. */
 data class LumixLabLutSource(val code: String, val title: String, val creatorCode: String?, val creatorName: String?,
     val overview: String?, val locale: String?, val photoStyle: String?, val grid17File: String,
-    val cubeSha256: String)
+    val cubeSha256: String, val thumbnailPath: String? = null, val creatorAvatarPath: String? = null)
 
 /** One atomic container: metadata and parsed table cannot be committed separately. */
 internal class LumixLabLutStore(private val root: File) {
@@ -59,11 +59,12 @@ internal class LumixLabLutStore(private val root: File) {
         require(table.nativeData.oneSize == 0 && table.nativeData.threeSize == 17) { "下载文件并非已确认的 grid17 三维 LUT" }
         val source = LumixLabLutSource(detail.lut.code, detail.lut.title,
             detail.lut.creator?.code, detail.lut.creator?.name, detail.overview, detail.locale, detail.photoStyle,
-            requireNotNull(detail.grid17), hash(cube))
+            requireNotNull(detail.grid17), hash(cube), detail.lut.thumbnail?.path, detail.lut.creator?.icon?.path)
         val json = JSONObject().put("code", source.code).put("title", source.title)
             .put("creatorCode", source.creatorCode).put("creatorName", source.creatorName)
             .put("overview", source.overview).put("locale", source.locale).put("photoStyle", source.photoStyle)
             .put("grid17File", source.grid17File).put("cubeSha256", source.cubeSha256)
+            .put("thumbnailPath", source.thumbnailPath).put("creatorAvatarPath", source.creatorAvatarPath)
         val metadata = json.toString().toByteArray(Charsets.UTF_8)
         require(metadata.size in 1..MAX_METADATA) { "官方 LUT 来源记录过大" }
         val id = assetId(source)
@@ -96,7 +97,8 @@ internal class LumixLabLutStore(private val root: File) {
         require(HASH.matches(hash))
         return LumixLabLutSource(requireNotNull(field("code", 256, true)), requireNotNull(field("title", 1024, true)),
             field("creatorCode", 256), field("creatorName", 1024), field("overview", 32 * 1024),
-            field("locale", 256), field("photoStyle", 256), requireNotNull(field("grid17File", 4096, true)), hash)
+            field("locale", 256), field("photoStyle", 256), requireNotNull(field("grid17File", 4096, true)), hash,
+            field("thumbnailPath", 4096), field("creatorAvatarPath", 4096))
     }
 
     private fun assetId(source: LumixLabLutSource) = "lab-" + hash((source.code + "\u0000grid17\u0000" + source.cubeSha256).toByteArray(Charsets.UTF_8))

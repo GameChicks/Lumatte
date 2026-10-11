@@ -67,6 +67,6 @@ fun FilmMirrorTheme(
         outline = tones.rim,
     )
     CompositionLocalProvider(LocalFilmMaterials provides tones) {
-        MaterialTheme(colorScheme = scheme, content = content)
+        MaterialTheme(colorScheme = scheme, typography = MirrorTypography, content = content)
     }
 }

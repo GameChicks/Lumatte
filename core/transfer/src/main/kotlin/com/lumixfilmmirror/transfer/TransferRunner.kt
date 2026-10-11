@@ -24,7 +24,7 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
     private val videoPublisher: VideoPublisher) {
     suspend fun run(batchId: String, session: LumixCameraSession?,
         onPhase: (TransferTask, TransferPhase) -> Unit = { _, _ -> },
-        onProgress: (TransferTask, DownloadProgress) -> Unit = {}): TransferResult {
+        onProgress: (TransferTask, DownloadProgress) -> Unit = { _, _ -> }): TransferResult {
         check(store.incoming(batchId) == null && session?.accessMode?.incoming != true) {
             "待发送任务必须通过接收器执行，不能跳过相机确认记录"
         }
