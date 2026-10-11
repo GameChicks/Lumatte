@@ -35,11 +35,12 @@ sealed interface ExportDestination {
 }
 
 /** Shared by local import and future camera/engine output. Default dimensions are never capped. */
-class JpegOutputWriter(context: Context) {
+class JpegOutputWriter internal constructor(context: Context, models: MobileFilmModelLibrary) {
+    constructor(context: Context) : this(context, MobileFilmModelLibrary(context))
     private val context = context.applicationContext
     private val cache = JpegExportCache(this.context)
     private val folderJournal = SafExportJournal(this.context)
-    private val filmEngine = FilmEngine(this.context)
+    private val filmEngine = FilmEngine(models)
     private val frames = FrameRenderer(this.context)
     val frameAssets get() = frames.assets
     internal suspend fun releaseIdleFilmEngine() = filmEngine.releaseIdleEngine()
@@ -72,7 +73,7 @@ class JpegOutputWriter(context: Context) {
                 var pixels = decode(source, size)
                 try {
                     onStage(PhotoProcessingStage.RENDERING)
-                    film?.let { filmEngine.render(pixels, it) }
+                    film?.let { filmEngine.render(pixels, it, source.size) }
                     val renderContext = coroutineContext
                     lut?.render(pixels, source) { renderContext.ensureActive() }
                     if (frame.preset != FramePreset.NONE) {
@@ -126,7 +127,7 @@ class JpegOutputWriter(context: Context) {
         checkActive()
         val pixels = decode(source, size)
         try {
-            film?.let { filmEngine.render(pixels, it) }
+            film?.let { filmEngine.render(pixels, it, source.size) }
             lut?.render(pixels, source, checkActive)
             checkActive()
             return pixels

@@ -48,3 +48,5 @@
 最新用户明确允许比较其他算法，并把最终性能／效果平衡选型交给开发方。已完成固定源码结构研究，新移动主路线选择 spektrafilm 模型来源、密度域预计算、有界空间处理，主要参考 Filmify，不直接采用 Phos／Phos_refactor 替换胶卷色彩模型。新后端、数据包、GLES 分块和 CPU 后备尚未接入；现有 Vulkan 继续参考与当前执行，新增分段 staging／128 线程组源码不当作性能达标。详细依据见 [算法选型](../engineering/film-algorithm-selection.md)。
 
 后续已生产 20 个独立三阶段数据包，并实现模型读取／4 MiB 缓存和 CPU 色彩核源码。v1 将曲线与局部 DIR 耦合一同烘入显影表，空间 DIR 暂省略；Halation、黑柔和密度颗粒仍待运行时接入，不能只用无空间的色彩核冒充完整手机胶片效果。当前默认 Vulkan 未切换，实际差异／误差／耗时仍未核对。见 [移动模型](../engineering/mobile-film-models.md)。
+
+最新已接入原生 CPU 全照片处理、有界空间场、黑柔／Halation 与近似密度颗粒，默认预览／导出转向移动模型链，完整 Vulkan 独立保留参考。Halation 开关关闭不留高亮 boost，开启采用候选艺术强度下限；没有照片证据证明夜景开关差异达标，也没有三档黑柔对照。颗粒采用密度相关方差与相关噪声近似，省略精确粒子抽样和子层，不称与桌面相等。GLES 与实际效果／性能仍需继续，见 [图像后端](../engineering/mobile-film-rendering.md)。

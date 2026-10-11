@@ -33,7 +33,7 @@ class PhotoProcessor(context: Context) {
     private val previewCache = EffectPreviewCache()
     private val trimScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var trimJob: Job? = null
-    val writer = JpegOutputWriter(context)
+    val writer = JpegOutputWriter(context, mobileFilmModels)
 
     suspend fun loadCatalogue(): ProcessingCatalogue {
         val library = luts.load()
@@ -46,6 +46,7 @@ class PhotoProcessor(context: Context) {
     fun exportLayout(source: SourceImage, options: BatchExportOptions) =
         FrameLayouts.plan(options.jpeg.contentSize(source.size), options.frame)
     fun lutBackend(): LutBackend = NativeLutRenderer.backend()
+    fun filmBackend(): FilmBackend = FilmBackend.MOBILE_NATIVE_CPU
     /** Packaged model data and its cache only; this does not switch or initialize the film backend. */
     suspend fun mobileFilmModelsInfo(): MobileFilmModelsInfo = mobileFilmModels.info()
     suspend fun previewCacheInfo(): PreviewCacheInfo = previewGate.withPermit { previewCache.info() }
@@ -53,8 +54,8 @@ class PhotoProcessor(context: Context) {
     /** Releases discardable preview/GPU caches after current work, leaving recipes and output intact. */
     suspend fun clearProcessingCaches() = previewGate.withPermit {
         previewCache.clear()
-        mobileFilmModels.clear()
         writer.releaseIdleFilmEngine()
+        mobileFilmModels.clear()
     }
     /** Coalesced, nonblocking application memory callback. Never clears a borrowed/in-flight image. */
     @Synchronized fun requestMemoryTrim() {

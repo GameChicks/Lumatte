@@ -12,10 +12,18 @@ data class MobileFilmModelsInfo(val models: List<MobileFilmModelInfo>, val probl
     val cachedModels: Int, val cachedTableBytes: Long, val cacheBudgetBytes: Long)
 
 internal data class FilmTableDomain(val minimum: FloatArray, val maximum: FloatArray)
+/** Borrowed immutable arrays: only the native bridge copies them; never mutate in Kotlin. */
+internal data class NativeFilmStage(val size: Int, val values: FloatArray, val minimum: FloatArray, val maximum: FloatArray)
+
+internal data class MobileFilmEffects(val grainActive: Boolean, val particleAreaUm2: Float,
+    val particleScale: FloatArray, val densityFloor: FloatArray, val grainUniformity: FloatArray,
+    val densityMaximum: FloatArray, val halationStrength: FloatArray, val halationSigmaUm: FloatArray,
+    val filmFormatMm: Float)
 
 /** Immutable after loading. Caller-owned output avoids per-pixel arrays and shared scratch state. */
 internal class FilmStageTable(val size: Int, private val domain: FilmTableDomain, private val values: FloatArray) {
     val bytes: Long get() = values.size.toLong() * Float.SIZE_BYTES
+    internal val nativeData get() = NativeFilmStage(size, values, domain.minimum, domain.maximum)
 
     fun sample(first: Float, second: Float, third: Float, output: FloatArray) {
         fun coordinate(value: Float, channel: Int): Float {
@@ -45,7 +53,7 @@ internal class FilmStageTable(val size: Int, private val domain: FilmTableDomain
 }
 
 internal class MobileFilmModel(val info: MobileFilmModelInfo, val response: FilmStageTable,
-    val development: FilmStageTable, val scan: FilmStageTable)
+    val development: FilmStageTable, val scan: FilmStageTable, val effects: MobileFilmEffects)
 
 /** Colour stages for the matching CPU backend. Spatial effects/grain must be supplied separately. */
 internal class MobileFilmColourKernel(private val model: MobileFilmModel, exposureEv: Float) {

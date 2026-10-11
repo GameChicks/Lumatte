@@ -1,0 +1,298 @@
+#pragma once
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <functional>
+#include <stdexcept>
+#include <vector>
+
+namespace lfm::mobile {
+using Colour = std::array<float, 3>;
+using Check = std::function<void()>;
+struct Image { uint8_t* pixels; uint32_t width, height, stride; };
+struct Table {
+    int size;
+    Colour minimum, maximum;
+    std::vector<float> values;
+    Colour sample(Colour input) const {
+        int lo[3], hi[3]; float mix[3];
+        for (int c = 0; c < 3; ++c) {
+            if (!std::isfinite(input[c])) throw std::runtime_error("Non-finite film stage input");
+            const float p = std::clamp((input[c] - minimum[c]) / (maximum[c] - minimum[c]), 0.f, 1.f) * (size - 1);
+            lo[c] = int(p); hi[c] = std::min(lo[c] + 1, size - 1); mix[c] = p - lo[c];
+        }
+        auto index = [&](int x, int y, int z) { return size_t(x + size * (y + size * z)) * 3; };
+        const size_t a = index(lo[0], lo[1], lo[2]), b = index(hi[0], lo[1], lo[2]);
+        const size_t c = index(lo[0], hi[1], lo[2]), d = index(hi[0], hi[1], lo[2]);
+        const size_t e = index(lo[0], lo[1], hi[2]), f = index(hi[0], lo[1], hi[2]);
+        const size_t g = index(lo[0], hi[1], hi[2]), h = index(hi[0], hi[1], hi[2]);
+        Colour out{};
+        for (int ch = 0; ch < 3; ++ch) {
+            const float low = (values[a + ch] * (1 - mix[0]) + values[b + ch] * mix[0]) * (1 - mix[1]) +
+                (values[c + ch] * (1 - mix[0]) + values[d + ch] * mix[0]) * mix[1];
+            const float high = (values[e + ch] * (1 - mix[0]) + values[f + ch] * mix[0]) * (1 - mix[1]) +
+                (values[g + ch] * (1 - mix[0]) + values[h + ch] * mix[0]) * mix[1];
+            out[ch] = low * (1 - mix[2]) + high * mix[2];
+        }
+        return out;
+    }
+};
+struct Model { Table response, development, scan; };
+struct Effects {
+    float diffusion, exposure_gain;
+    bool halation, grain;
+    float particle_area, format_mm;
+    Colour particle_scale, floor, uniformity, density_max, halation_strength, halation_sigma_um;
+};
+
+inline float decode(float value) { return value <= .04045f ? value / 12.92f : std::pow((value + .055f) / 1.055f, 2.4f); }
+inline float encode(float value) { return value <= .0031308f ? value * 12.92f : 1.055f * std::pow(value, 1.f / 2.4f) - .055f; }
+inline float luminance(const Colour& rgb) { return .2126f * rgb[0] + .7152f * rgb[1] + .0722f * rgb[2]; }
+inline Colour read_linear(const uint8_t* pixel, const std::array<float, 256>& decode_lut) {
+    return {decode_lut[pixel[0]], decode_lut[pixel[1]], decode_lut[pixel[2]]};
+}
+
+struct Field {
+    uint32_t width = 0, height = 0;
+    std::vector<float> values;
+    Field() = default;
+    Field(uint32_t w, uint32_t h) : width(w), height(h), values(size_t(w) * h * 3) {}
+    Colour sample(uint32_t x, uint32_t y, const Image& image) const {
+        if (values.empty()) return {};
+        const float px = std::clamp((float(x) + .5f) * width / image.width - .5f, 0.f, float(width - 1));
+        const float py = std::clamp((float(y) + .5f) * height / image.height - .5f, 0.f, float(height - 1));
+        const uint32_t x0 = uint32_t(px), y0 = uint32_t(py), x1 = std::min(x0 + 1, width - 1), y1 = std::min(y0 + 1, height - 1);
+        const float fx = px - x0, fy = py - y0;
+        const size_t a = (size_t(y0) * width + x0) * 3, b = (size_t(y0) * width + x1) * 3;
+        const size_t c = (size_t(y1) * width + x0) * 3, d = (size_t(y1) * width + x1) * 3;
+        Colour output{};
+        for (int ch = 0; ch < 3; ++ch)
+            output[ch] = (values[a + ch] * (1 - fx) + values[b + ch] * fx) * (1 - fy) +
+                (values[c + ch] * (1 - fx) + values[d + ch] * fx) * fy;
+        return output;
+    }
+};
+
+inline Field gaussian(const Field& source, Colour sigmas, const Check& check) {
+    Field horizontal(source.width, source.height), output(source.width, source.height);
+    std::array<std::vector<float>, 3> weights;
+    int radius[3];
+    for (int c = 0; c < 3; ++c) {
+        const float sigma = std::clamp(sigmas[c], .1f, 24.f);
+        radius[c] = int(std::ceil(sigma * 3));
+        weights[c].resize(size_t(radius[c] * 2 + 1));
+        double sum = 0;
+        for (int i = -radius[c]; i <= radius[c]; ++i) {
+            float& weight = weights[c][size_t(i + radius[c])];
+            weight = std::exp(-.5f * i * i / (sigma * sigma)); sum += weight;
+        }
+        for (float& weight : weights[c]) weight = float(weight / sum);
+    }
+    for (uint32_t y = 0; y < source.height; ++y) {
+        check();
+        for (uint32_t x = 0; x < source.width; ++x) for (int c = 0; c < 3; ++c) {
+            double sum = 0;
+            for (int offset = -radius[c]; offset <= radius[c]; ++offset) {
+                const uint32_t sx = uint32_t(std::clamp(int(x) + offset, 0, int(source.width) - 1));
+                sum += source.values[(size_t(y) * source.width + sx) * 3 + c] * weights[c][size_t(offset + radius[c])];
+            }
+            horizontal.values[(size_t(y) * source.width + x) * 3 + c] = float(sum);
+        }
+    }
+    for (uint32_t y = 0; y < source.height; ++y) {
+        check();
+        for (uint32_t x = 0; x < source.width; ++x) for (int c = 0; c < 3; ++c) {
+            double sum = 0;
+            for (int offset = -radius[c]; offset <= radius[c]; ++offset) {
+                const uint32_t sy = uint32_t(std::clamp(int(y) + offset, 0, int(source.height) - 1));
+                sum += horizontal.values[(size_t(sy) * source.width + x) * 3 + c] * weights[c][size_t(offset + radius[c])];
+            }
+            output.values[(size_t(y) * source.width + x) * 3 + c] = float(sum);
+        }
+    }
+    return output;
+}
+
+struct Spatial { Field lens, halation; float softness = 0; };
+inline Colour lens_colour(Colour linear, const Colour& glow, float softness) {
+    for (int c = 0; c < 3; ++c) linear[c] = std::clamp(linear[c] * (1 - softness) + glow[c], 0.f, 1.f);
+    return linear;
+}
+inline Colour film_response(const Model& model, Colour linear) {
+    for (float& c : linear) c = std::clamp(encode(c), 0.f, 1.f);
+    return model.response.sample(linear);
+}
+
+inline Spatial prepare_spatial(const Image& image, const Model& model, const Effects& effects,
+                               const std::array<float, 256>& decode_lut, const Check& check) {
+    Spatial spatial;
+    if (effects.diffusion == 0 && !effects.halation) return spatial;
+    const double scale = std::min(1.0, 512.0 / std::max(image.width, image.height));
+    const uint32_t w = std::min(512u, std::max(1u, uint32_t(std::ceil(image.width * scale))));
+    const uint32_t h = std::min(512u, std::max(1u, uint32_t(std::ceil(image.height * scale))));
+    float peak = 0;
+    // Analysis precedes all output mutation. Each source pixel belongs to exactly one cell.
+    if (effects.diffusion > 0) {
+        Field light(w, h), highlights(w, h);
+        for (uint32_t gy = 0; gy < h; ++gy) {
+            check();
+            const uint32_t y0 = uint32_t(uint64_t(gy) * image.height / h), y1 = uint32_t(uint64_t(gy + 1) * image.height / h);
+            for (uint32_t gx = 0; gx < w; ++gx) {
+                const uint32_t x0 = uint32_t(uint64_t(gx) * image.width / w), x1 = uint32_t(uint64_t(gx + 1) * image.width / w);
+                double sum[3]{}, high[3]{};
+                for (uint32_t y = y0; y < y1; ++y) {
+                    check();
+                    const uint8_t* row = image.pixels + size_t(y) * image.stride;
+                    for (uint32_t x = x0; x < x1; ++x) {
+                        if ((x & 1023u) == 0) check();
+                        const Colour rgb = read_linear(row + size_t(x) * 4, decode_lut);
+                        peak = std::max(peak, luminance(rgb));
+                        for (int c = 0; c < 3; ++c) { sum[c] += rgb[c]; high[c] += std::max(rgb[c] - .18f, 0.f); }
+                    }
+                }
+                const double count = double(x1 - x0) * (y1 - y0);
+                for (int c = 0; c < 3; ++c) {
+                    const size_t index = (size_t(gy) * w + gx) * 3 + c;
+                    light.values[index] = float(sum[c] / count); highlights.values[index] = float(high[c] / count);
+                }
+            }
+        }
+        spatial.softness = effects.diffusion * .15f;
+        spatial.lens = gaussian(light, {.75f, .75f, .75f}, check);
+        for (float& value : spatial.lens.values) value *= spatial.softness;
+        for (const auto [sigma, weight] : std::array<std::array<float, 2>, 2>{{{3.5f, .22f}, {10.f, .10f}}}) {
+            const Field blurred = gaussian(highlights, {sigma, sigma, sigma}, check);
+            for (size_t i = 0; i < blurred.values.size(); ++i) {
+                if ((i & 16383u) == 0) check();
+                spatial.lens.values[i] += effects.diffusion * weight * blurred.values[i];
+            }
+        }
+    } else {
+        for (uint32_t y = 0; y < image.height; ++y) {
+            check();
+            const uint8_t* row = image.pixels + size_t(y) * image.stride;
+            for (uint32_t x = 0; x < image.width; ++x) {
+                if ((x & 1023u) == 0) check();
+                peak = std::max(peak, luminance(read_linear(row + size_t(x) * 4, decode_lut)));
+            }
+        }
+    }
+    if (!effects.halation) return spatial;
+    Field emitters(w, h);
+    const float threshold = std::max(.06f, peak * .55f);
+    const float span = std::max(.04f, peak - threshold);
+    for (uint32_t gy = 0; gy < h; ++gy) {
+        check();
+        const uint32_t y0 = uint32_t(uint64_t(gy) * image.height / h), y1 = uint32_t(uint64_t(gy + 1) * image.height / h);
+        for (uint32_t gx = 0; gx < w; ++gx) {
+            const uint32_t x0 = uint32_t(uint64_t(gx) * image.width / w), x1 = uint32_t(uint64_t(gx + 1) * image.width / w);
+            double sum[3]{};
+            for (uint32_t y = y0; y < y1; ++y) {
+                check();
+                const uint8_t* row = image.pixels + size_t(y) * image.stride;
+                for (uint32_t x = x0; x < x1; ++x) {
+                    if ((x & 1023u) == 0) check();
+                    const Colour linear = lens_colour(read_linear(row + size_t(x) * 4, decode_lut),
+                                                      spatial.lens.sample(x, y, image), spatial.softness);
+                    float mask = std::clamp((luminance(linear) - threshold) / span, 0.f, 1.f);
+                    mask = mask * mask * (3 - 2 * mask);
+                    if (mask > 0) {
+                        const uint8_t* pixel = row + size_t(x) * 4;
+                        const Colour raw = effects.diffusion == 0 ? model.response.sample({pixel[0] / 255.f, pixel[1] / 255.f, pixel[2] / 255.f}) :
+                            film_response(model, linear);
+                        for (int c = 0; c < 3; ++c) sum[c] += raw[c] * mask;
+                    }
+                }
+            }
+            const double count = double(x1 - x0) * (y1 - y0);
+            for (int c = 0; c < 3; ++c) emitters.values[(size_t(gy) * w + gx) * 3 + c] = float(sum[c] / count);
+        }
+    }
+    // Broad minus core creates a surrounding halo without an independent high-light boost.
+    const Field core = gaussian(emitters, {.55f, .55f, .55f}, check);
+    Colour sigma{}, tail{}, strength{};
+    constexpr Colour visible_floor{.10f, .025f, .003f};
+    for (int c = 0; c < 3; ++c) {
+        sigma[c] = std::max(1.2f, effects.halation_sigma_um[c] * std::max(w, h) / (effects.format_mm * 1000));
+        tail[c] = sigma[c] * 2.25f;
+        strength[c] = std::max(visible_floor[c], effects.halation_strength[c] * 2.f);
+    }
+    spatial.halation = gaussian(emitters, sigma, check);
+    for (float& value : spatial.halation.values) value *= .7f;
+    {
+        const Field broad = gaussian(emitters, tail, check);
+        for (size_t i = 0; i < broad.values.size(); ++i) {
+            if ((i & 16383u) == 0) check();
+            spatial.halation.values[i] = std::max(0.f, spatial.halation.values[i] + .3f * broad.values[i] - core.values[i]) * strength[i % 3];
+        }
+    }
+    return spatial;
+}
+
+inline uint32_t hash(uint32_t value) {
+    value = (value ^ (value >> 16)) * 0x85ebca6bu;
+    value = (value ^ (value >> 13)) * 0xc2b2ae35u;
+    return value ^ (value >> 16);
+}
+inline float normal_at(int64_t x, int64_t y, uint32_t seed, uint32_t salt) {
+    uint32_t base = uint32_t(x) * 73856093u ^ uint32_t(y) * 19349663u ^ seed ^ salt;
+    float sum = 0;
+    for (uint32_t i = 0; i < 3; ++i) sum += float(hash(base + i * 0x9e3779b9u) & 65535u) / 65535.f - .5f;
+    return sum * 2.f; // Three uniforms, mean 0 and approximately unit variance; not exact Gaussian.
+}
+inline float grain_noise(double gx, double gy, uint32_t seed, uint32_t salt) {
+    gx /= 1.4; gy /= 1.4;
+    const auto x = int64_t(std::floor(gx)), y = int64_t(std::floor(gy));
+    const float fx = float(gx - x), fy = float(gy - y);
+    const float a = (1-fx)*(1-fy), b = fx*(1-fy), c = (1-fx)*fy, d = fx*fy;
+    const float energy = std::sqrt(a*a + b*b + c*c + d*d);
+    return (a*normal_at(x,y,seed,salt) + b*normal_at(x+1,y,seed,salt) +
+            c*normal_at(x,y+1,seed,salt) + d*normal_at(x+1,y+1,seed,salt)) / energy;
+}
+inline void apply_grain(Colour& density, const Effects& effects, double gx, double gy,
+                        float pixel_area, uint32_t seed) {
+    if (!effects.grain) return;
+    const float shared = grain_noise(gx, gy, seed, 0x7f4a7c15u);
+    for (int c = 0; c < 3; ++c) {
+        const float maximum = effects.density_max[c] + effects.floor[c];
+        const float p = std::clamp((density[c] + effects.floor[c]) / maximum, 0.f, 1.f);
+        const float n_inverse = effects.particle_area * effects.particle_scale[c] / pixel_area;
+        const float deviation = maximum * std::sqrt(std::max(0.f, p * (1 - p * effects.uniformity[c]) * n_inverse));
+        const float noise = .35f * shared + .9367497f * grain_noise(gx, gy, seed, 0x9e3779b9u * uint32_t(c + 1));
+        density[c] += deviation * noise;
+    }
+}
+
+inline void render_cpu(Image image, const Model& model, const Effects& effects,
+                       uint32_t source_width, uint32_t source_height, uint64_t grain_seed, const Check& check) {
+    std::array<float, 256> decode_lut{};
+    for (int i = 0; i < 256; ++i) decode_lut[size_t(i)] = decode(float(i) / 255);
+    const Spatial spatial = prepare_spatial(image, model, effects, decode_lut, check);
+    const float pixel_um = effects.format_mm * 1000 / std::max(image.width, image.height);
+    const uint32_t seed = uint32_t(grain_seed) ^ hash(uint32_t(grain_seed >> 32));
+    // All spatial input fields are complete. In-place output never feeds a later pixel.
+    for (uint32_t y = 0; y < image.height; ++y) {
+        check();
+        uint8_t* row = image.pixels + size_t(y) * image.stride;
+        const double gy = (double(y) + .5) * source_height / image.height - .5;
+        for (uint32_t x = 0; x < image.width; ++x) {
+            if ((x & 255u) == 0) check();
+            uint8_t* pixel = row + size_t(x) * 4;
+            Colour raw = effects.diffusion == 0 ? model.response.sample({pixel[0] / 255.f, pixel[1] / 255.f, pixel[2] / 255.f}) :
+                film_response(model, lens_colour(read_linear(pixel, decode_lut), spatial.lens.sample(x, y, image), spatial.softness));
+            const Colour halo = spatial.halation.sample(x, y, image);
+            for (int c = 0; c < 3; ++c) raw[c] = std::log10(std::max(0.f, raw[c] + halo[c]) * effects.exposure_gain + 1e-10f);
+            Colour density = model.development.sample(raw);
+            const double gx = (double(x) + .5) * source_width / image.width - .5;
+            apply_grain(density, effects, gx, gy, pixel_um * pixel_um, seed);
+            const Colour result = model.scan.sample(density);
+            for (int c = 0; c < 3; ++c) {
+                if (!std::isfinite(result[c])) throw std::runtime_error("Non-finite mobile film output");
+                pixel[c] = uint8_t(std::lround(std::clamp(result[c], 0.f, 1.f) * 255));
+            }
+        }
+    }
+    check();
+}
+} // namespace lfm::mobile

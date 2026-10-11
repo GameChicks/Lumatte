@@ -58,10 +58,12 @@ internal class MobileFilmModelLibrary(context: Context) {
                 manifest.getString("dir") == "baked_local_only" && !manifest.getBoolean("spatialEffectsBaked") &&
                 !manifest.getBoolean("grainBaked")) { "不支持此胶片模型来源／阶段格式" }
             val tables = manifest.getJSONObject("tables")
+            val scanDescriptor = tables.getJSONObject("scan")
             val model = MobileFilmModel(entry.info,
                 readTable(preset.id, "response", tables.getJSONObject("response"), "srgb_encoded", "film_raw_linear"),
                 readTable(preset.id, "development", tables.getJSONObject("development"), "film_log10_exposure", "film_cmy_density"),
-                readTable(preset.id, "scan", tables.getJSONObject("scan"), "film_cmy_density", "srgb_encoded"))
+                readTable(preset.id, "scan", scanDescriptor, "film_cmy_density", "srgb_encoded"),
+                readEffects(manifest, scanDescriptor))
             val count = model.response.bytes + model.development.bytes + model.scan.bytes
             require(count == entry.info.tableBytes) { "胶片模型总大小不符" }
             coroutineContext.ensureActive()
@@ -165,6 +167,27 @@ internal class MobileFilmModelLibrary(context: Context) {
 
     private fun hash(bytes: ByteArray) = hex(MessageDigest.getInstance("SHA-256").digest(bytes))
     private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it.toInt() and 255) }
+
+    private fun readEffects(manifest: JSONObject, scan: JSONObject): MobileFilmEffects {
+        val grain = manifest.getJSONObject("grainReference")
+        val halation = manifest.getJSONObject("halationReference")
+        fun scalar(json: JSONObject, key: String, low: Float, high: Float): Float =
+            json.getDouble(key).toFloat().also { require(it.isFinite() && it in low..high) { "胶片效果参数无效：$key" } }
+        fun triple(json: JSONObject, key: String, low: Float, high: Float): FloatArray {
+            val array = json.getJSONArray(key)
+            require(array.length() == 3) { "胶片效果通道数无效：$key" }
+            return FloatArray(3) { array.getDouble(it).toFloat().also { value ->
+                require(value.isFinite() && value in low..high) { "胶片效果参数无效：$key" }
+            } }
+        }
+        // v1 generation reserves exactly 0.2 above the highest developed density.
+        val maximum = triple(scan, "maximum", .21f, 10f).also { for (c in 0..2) it[c] -= .2f }
+        return MobileFilmEffects(grain.getBoolean("active"), scalar(grain, "particle_area_um2", .0001f, 10f),
+            triple(grain, "particle_scale", .0001f, 20f), triple(grain, "density_min", 0f, 1f),
+            triple(grain, "uniformity", 0f, 1f), maximum,
+            triple(halation, "halation_strength", 0f, 2f), triple(halation, "halation_first_sigma_um", 0f, 1000f),
+            scalar(manifest.getJSONObject("settingsSnapshot").getJSONObject("camera"), "film_format_mm", 10f, 100f))
+    }
 
     companion object {
         private const val ROOT = "film/mobile-v1"

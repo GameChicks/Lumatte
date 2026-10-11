@@ -13,8 +13,8 @@ data class FilmRenderPlan(val parameters: FilmParameters, val preset: FilmPreset
 class FilmCatalogue(context: Context) {
     private val assets = context.applicationContext.assets
     suspend fun load(): List<FilmPreset> = withContext(Dispatchers.IO) {
-        // Display metadata is separate from large numerical tables containing NaN.
-        // The native parser owns those tables; Android's JSONObject never parses them.
+        // Display metadata stays lightweight. The mobile library loads only the selected
+        // model's separately hashed, finite float tables; reference profiles are not parsed here.
         val stocks = assets.open("film/catalogue.json").bufferedReader().use {
             JSONObject(it.readText()).getJSONArray("stocks")
         }

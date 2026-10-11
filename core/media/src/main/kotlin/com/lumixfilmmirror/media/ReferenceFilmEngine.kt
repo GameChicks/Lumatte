@@ -29,8 +29,8 @@ internal object NativeFilmBridge {
     external fun render(handle: Long, directory: String, bitmap: Bitmap, parameters: String, diffusion: Float, seed: Long)
 }
 
-/** Native work is drained before cancellation returns, so the caller can safely recycle its bitmap. */
-internal class FilmEngine(context: Context) {
+/** Explicit developer reference build only; the product facade uses the staged mobile model. */
+internal class ReferenceFilmEngine(context: Context) {
     private val context = context.applicationContext
     private val resourceMutex = Mutex()
     private var ready: File? = null
