@@ -21,7 +21,10 @@ internal class MirrorPhotoPicker : ActivityResultContract<Unit, List<Uri>>() {
         val galleries = context.packageManager.queryIntentActivities(galleryIntent, PackageManager.MATCH_DEFAULT_ONLY)
             .map { it.activityInfo }.filter { info ->
                 val system = info.applicationInfo.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-                system && (info.packageName.contains("gallery", true) || info.packageName in setOf("com.huawei.photos"))
+                // The legacy emulator Gallery3D was observed to ignore ALLOW_MULTIPLE.
+                // Prefer the platform multi-picker there; retain real OEM gallery preference.
+                system && info.packageName != "com.android.gallery3d" &&
+                    (info.packageName.contains("gallery", true) || info.packageName in setOf("com.huawei.photos"))
             }.distinctBy { it.packageName }
         if (galleries.size == 1) return galleryIntent.setPackage(galleries.single().packageName)
         if (galleries.size > 1) return Intent.createChooser(galleryIntent, "选择系统相册")

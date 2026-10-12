@@ -110,23 +110,24 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
     }
     }
     }
-    if (noteEditing) AlertDialog(onDismissRequest = { noteEditing = false }, title = {
-        Text("创作记录", fontFamily = MirrorFonts.Dots)
-    }, text = { OutlinedTextField(value = note, onValueChange = { note = it.take(4000) }, minLines = 5,
-        maxLines = 10, label = { Text("文字仅保存在本机") }) }, confirmButton = {
-        TextButton(onClick = { workspace.updatePersonal { it.copy(journal = note) }; noteEditing = false }) { Text("保存") }
-    }, dismissButton = { TextButton(onClick = { noteEditing = false }) { Text("取消") } })
-    if (settings) AlertDialog(onDismissRequest = { settings = false }, title = { Text("显示与动态效果") }, text = {
-        Column {
+    if (noteEditing) MirrorDialog("创作记录", onDismiss = { noteEditing = false }, titleFont = MirrorFonts.Dots) { close ->
+        Text("写下光线、地点与故事，文字仅保存在本机。", color = tones.secondaryInk)
+        MirrorTextField(note, { note = it.take(4000) }, "此刻想记下什么？", minLines = 5, maxLines = 7)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            MirrorTextAction("取消", close, Modifier.weight(1f))
+            MirrorButton(onClick = { workspace.updatePersonal { it.copy(journal = note) }; close() }, Modifier.weight(1f)) { Text("保存") }
+        }
+    }
+    if (settings) MirrorDialog("显示与动态效果", onDismiss = { settings = false }) { close ->
             Text("外观跟随系统浅色 / 深色模式。")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("减少动态效果", Modifier.weight(1f))
-                Switch(personal.reducedMotion, { value -> workspace.updatePersonal { it.copy(reducedMotion = value) } })
+                MirrorToggle(personal.reducedMotion, "减少动态效果") { value -> workspace.updatePersonal { it.copy(reducedMotion = value) } }
             }
             Text("关闭自动展开、持续涟漪和模糊，保留点击操作。", style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { settings = false; onTools() }) { Text("批次、任务与缓存管理") }
-        }
-    }, confirmButton = { TextButton(onClick = { settings = false }) { Text("完成") } })
+            MirrorChoice(false, { close(); onTools() }, Modifier.fillMaxWidth(), label = { Text("批次、任务与缓存管理") })
+            MirrorTextAction("完成", close, Modifier.fillMaxWidth())
+    }
 }
 
 @Composable
@@ -232,13 +233,16 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
             Text("＋ 新增", color = Color.White, fontSize = 12.sp)
         }
     }
-    deleting?.let { id -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text("删除本机记录？") },
-        text = { Text("移除相机卡片和本机名称记录，保留照片、传输记录和创作记录。") }, confirmButton = {
-            TextButton(onClick = {
+    deleting?.let { id -> MirrorDialog("删除本机记录？", onDismiss = { deleting = null }) { close ->
+        Text("移除相机卡片和本机名称记录，保留照片、传输记录和创作记录。")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            MirrorTextAction("取消", close, Modifier.weight(1f))
+            MirrorButton(onClick = {
                 if (camera.device?.rememberedIdentity() == id) workspace.disconnectCamera()
-                workspace.forgetCamera(id); deleting = null; mode = "normal"
-            }) { Text("删除", color = MaterialTheme.colorScheme.error) }
-        }, dismissButton = { TextButton(onClick = { deleting = null }) { Text("取消") } }) }
+                workspace.forgetCamera(id); mode = "normal"; close()
+            }, Modifier.weight(1f), enabled = !camera.busy, destructive = true) { Text("删除") }
+        }
+    } }
 }
 
 @Composable
@@ -331,6 +335,7 @@ private fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>, heig
     var metric by rememberSaveable { mutableStateOf("transfer") }
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
     var monthDetail by remember { mutableStateOf(false) }
+    var dayToOpen by remember { mutableStateOf<LocalDate?>(null) }
     val month = YearMonth.now().plusMonths(offset.toLong())
     val transferDates = remember(transfers) { transfers.filter { it.state in setOf("IMPORTED", "SAVED") && it.completedAt != null }
         .groupingBy { Instant.ofEpochMilli(requireNotNull(it.completedAt)).atZone(ZoneId.systemDefault()).toLocalDate() }.eachCount() }
@@ -384,20 +389,19 @@ private fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>, heig
             }
         }
     }
-    if (monthDetail) AlertDialog(onDismissRequest = { monthDetail = false }, title = { Text("$month · 每日用量") }, text = {
-        LazyColumn(Modifier.heightIn(max = 420.dp)) {
-            item { Text("拍摄量为已导入照片的 EXIF 日期；传入量为实际完成日。", style = MaterialTheme.typography.bodySmall) }
-            for (day in 1..month.lengthOfMonth()) item {
+    if (monthDetail) MirrorDialog("$month · 每日用量", onDismiss = { monthDetail = false; selectedDay = dayToOpen; dayToOpen = null }) { close ->
+            Text("拍摄量为已导入照片的 EXIF 日期；传入量为实际完成日。", style = MaterialTheme.typography.bodySmall)
+            for (day in 1..month.lengthOfMonth()) {
                 val date = month.atDay(day)
-                TextButton(onClick = { monthDetail = false; selectedDay = date }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Text("$day 日 · 拍摄 ${captureDates[date] ?: 0} 张 · 传入 ${transferDates[date] ?: 0} 项")
-                }
+                MirrorTextAction("$day 日 · 拍摄 ${captureDates[date] ?: 0} 张 · 传入 ${transferDates[date] ?: 0} 项",
+                    { dayToOpen = date; close() }, Modifier.fillMaxWidth())
             }
-            item { Text("旧记录中 ${transfers.count { it.state in setOf("IMPORTED", "SAVED") && it.completedAt == null }} 项缺少传入完成日期，不计入月份。",
-                style = MaterialTheme.typography.bodySmall) }
-        }
-    }, confirmButton = { TextButton(onClick = { monthDetail = false }) { Text("完成") } })
-    selectedDay?.let { date -> AlertDialog(onDismissRequest = { selectedDay = null }, title = { Text(date.toString()) },
-        text = { Text("已导入照片中拍摄于此日：${captureDates[date] ?: 0} 张\n此日完成传入：${transferDates[date] ?: 0} 项\n\n拍摄日期来自照片 EXIF；缺失日期不推算。传入按实际完成日归组，含照片与视频。旧记录缺少完成日期时不推算。") },
-        confirmButton = { TextButton(onClick = { selectedDay = null }) { Text("完成") } }) }
+            Text("旧记录中 ${transfers.count { it.state in setOf("IMPORTED", "SAVED") && it.completedAt == null }} 项缺少传入完成日期，不计入月份。",
+                style = MaterialTheme.typography.bodySmall)
+            MirrorTextAction("完成", close, Modifier.fillMaxWidth())
+    }
+    selectedDay?.let { date -> MirrorDialog(date.toString(), onDismiss = { selectedDay = null }) { close ->
+        Text("已导入照片中拍摄于此日：${captureDates[date] ?: 0} 张\n此日完成传入：${transferDates[date] ?: 0} 项\n\n拍摄日期来自照片 EXIF；缺失日期不推算。传入按实际完成日归组，含照片与视频。旧记录缺少完成日期时不推算。")
+        MirrorTextAction("完成", close, Modifier.fillMaxWidth())
+    } }
 }

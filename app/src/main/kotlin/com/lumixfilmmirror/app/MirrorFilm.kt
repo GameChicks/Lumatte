@@ -41,6 +41,7 @@ import com.lumixfilmmirror.design.MirrorFonts
 import com.lumixfilmmirror.media.FilmCategory
 import com.lumixfilmmirror.media.FilmPreset
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 internal fun FilmCategory.editorialTitle() = when (this) {
@@ -152,6 +153,7 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
     val pager = rememberPagerState(initialPage = if (films.isEmpty()) 0 else films.size * 100 + initial.coerceIn(0, films.lastIndex),
         pageCount = { films.size * 201 })
     val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(if (reduced) 0 else 1000); entered = true }
     LaunchedEffect(pager.interactionSource) {
@@ -176,8 +178,8 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
     BoxWithConstraints(Modifier.fillMaxSize()) {
         FilmStage(category)
         val pageHeight = (maxHeight * .23f).coerceIn(165.dp, 220.dp)
-        val viewportHeight = (maxHeight - 192.dp).coerceAtLeast(pageHeight)
-        if (films.isNotEmpty()) VerticalPager(pager, modifier = Modifier.fillMaxSize().padding(top = 88.dp, bottom = 104.dp),
+        val viewportHeight = (maxHeight - 252.dp).coerceAtLeast(pageHeight)
+        if (films.isNotEmpty()) VerticalPager(pager, modifier = Modifier.fillMaxSize().padding(top = 148.dp, bottom = 104.dp),
             pageSize = PageSize.Fixed(pageHeight), contentPadding = PaddingValues(vertical = (viewportHeight - pageHeight) / 2),
             beyondViewportPageCount = 1) { index ->
             val distance = (pager.currentPage - index) + pager.currentPageOffsetFraction
@@ -185,10 +187,15 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
             val film = films[filmIndex]
             val centre = 1f - abs(distance).coerceIn(0f, 1f)
             Row(Modifier.fillMaxSize().padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(.30f).graphicsLayer { alpha = .22f + centre * .78f }) {
+                Canvas(Modifier.width(8.dp).fillMaxHeight()) {
+                    drawLine(tones.secondaryInk.copy(.20f), Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), 1.dp.toPx())
+                    drawCircle(if (centre > .9f) tones.amber else tones.secondaryInk.copy(.3f),
+                        if (centre > .9f) 3.dp.toPx() else 2.dp.toPx(), Offset(size.width / 2, size.height / 2))
+                }
+                Column(Modifier.weight(.30f).padding(start = 10.dp).graphicsLayer { alpha = .22f + centre * .78f }) {
                     Text("${filmIndex + 1}".padStart(2, '0'), color = tones.amber, fontSize=11.sp)
-                    Text(film.name, style = MaterialTheme.typography.bodySmall, maxLines=3)
-                    if (centre > .9f) TextButton(onClick = { onDetail(film) }) { Text("查看介绍 →") }
+                    Text(film.name, fontFamily = MirrorFonts.Editorial, fontSize = 14.sp, lineHeight = 19.sp, maxLines=3)
+                    if (centre > .9f) MirrorTextAction("介绍 →", { onDetail(film) })
                 }
                 val morph = if (index == pager.currentPage) with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility,
                     boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) } else Modifier
@@ -201,15 +208,29 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
                         cameraDistance = 12 * density
                         renderEffect = if (!reduced && abs(distance) > .5f) BlurEffect(abs(distance) * 1.8f * density,
                             abs(distance) * 1.8f * density, TileMode.Clamp) else null
-                    }.clickable { onDetail(film) })
+                    }.clickable {
+                        if (index == pager.currentPage) onDetail(film)
+                        else scope.launch {
+                            // A tapped neighbour first becomes the centre object, preserving its
+                            // shared bounds and the position to return to after reading the detail.
+                            onUserScroll()
+                            if (reduced) {
+                                pager.scrollToPage(index); onPage(filmIndex); onDetail(film)
+                            } else pager.animateScrollToPage(index)
+                        }
+                    })
             }
         } else Text("此分类暂时没有胶卷模型。", Modifier.align(Alignment.Center))
         Row(Modifier.align(Alignment.TopStart).padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundAction("返回胶卷分类", DotGlyph.LEFT, onClick = onBack)
+            Text("${category.label} / FILM", Modifier.padding(start = 14.dp), color = tones.secondaryInk,
+                style = MaterialTheme.typography.labelSmall)
+        }
+        Column(Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 78.dp)) {
             val headingMorph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("category-${category.name}"), visibility,
                 boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
-            Text(category.editorialTitle(), Modifier.padding(start = 16.dp).then(headingMorph), fontFamily = MirrorFonts.Editorial,
-                fontStyle=FontStyle.Italic, fontSize = 36.sp)
+            Text(category.editorialTitle(), headingMorph, fontFamily = MirrorFonts.Editorial,
+                fontStyle=FontStyle.Italic, fontSize = 44.sp, lineHeight = 48.sp)
         }
         Column(Modifier.align(Alignment.BottomStart).padding(24.dp)) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -283,6 +304,7 @@ private fun FilmDetail(film: FilmPreset, shared: SharedTransitionScope, visibili
 internal fun FilmCartridge(film: FilmPreset, modifier: Modifier = Modifier) {
     val artwork = when (film.id) {
         "kodak_gold_200" -> R.drawable.cartridge_gold_200_v2
+        "fujifilm_c200" -> R.drawable.cartridge_c200_v1
         "fujifilm_velvia_100" -> R.drawable.cartridge_velvia_100_v2
         "kodak_vision3_500t" -> R.drawable.cartridge_vision3_500t_v2
         else -> null

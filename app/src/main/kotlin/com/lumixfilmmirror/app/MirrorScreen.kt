@@ -188,7 +188,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
         }
     }
     val reduced = personal.reducedMotion || systemMotionReduced()
-    val navigation = pane == null && !fullscreen
+    val navigation = pane == null && !fullscreen && WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current) == 0
     BackHandler(pane != null) {
         pane = when (pane) { "export" -> "editor"; "reveal" -> "editor"; else -> null }
     }
@@ -287,17 +287,13 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
             TextButton(onClick = { transferDestination = "lut"; transferChoice = null; startTransfer(target) }) { Text("进入 LUT 编辑") }
             Text("视频保持原文件保存到相册。", style = MaterialTheme.typography.bodySmall)
         } }, confirmButton = { TextButton(onClick = { transferChoice = null }) { Text("取消") } }) }
-    if(importSources) ModalBottomSheet(onDismissRequest = {
+    if(importSources) MirrorDialog("从哪里导入？", onDismiss = {
         importSources=false; importRequest=null; selectedImportTreatment=null; pendingFilm=null; pendingLut=null
-    }, containerColor = tones.paper) {
-        Column(Modifier.fillMaxWidth().padding(horizontal=24.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            Text("从哪里导入？",fontFamily=androidx.compose.ui.text.font.FontFamily.Serif,style=MaterialTheme.typography.headlineSmall)
+    }) {
             MirrorButton(onClick={importSources=false;photos.launch(Unit)},Modifier.fillMaxWidth().height(56.dp)) { Text("系统相册 · 多选照片") }
-            OutlinedButton(onClick={importSources=false;rawPhotos.launch(arrayOf("image/jpeg","image/x-panasonic-rw2","image/x-panasonic-raw","application/octet-stream"))},
-                Modifier.fillMaxWidth().height(56.dp)) { Text("从文件导入 JPEG / RAW") }
+            MirrorChoice(false, {importSources=false;rawPhotos.launch(arrayOf("image/jpeg","image/x-panasonic-rw2","image/x-panasonic-raw","application/octet-stream"))},
+                Modifier.fillMaxWidth(), label = { Text("从文件导入 JPEG / RAW") })
             Text("RAW 仅提取内嵌 JPEG。",style=MaterialTheme.typography.bodySmall,color=tones.secondaryInk)
-            Spacer(Modifier.height(24.dp))
-        }
     }
 }
 

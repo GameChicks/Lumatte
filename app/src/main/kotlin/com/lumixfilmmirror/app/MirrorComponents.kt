@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,18 +61,20 @@ internal fun MirrorChoice(selected: Boolean, onClick: () -> Unit, modifier: Modi
 
 @Composable
 internal fun MirrorButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true,
-    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(28.dp), content: @Composable RowScope.() -> Unit) {
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(28.dp), destructive: Boolean = false,
+    content: @Composable RowScope.() -> Unit) {
     val tones = LocalFilmMaterials.current
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
+    val buttonInk = if (destructive) Color(0xFF845960) else tones.ink
     val scale by androidx.compose.animation.core.animateFloatAsState(if (pressed) .975f else 1f,
         tween(120), label = "button-pressure")
     Row(modifier.heightIn(min = 52.dp).graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else .4f }
-        .clip(shape).background(Brush.verticalGradient(listOf(tones.ink, tones.ink.copy(.90f))))
+        .clip(shape).background(Brush.verticalGradient(listOf(buttonInk, buttonInk.copy(.90f))))
         .clickable(enabled = enabled, interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick)
         .padding(horizontal = 22.dp, vertical = 12.dp), horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically) {
-        CompositionLocalProvider(LocalContentColor provides tones.paper) {
+        CompositionLocalProvider(LocalContentColor provides if (destructive) Color.White else tones.paper) {
             ProvideTextStyle(MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)) { content() }
         }
     }
@@ -88,6 +91,7 @@ internal enum class DotGlyph(val rows: List<String>) {
     RIGHT(listOf("00100", "00010", "11111", "00010", "00100")),
     PLUS(listOf("00100", "00100", "11111", "00100", "00100")),
     CLOSE(listOf("10001", "01010", "00100", "01010", "10001")),
+    SEARCH(listOf("0111000", "1000100", "1000100", "1000100", "0111100", "0000010", "0000001")),
     STAR(listOf("0001000", "0001000", "1111111", "0111110", "0011100", "0100010", "1000001")),
     CAMERA(listOf("0011100", "1111111", "1000001", "1011101", "1010101", "1011101", "1111111")),
     BLUETOOTH(listOf("0001000", "0001100", "0101010", "0011100", "0001000", "0011100", "0101010", "0001100", "0001000")),
@@ -113,6 +117,10 @@ internal fun DotIcon(glyph: DotGlyph, modifier: Modifier = Modifier, tint: Color
                 }
                 DotGlyph.PLUS -> { line(.2f,.5f,.8f,.5f); line(.5f,.2f,.5f,.8f) }
                 DotGlyph.CLOSE -> { line(.25f,.25f,.75f,.75f); line(.75f,.25f,.25f,.75f) }
+                DotGlyph.SEARCH -> {
+                    drawCircle(tint, w*.27f, Offset(w*.41f,h*.41f), style = stroke)
+                    line(.61f,.61f,.85f,.85f)
+                }
                 DotGlyph.STAR -> {
                     val path = Path()
                     repeat(10) { i ->
@@ -162,9 +170,9 @@ internal fun DotIcon(glyph: DotGlyph, modifier: Modifier = Modifier, tint: Color
 
 @Composable
 internal fun RoundAction(label: String, glyph: DotGlyph, modifier: Modifier = Modifier,
-    active: Boolean = false, onClick: () -> Unit) {
+    active: Boolean = false, glass: Boolean = false, onClick: () -> Unit) {
     val tones = LocalFilmMaterials.current
-    Box(modifier.size(52.dp).clip(CircleShape).background(if (active) tones.ink else tones.paperHighlight)
+    Box(modifier.size(52.dp).clip(CircleShape).background(if (active) tones.ink else tones.paperHighlight.copy(if (glass) .4f else 1f))
         .border(1.dp, tones.rim, CircleShape).clickable(role = Role.Button, onClick = onClick)
         .semantics { contentDescription = label; if (glyph == DotGlyph.STAR) selected = active }, contentAlignment = Alignment.Center) {
         DotIcon(glyph, tint = if (active) tones.paper else tones.ink, filled = active)
@@ -235,12 +243,15 @@ internal fun ProgressiveBackdrop(modifier: Modifier = Modifier, enabled: Boolean
 
 /** Actual pixels behind the floating bar, with a blur guard outside its clipped bounds. */
 @Composable
-internal fun Modifier.frostedBackdrop(source: androidx.compose.ui.graphics.layer.GraphicsLayer, enabled: Boolean): Modifier {
+internal fun Modifier.frostedBackdrop(source: androidx.compose.ui.graphics.layer.GraphicsLayer, enabled: Boolean,
+    sourceOrigin: State<Offset>? = null): Modifier {
     val glass = rememberGraphicsLayer()
     val position = remember { mutableStateOf(Offset.Zero) }
     val density = androidx.compose.ui.platform.LocalDensity.current.density
     SideEffect { glass.renderEffect = if (enabled) BlurEffect(22f*density,22f*density,TileMode.Clamp) else null }
-    return this.then(Modifier.onPlacedPosition { position.value = it }.drawWithContent {
+    return this.then(Modifier.onGloballyPositioned {
+        position.value = if (sourceOrigin == null) it.positionInParent() else it.positionInRoot() - sourceOrigin.value
+    }.drawWithContent {
         if (enabled && source.size.width > 0) {
             val guard = 48.dp.toPx()
             glass.record(size = androidx.compose.ui.unit.IntSize((size.width+guard*2).toInt(),(size.height+guard*2).toInt())) {

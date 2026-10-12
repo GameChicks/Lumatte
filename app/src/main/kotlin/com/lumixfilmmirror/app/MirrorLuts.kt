@@ -26,14 +26,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -73,6 +85,8 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     var official by rememberSaveable { mutableStateOf(true) }
     var expanded by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
+    var searchEditing by rememberSaveable { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
     var choosingSecond by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(initialSecond) { choosingSecond = initialSecond }
     var favourites by rememberSaveable { mutableStateOf(false) }
@@ -148,6 +162,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     }
     fun open(card: MirrorLutCard, location: String) {
         if (favouriteClosing) return
+        searchEditing = false; focusManager.clearFocus()
         lastDetailCard = card
         if (favourites) favouriteRevealPlayed = true
         detailKey = card.key; detailSnapshot = card.official?.detailSnapshot(); origin = location
@@ -165,13 +180,14 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     }
     fun closeDetail() { detailKey = null; requestedSelection = null; workspace.officialLuts.closeDetail() }
     BackHandler(detailOpen || favourites) { if (detailOpen) closeDetail() else favouriteClosing = true }
+    BackHandler(searchEditing && !detailOpen && !favourites) { searchEditing = false; focusManager.clearFocus() }
     LaunchedEffect(favouriteClosing) {
         if (favouriteClosing) {
             delay(if (duration == 0) 0 else 480)
             favourites = false; favouriteClosing = false
         }
     }
-    LaunchedEffect(detailOpen, favourites) { onFullscreen(detailOpen || favourites) }
+    LaunchedEffect(detailOpen, favourites, searchEditing) { onFullscreen(detailOpen || favourites || searchEditing) }
     DisposableEffect(Unit) { onDispose { onFullscreen(false) } }
     val storedOfficialCards = personal.savedLuts.map { item ->
         MirrorLutCard(state.luts.firstOrNull { it.lumixLabSource?.code == item.code }, item)
@@ -210,13 +226,16 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                     closing = favouriteClosing || !favourites, onClose = { favouriteClosing = true },
                     onOpen = ::open, onFavourite = ::toggle)
                 else -> Box(Modifier.fillMaxSize()) {
+                    val galleryPixels = rememberGraphicsLayer()
+                    val galleryOrigin = remember { mutableStateOf(Offset.Zero) }
                     val scroll = galleryScroll
                     var searchVisible by remember { mutableStateOf(true) }
                     LaunchedEffect(scroll.isScrollInProgress) {
                         if (scroll.isScrollInProgress) searchVisible = false else { delay(700); searchVisible = true }
                     }
-                    Column(Modifier.fillMaxSize()) {
-                    PageHeading("COLOUR / COLLECT", "LUT", onImportPhoto)
+                    Column(Modifier.fillMaxSize().onGloballyPositioned { galleryOrigin.value = it.positionInRoot() }
+                        .drawWithContent { galleryPixels.record { this@drawWithContent.drawContent() }; drawLayer(galleryPixels) }) {
+                    PageHeading("COLOUR / COLLECT", "LUT") { searchEditing = false; focusManager.clearFocus(); onImportPhoto() }
                     LazyColumn(Modifier.weight(1f), state = scroll, contentPadding = PaddingValues(bottom = 250.dp)) {
                         item {
                             Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -291,27 +310,49 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                         }
                     }
                     }
-                    AnimatedVisibility(searchVisible || query.isNotBlank(), modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 184.dp),
+                    AnimatedVisibility(searchVisible || query.isNotBlank() || searchEditing,
+                        modifier = Modifier.align(Alignment.BottomCenter).imePadding().padding(bottom = if (searchEditing) 20.dp else 136.dp),
                         enter = fadeIn(), exit = fadeOut()) {
-                        OutlinedTextField(query, { query = it }, placeholder = { Text("搜索名称与创作者") }, singleLine = true,
-                            shape = RoundedCornerShape(28.dp), modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth(),
-                            colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = tones.paperHighlight,
-                                unfocusedContainerColor = tones.paperHighlight))
+                        if (searchEditing) {
+                            val searchFocus = remember { FocusRequester() }
+                            LaunchedEffect(Unit) { searchFocus.requestFocus() }
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                MirrorTextField(query, { query = it }, "名称或创作者", Modifier.weight(1f).focusRequester(searchFocus)
+                                    .clip(RoundedCornerShape(18.dp)).frostedBackdrop(galleryPixels, !LocalMirrorReducedMotion.current, galleryOrigin),
+                                    singleLine = true, glass = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    keyboardActions = KeyboardActions(onSearch = { searchEditing = false; focusManager.clearFocus() }))
+                                RoundAction("收起搜索", DotGlyph.CLOSE, onClick = { searchEditing = false; focusManager.clearFocus() })
+                            }
+                        } else Row(Modifier.fillMaxWidth().padding(horizontal = 84.dp).heightIn(min = 52.dp)
+                            .clip(RoundedCornerShape(26.dp)).frostedBackdrop(galleryPixels, !LocalMirrorReducedMotion.current, galleryOrigin)
+                            .background(tones.paperHighlight.copy(.40f))
+                            .border(1.dp, tones.rim, RoundedCornerShape(26.dp))
+                            .clickable(role = Role.Button) { searchEditing = true }.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            DotIcon(DotGlyph.SEARCH, Modifier.size(19.dp))
+                            Text(query.ifBlank { "搜索" }, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.labelLarge)
+                        }
                     }
-                    RoundAction("查看收藏", DotGlyph.STAR, Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 136.dp),
+                    if (!searchEditing) {
+                    RoundAction("查看收藏", DotGlyph.STAR, Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 136.dp)
+                        .clip(CircleShape).frostedBackdrop(galleryPixels, !LocalMirrorReducedMotion.current, galleryOrigin), glass = true,
                         onClick = { favouriteRevealPlayed = false; favouriteClosing = false; favourites = true })
-                    RoundAction("导入或下载 LUT", DotGlyph.PLUS, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 136.dp),
+                    RoundAction("导入或下载 LUT", DotGlyph.PLUS, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 136.dp)
+                        .clip(CircleShape).frostedBackdrop(galleryPixels, !LocalMirrorReducedMotion.current, galleryOrigin), glass = true,
                         onClick = { importMenu = true })
+                    }
                 }
             }
         }
     }
-    if (importMenu) AlertDialog(onDismissRequest = { importMenu = false }, title = { Text("添加 LUT") }, text = {
-        Column {
-            TextButton(onClick = { importMenu = false; onImportLut() }) { Text("导入本地 .cube") }
-            TextButton(onClick = { importMenu = false; official = true; expanded = null }) { Text("从 Lumix Lab 浏览与下载") }
-        }
-    }, confirmButton = { TextButton(onClick = { importMenu = false }) { Text("返回") } })
+    if (importMenu) MirrorDialog("添加 LUT", onDismiss = { importMenu = false }) { close ->
+        Text("选择本地配方，或发现创作者分享的色彩。", color = tones.secondaryInk)
+        MirrorButton(onClick = { close(); onImportLut() }, Modifier.fillMaxWidth()) { Text("导入本地 .cube") }
+        MirrorChoice(false, { official = true; expanded = null; close() }, Modifier.fillMaxWidth(),
+            label = { Text("从 Lumix Lab 浏览与下载") })
+    }
 }
 
 private fun categoryColour(index: Int) = listOf(Color(0xFFA4BAB7), Color(0xFFD3A4B8), Color(0xFFB1B7D5),
@@ -334,7 +375,7 @@ private fun SlotStrip(state: WorkspaceState, second: Boolean, onSlot: (Boolean) 
 private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState, workspace: WorkspaceViewModel,
     personal: MirrorPersonalState, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope,
     modifier: Modifier, large: Boolean = false, recommendation: Boolean = false, onClick: () -> Unit, onFavourite: () -> Unit,
-    onColours: (LutExampleColours) -> Unit = {}) {
+    onColours: (LutExampleColours) -> Unit = {}, collection: Boolean = false) {
     val reportColours by rememberUpdatedState(onColours)
     val previewKey = remember(card.key, card.official?.thumbnail, card.local, if (card.official == null) state.current?.id else null, large) {
         listOf(card.key, card.official?.thumbnail?.path, if (card.official == null) card.local?.id else null,
@@ -371,9 +412,13 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
         catch (_: OutOfMemoryError) { error = "预览内存不足" }
         finally { loading = false }
     }
-    val swatch = colours?.swatches?.firstOrNull()
-    val background = swatch?.let { Color(it.argb) } ?: LocalFilmMaterials.current.paperHighlight
-    val ink = swatch?.let { Color(it.titleTextArgb).copy(alpha = 1f) } ?: LocalFilmMaterials.current.ink
+    val swatch = if (collection) colours?.swatches?.maxByOrNull { sample ->
+        val hsv = FloatArray(3); android.graphics.Color.colorToHSV(sample.argb, hsv); hsv[1] * (.3f + hsv[2])
+    } else colours?.swatches?.firstOrNull()
+    val sampledPaper = swatch?.let { Color(it.argb) } ?: LocalFilmMaterials.current.paperHighlight
+    val background = if (collection && swatch != null) lerp(sampledPaper, Color(0xFFF4F1E7), .24f) else sampledPaper
+    val ink = if (collection && swatch != null) { if (background.luminance() > .28f) Color(0xFF17252C) else Color(0xFFF8F7F2) }
+        else swatch?.let { Color(it.titleTextArgb).copy(alpha = 1f) } ?: LocalFilmMaterials.current.ink
     val motionDuration = if (LocalMirrorReducedMotion.current) 0 else 420
     val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState(origin), visibility,
         boundsTransform = { _, _ -> tween(motionDuration, easing = MirrorEase) }) }
@@ -528,7 +573,6 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
     closing: Boolean,
     onClose: () -> Unit, onOpen: (MirrorLutCard, String) -> Unit, onFavourite: (MirrorLutCard) -> Unit) {
     val tones = LocalFilmMaterials.current
-    val colourHints = remember { mutableStateMapOf<String, LutExampleColours>() }
     var entered by remember { mutableStateOf(!reveal) }
     LaunchedEffect(Unit) { entered = true; onReveal() }
     val progress = animateFloatAsState(if (entered && !closing) 1f else 0f,
@@ -536,8 +580,10 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
     val originPadding = with(LocalDensity.current) { 46.dp.toPx() }
     val originBottom = with(LocalDensity.current) { 162.dp.toPx() }
     val dark = isSystemInDarkTheme()
-    val palette = if (dark) listOf(Color(0xFF162E4A),Color(0xFF14334A),Color(0xFF4D8395))
-        else listOf(Color(0xFFE8E7DE),Color(0xFFCBD9D8),Color(0xFFAFC8D2))
+    val palette = if (dark) listOf(Color(0xFF0A2241),Color(0xFF073955),Color(0xFF455C96),Color(0xFF85B8D0))
+        else listOf(Color(0xFFD8E4F1),Color(0xFFCDD8F0),Color(0xFFAEC9DC))
+    val scenePixels = rememberGraphicsLayer()
+    val sceneOrigin = remember { mutableStateOf(Offset.Zero) }
     Box(Modifier.fillMaxSize().graphicsLayer {
         val p = progress.value
         clip = true
@@ -547,9 +593,20 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
             addOval(Rect(cx - radius, cy - radius, cx + radius, cy + radius))
         }
     }.background(Brush.verticalGradient(palette))) {
+        Box(Modifier.fillMaxSize().onGloballyPositioned { sceneOrigin.value = it.positionInRoot() }
+            .drawWithContent { scenePixels.record { this@drawWithContent.drawContent() }; drawLayer(scenePixels) }) {
         LiquidMaterial(Modifier.fillMaxSize(), palette, moving = false)
+        Canvas(Modifier.fillMaxSize()) {
+            drawRect(Brush.verticalGradient(colorStops = arrayOf(0f to Color.Transparent, .5f to Color.Transparent,
+                .82f to Color(0xFF77ADCF).copy(if (dark) .25f else .12f),
+                1f to Color(0xFF9BCDEA).copy(if (dark) .70f else .35f))))
+        }
         Column(Modifier.fillMaxSize()) {
-            PageHeading("YOUR COLOUR COLLECTION", "收藏")
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp)) {
+                Text("Colour", fontFamily = MirrorFonts.Editorial, fontSize = 46.sp, lineHeight = 49.sp)
+                Text("收藏", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 42.sp, lineHeight = 46.sp,
+                    color = if (dark) Color(0xFF9BB1D0) else Color(0xFF56758D))
+            }
             if (cards.isEmpty()) Column(Modifier.weight(1f).fillMaxWidth().padding(32.dp),
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 DotIcon(DotGlyph.STAR, Modifier.size(52.dp), tones.ink)
@@ -570,53 +627,62 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
                     onPage(pager.currentPage)
                 }
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                val cardWidth = (maxWidth * .38f).coerceIn(138.dp, 190.dp)
-                HorizontalPager(pager, Modifier.fillMaxWidth().height(cardWidth + 144.dp).align(Alignment.Center),
+                val cardWidth = (maxWidth * .30f).coerceIn(112.dp, 154.dp)
+                HorizontalPager(pager, Modifier.fillMaxWidth().height(cardWidth + 128.dp).align(Alignment.Center),
                     pageSize = PageSize.Fixed(cardWidth), contentPadding = PaddingValues(horizontal = (maxWidth - cardWidth) / 2),
-                    pageSpacing = -cardWidth * .47f, beyondViewportPageCount = 2, key = { cards[it].key }) { index ->
+                    pageSpacing = -cardWidth * .16f, beyondViewportPageCount = 2, key = { cards[it].key }) { index ->
                     val card = cards[index]
                     val origin = "favourite:${card.key}"
                     Polaroid(card, origin, state, workspace, personal, shared, visibility,
                         Modifier.fillMaxWidth().zIndex(4f - kotlin.math.abs(pager.currentPage - index).toFloat())
                             .graphicsLayer {
                                 val distance = (pager.currentPage - index) + pager.currentPageOffsetFraction
-                                rotationZ = -distance.coerceIn(-2f, 2f) * 10f
-                                rotationY = distance.coerceIn(-2f, 2f) * 9f
-                                translationY = kotlin.math.abs(distance).coerceAtMost(3f) * 36.dp.toPx()
-                                scaleX = 1f - kotlin.math.abs(distance).coerceIn(0f, 2f) * .07f; scaleY = scaleX
+                                rotationZ = -distance.coerceIn(-2f, 2f) * 11f
+                                rotationY = distance.coerceIn(-2f, 2f) * -10f
+                                translationY = distance.coerceIn(-2.5f, 2.5f).let { it * it } * 10.dp.toPx()
+                                scaleX = 1f; scaleY = 1f
                                 cameraDistance = 12f * density
                             }.shadow(12.dp,RoundedCornerShape(5.dp)),
                         onClick = { if (!closing) onOpen(card, origin) }, onFavourite = { if (!closing) onFavourite(card) },
-                        onColours = { colourHints[card.key] = it })
+                        collection = true)
                 }
                 }
                 val selected = cards.getOrNull(pager.settledPage)
                 Text(selected?.title.orEmpty(), Modifier.align(Alignment.CenterHorizontally), fontFamily = MirrorFonts.Handwriting,
                     fontSize = 32.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                FavouriteColourLens(colourHints[selected?.key], palette, Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp),
+                FavouriteColourLens(Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp),
                     selected?.title.orEmpty()) { if (!closing && selected != null) onOpen(selected, "favourite:${selected.key}") }
                 Text("${pager.currentPage + 1} / ${cards.size} · 左右滑动，点按查看", Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp),
                     color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.height(136.dp))
         }
-        RoundAction("退出收藏", DotGlyph.CLOSE, Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 136.dp), onClick = onClose)
+        }
+        RoundAction("退出收藏", DotGlyph.CLOSE, Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 136.dp)
+            .clip(CircleShape).frostedBackdrop(scenePixels, !LocalMirrorReducedMotion.current, sceneOrigin), glass = true, onClick = onClose)
     }
 }
 
 @Composable
-private fun FavouriteColourLens(colours: LutExampleColours?, fallback: List<Color>, modifier: Modifier,
+private fun FavouriteColourLens(modifier: Modifier,
     title: String, onClick: () -> Unit) {
-    val rawHints = colours?.swatches?.take(3)?.map { Color(it.argb) }?.takeIf { it.isNotEmpty() } ?: fallback
-    val hints = if (rawHints.size == 1) listOf(rawHints.single(), rawHints.single()) else rawHints
-    Box(modifier.size(96.dp).clip(CircleShape).background(Brush.linearGradient(hints))
+    val hints = listOf(Color(0xFF72DACB),Color(0xFFC3D8F8),Color(0xFFD7AEFC),Color(0xFF4C69FE))
+    Box(modifier.size(112.dp)
         .clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = "查看 $title 的介绍" },
         contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            drawCircle(Brush.radialGradient(listOf(Color.White.copy(.48f),Color.Transparent),
-                center = androidx.compose.ui.geometry.Offset(size.width*.26f,size.height*.20f),radius=size.width*.8f))
-            drawCircle(Brush.radialGradient(listOf(Color.Transparent,Color.Black.copy(.18f)),radius=size.width*.72f))
+            val radius = size.width * .43f
+            drawCircle(Brush.linearGradient(hints, start = Offset(size.width*.1f, size.height*.1f),
+                end = Offset(size.width*.65f, size.height*.9f)), radius)
+            drawCircle(Brush.radialGradient(listOf(Color.White.copy(.45f),Color.Transparent),
+                center = Offset(size.width*.30f,size.height*.26f),radius=size.width*.55f), radius)
+            drawCircle(Brush.radialGradient(listOf(Color.Transparent,Color(0xFF102649).copy(.22f)),radius=size.width*.55f), radius)
+            drawArc(Color.White.copy(.85f), -90f, 82f, false, topLeft = Offset(2.dp.toPx(), 2.dp.toPx()),
+                size = androidx.compose.ui.geometry.Size(size.width - 4.dp.toPx(), size.height - 4.dp.toPx()),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+            val specular = Offset(size.width*.71f,size.height*.35f)
+            drawCircle(Brush.radialGradient(listOf(Color.White.copy(.65f),Color.Transparent),center=specular,radius=8.dp.toPx()),8.dp.toPx(),specular)
+            drawCircle(Color.White.copy(.85f), 2.2.dp.toPx(), specular)
         }
-        DotIcon(DotGlyph.RIGHT, Modifier.size(26.dp), Color.White)
     }
 }
