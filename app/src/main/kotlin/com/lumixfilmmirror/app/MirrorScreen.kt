@@ -55,6 +55,8 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
     val backdrop = androidx.compose.ui.graphics.rememberGraphicsLayer()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var pane by rememberSaveable { mutableStateOf<String?>(null) }
+    var cameraEntry by rememberSaveable { mutableStateOf("bluetooth") }
+    var requestedCameraId by rememberSaveable { mutableStateOf<String?>(null) }
     var fullscreen by remember { mutableStateOf(false) }
     var transferHidden by rememberSaveable { mutableStateOf(false) }
     var transferChoice by rememberSaveable { mutableStateOf<String?>(null) }
@@ -205,7 +207,8 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
                         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             item { CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null,
                                 onImport = { transferChoice = if (camera.accessMode.incoming) "receive" else "import" },
-                                onFollow = { startTransfer("follow") }, workspace) }
+                                onFollow = { startTransfer("follow") }, workspace, initialMethod = cameraEntry,
+                                requestedCamera = personal.cameras.firstOrNull { it.id == requestedCameraId }) }
                             if (incoming.isNotEmpty()) item { IncomingQueuePanel(incoming, transfers, state, workspace, startTransfer) }
                             if (transfers.isNotEmpty()) item { TransferQueuePanel(transfers, state, workspace, startTransfer) }
                         }
@@ -229,7 +232,8 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
                     else -> savedPages.SaveableStateProvider(tab) {
                         when (tab) {
                             0 -> MirrorHome(state, camera, personal, transfers, workspace,
-                                onCamera = { pane = "camera" }, onAlbum = { pane = "camera" }, onTools = { pane = "tools" })
+                                onCamera = { id -> requestedCameraId = id; cameraEntry = "bluetooth"; pane = "camera" },
+                                onAlbum = { requestedCameraId = null; cameraEntry = "wifi"; pane = "camera" }, onTools = { pane = "tools" })
                             1 -> MirrorFilm(state, { importPhotos(PhotoTreatment.FILM) }, chooseFilm) { fullscreen = it }
                             2 -> MirrorLuts(state, workspace, personal, { importPhotos(PhotoTreatment.LUT) },
                                 { luts.launch(arrayOf("*/*")) }, chooseLut, initialSecond = editingLutSecond) { fullscreen = it }

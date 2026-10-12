@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lumixfilmmirror.camera.ConnectionStep
@@ -17,20 +18,36 @@ import com.lumixfilmmirror.design.PaperPanel
 
 @Composable
 fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy: Boolean,
-    transferring: Boolean, onImport: () -> Unit, onFollow: () -> Unit, workspace: WorkspaceViewModel) {
+    transferring: Boolean, onImport: () -> Unit, onFollow: () -> Unit, workspace: WorkspaceViewModel,
+    initialMethod: String = "wifi", requestedCamera: RememberedCamera? = null) {
+    var method by rememberSaveable { mutableStateOf(initialMethod) }
+    val differentCamera = camera.connected && requestedCamera != null && camera.device?.rememberedIdentity() != requestedCamera.id
     val listState = rememberLazyListState()
     val visibleIds by remember(listState) {
         derivedStateOf { listState.layoutInfo.visibleItemsInfo.map { it.key }.toSet() }
     }
     PaperPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("从相机传入", style = MaterialTheme.typography.titleMedium)
-            if (!camera.connected) {
+            if (differentCamera) {
+                Text("切换相机", style = MaterialTheme.typography.headlineSmall)
+                Text("当前连接：${camera.device?.model.orEmpty()}")
+                Text("你选择了 ${requestedCamera?.model.orEmpty()}。先断开当前相机，再为这台相机建立连接。",
+                    style = MaterialTheme.typography.bodyMedium)
+                MirrorButton(enabled = !busy, onClick = workspace::disconnectCamera) { Text("断开并切换") }
+                Text("已经传入的照片会保留；传输进行中时先暂停，再切换相机。", style = MaterialTheme.typography.bodySmall)
+            } else if (!camera.connected) {
                 camera.sendingReconnect?.let { CameraSendingReconnectControl(it, busy, workspace) }
-                CameraConnectControls(busy, workspace)
-                HorizontalDivider()
-                CameraBluetoothControls(camera, busy, workspace)
-                if (camera.device != null && camera.sendingReconnect == null) TextButton(enabled = !busy, onClick = workspace::reconnectCamera) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MirrorChoice(method == "bluetooth", { method = "bluetooth" }, Modifier.weight(1f), enabled = !busy,
+                        label = { Text("蓝牙配对") })
+                    MirrorChoice(method != "bluetooth", { method = "wifi" }, Modifier.weight(1f), enabled = !busy,
+                        label = { Text("Wi-Fi 连接") })
+                }
+                MirrorConnectionGuide(method == "bluetooth", requestedCamera?.model)
+                if (method == "bluetooth") CameraBluetoothControls(camera, busy, workspace)
+                else CameraConnectControls(busy, workspace)
+                if (camera.device != null && camera.sendingReconnect == null &&
+                    (requestedCamera == null || camera.device.rememberedIdentity() == requestedCamera.id)) TextButton(enabled = !busy, onClick = workspace::reconnectCamera) {
                     Text("重新连接 ${camera.device.model}")
                 }
                 if (camera.discovered.size > 1) {
@@ -41,6 +58,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                     }
                 }
             } else {
+                Text("从相机传入", style = MaterialTheme.typography.titleMedium)
                 Text("${camera.device?.model.orEmpty()} · ${camera.device?.friendlyName.orEmpty()}", style = MaterialTheme.typography.bodySmall)
                 if (camera.followingIncoming) Text("后续拍摄接收已开启", style = MaterialTheme.typography.labelSmall)
                 if (camera.accessMode.incoming) {

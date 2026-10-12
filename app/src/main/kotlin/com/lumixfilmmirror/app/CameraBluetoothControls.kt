@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lumixfilmmirror.camera.CameraRouterSsid
 
@@ -85,18 +86,14 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("也可先在相机菜单开启蓝牙配对，读取它的 Wi-Fi 连接资料。",
-            style = MaterialTheme.typography.bodySmall)
-        Row {
-            TextButton(enabled = !busy, onClick = {
+            MirrorButton(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
                 if (bluetoothPermissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
                     workspace.scanBluetoothCameras()
                 else bluetoothLauncher.launch(bluetoothPermissions)
             }) { Text("查找蓝牙相机") }
             TextButton(enabled = !busy, onClick = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }) {
-                Text("系统蓝牙")
+                Text("打开系统蓝牙设置 →")
             }
-        }
         for (found in camera.bluetoothCameras) TextButton(enabled = !busy,
             onClick = { workspace.readBluetoothCamera(found.address) }) {
             Text("${found.name} · ${if (found.pairing) "正在配对" else "可连接"}")
@@ -105,7 +102,7 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             Text("相机网络 · $ssid", style = MaterialTheme.typography.bodySmall)
             if (camera.bluetoothCanStartWifi) {
                 Text("启动相机的传输网络，随后在系统弹窗确认连接。", style = MaterialTheme.typography.labelSmall)
-                Button(enabled = !busy, onClick = { connect(true) }) { Text("启动传输 Wi-Fi 并连接") }
+                MirrorButton(enabled = !busy, onClick = { connect(true) }) { Text("启动传输 Wi-Fi 并连接") }
                 if (camera.bluetoothCanStartSendingWifi) {
                     Text("先点下方入口；提示等待后，在相机上开启拍后发送或选定文件发送。等待最多 90 秒。",
                         style = MaterialTheme.typography.labelSmall)
@@ -116,7 +113,7 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
                 TextButton(enabled = !busy, onClick = { connect(false) }) { Text("已在相机上开启 · 直接连接") }
             } else {
                 Text("在相机上开启 Wi-Fi 传输后连接，随后在系统弹窗确认。", style = MaterialTheme.typography.labelSmall)
-                Button(enabled = !busy, onClick = { connect(false) }) { Text("连接此相机 Wi-Fi") }
+                MirrorButton(enabled = !busy, onClick = { connect(false) }) { Text("连接此相机 Wi-Fi") }
             }
             if (camera.bluetoothCanStartRouterWifi) {
                 HorizontalDivider()

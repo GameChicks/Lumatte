@@ -90,6 +90,8 @@ internal enum class DotGlyph(val rows: List<String>) {
     CLOSE(listOf("10001", "01010", "00100", "01010", "10001")),
     STAR(listOf("0001000", "0001000", "1111111", "0111110", "0011100", "0100010", "1000001")),
     CAMERA(listOf("0011100", "1111111", "1000001", "1011101", "1010101", "1011101", "1111111")),
+    BLUETOOTH(listOf("0001000", "0001100", "0101010", "0011100", "0001000", "0011100", "0101010", "0001100", "0001000")),
+    ALBUM(listOf("1111111", "1000001", "1000101", "1000001", "1011001", "1101101", "1111111")),
     FILM(listOf("1111111", "1010101", "1000001", "1010101", "1000001", "1010101", "1111111")),
     LUT(listOf("0001000", "0110110", "1101011", "1001001", "1101011", "0110110", "0001000")),
     FRAME(listOf("1111111", "1000001", "1011101", "1010101", "1011101", "1000001", "1111111")),
@@ -124,6 +126,16 @@ internal fun DotIcon(glyph: DotGlyph, modifier: Modifier = Modifier, tint: Color
                 DotGlyph.CAMERA -> {
                     val path=Path().apply { moveTo(w*.12f,h*.32f);lineTo(w*.32f,h*.32f);lineTo(w*.39f,h*.21f);lineTo(w*.65f,h*.21f);lineTo(w*.72f,h*.32f);lineTo(w*.88f,h*.32f);lineTo(w*.88f,h*.8f);lineTo(w*.12f,h*.8f);close() }
                     drawPath(path,tint,style=stroke); drawCircle(tint,w*.16f,Offset(w*.51f,h*.56f),style=stroke)
+                }
+                DotGlyph.BLUETOOTH -> {
+                    line(.47f,.08f,.47f,.92f); line(.47f,.08f,.77f,.31f)
+                    line(.77f,.31f,.23f,.74f); line(.23f,.26f,.77f,.69f); line(.77f,.69f,.47f,.92f)
+                }
+                DotGlyph.ALBUM -> {
+                    drawRoundRect(tint,Offset(w*.12f,h*.13f),androidx.compose.ui.geometry.Size(w*.76f,h*.74f),CornerRadius(w*.08f),style=stroke)
+                    drawCircle(tint,w*.05f,Offset(w*.67f,h*.34f))
+                    val path=Path().apply { moveTo(w*.16f,h*.74f);lineTo(w*.39f,h*.49f);lineTo(w*.61f,h*.72f);lineTo(w*.72f,h*.6f);lineTo(w*.85f,h*.74f) }
+                    drawPath(path,tint,style=stroke)
                 }
                 DotGlyph.FILM -> {
                     drawRoundRect(tint,Offset(w*.19f,h*.1f),androidx.compose.ui.geometry.Size(w*.62f,h*.8f),CornerRadius(w*.07f),style=stroke)
@@ -164,7 +176,8 @@ internal fun PageHeading(kicker: String, title: String, onImport: (() -> Unit)? 
     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(kicker, style = MaterialTheme.typography.labelSmall, color = LocalFilmMaterials.current.secondaryInk)
-            Text(title, fontFamily = MirrorFonts.Editorial, style = MaterialTheme.typography.displayMedium)
+            Text(title, fontFamily = if (title.any { it.code > 0x2fff }) MirrorFonts.ChineseEditorial else MirrorFonts.Editorial,
+                style = MaterialTheme.typography.displayMedium)
         }
         onImport?.let { RoundAction("导入照片", DotGlyph.PLUS, onClick = it) }
     }

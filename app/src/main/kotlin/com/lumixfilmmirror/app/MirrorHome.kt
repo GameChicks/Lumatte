@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -52,28 +53,30 @@ import kotlin.math.cos
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.res.ResourcesCompat
+import androidx.compose.ui.unit.Constraints
 
 @Composable
 internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, personal: MirrorPersonalState,
-    transfers: List<TransferTask>, workspace: WorkspaceViewModel, onCamera: () -> Unit, onAlbum: () -> Unit, onTools: () -> Unit) {
+    transfers: List<TransferTask>, workspace: WorkspaceViewModel, onCamera: (String?) -> Unit, onAlbum: () -> Unit, onTools: () -> Unit) {
     val tones = LocalFilmMaterials.current
     var noteEditing by rememberSaveable { mutableStateOf(false) }
     var note by rememberSaveable { mutableStateOf("") }
     var settings by rememberSaveable { mutableStateOf(false) }
     CompositionLocalProvider(LocalMirrorDotArt provides true) {
     BoxWithConstraints(Modifier.fillMaxSize().background(if (isSystemInDarkTheme()) Color(0xFF070A0B) else Color(0xFFF1F0EB))) {
-    val cardHeight = ((maxWidth - 40.dp) * .654f).coerceIn(218.dp, 280.dp)
-    LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 170.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item {
-            Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+    val displayScale = LocalDensity.current.fontScale
+    val viewportWidth = maxWidth
+    val cardHeight = ((maxWidth - 40.dp) * .654f + 120.dp * (displayScale - 1f).coerceAtLeast(0f)).coerceIn(218.dp, 340.dp)
+    Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("LUMIX / FILM MIRROR", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
                     color = tones.secondaryInk)
                 TextButton(onClick = { settings = true }) { Text("偏好") }
             }
-        }
+    LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 170.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
-            BoxWithConstraints(Modifier.fillMaxWidth().height(cardHeight + maxWidth * .40f)) {
+            BoxWithConstraints(Modifier.fillMaxWidth().height(cardHeight + viewportWidth * .40f)) {
                 WelcomePerspective(Modifier.fillMaxWidth().height(maxWidth * .53f).align(Alignment.TopCenter))
                 CameraHero(camera, personal, workspace, onCamera, Modifier.align(Alignment.BottomCenter), cardHeight)
             }
@@ -81,9 +84,9 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 ActionAtmosphere("蓝牙\n连接", "连接你的相机", listOf(Color(0xFFFFCF78), Color(0xFFED653B), Color(0xFF428FA6)),
-                    Modifier.weight(1f), cardHeight, onCamera)
+                    Modifier.weight(1f), cardHeight, DotGlyph.BLUETOOTH, "BLUETOOTH\nCONNECT", { onCamera(null) })
                 ActionAtmosphere("进入\n相册", "导入图片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
-                    Modifier.weight(1f), cardHeight, onAlbum)
+                    Modifier.weight(1f), cardHeight, DotGlyph.ALBUM, "IMPORT\nPHOTOS", onAlbum)
             }
         }
         item { UsageCard(state, transfers, cardHeight) }
@@ -91,16 +94,19 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
             Atmosphere(Modifier.fillMaxWidth().height(cardHeight).clickable(role = Role.Button) {
                 note = personal.journal; noteEditing = true
             }, listOf(Color(0xFFAEA891), Color(0xFF777967), Color(0xFF414D43))) {
+                Text("“", Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 54.dp),
+                    fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.18f))
+                Text("”", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 12.dp),
+                    fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.18f))
                 Column(Modifier.fillMaxSize().padding(24.dp)) {
-                    Text("创作记录", fontFamily = MirrorFonts.Dots, fontSize = 30.sp, color = Color.White)
-                    Text("“", fontFamily = MirrorFonts.Dots, fontSize = 36.sp, color = Color.White.copy(.6f))
-                    Text(personal.journal.ifBlank { "写下今天的光线、地点与故事。" }, Modifier.weight(1f).padding(start = 12.dp),
-                        maxLines = 3, overflow = TextOverflow.Ellipsis, color = Color.White, fontSize = 16.sp)
-                    Text("”", Modifier.align(Alignment.End), fontFamily = MirrorFonts.Dots, fontSize = 36.sp,
-                        color = Color.White.copy(.6f))
+                    Text("创作记录", fontFamily = MirrorFonts.Dots, fontSize = 30.sp, lineHeight = 38.sp, color = Color.White)
+                    Spacer(Modifier.height(24.dp))
+                    Text(personal.journal.ifBlank { "写下今天的光线、地点与故事。" }, Modifier.weight(1f).padding(horizontal = 12.dp),
+                        maxLines = 4, lineHeight = 24.sp, overflow = TextOverflow.Ellipsis, color = Color.White, fontSize = 16.sp)
                 }
             }
         }
+    }
     }
     }
     }
@@ -125,7 +131,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
 
 @Composable
 private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalState,
-    workspace: WorkspaceViewModel, onConnect: () -> Unit, modifier: Modifier, cardHeight: Dp) {
+    workspace: WorkspaceViewModel, onConnect: (String?) -> Unit, modifier: Modifier, cardHeight: Dp) {
     val scope = rememberCoroutineScope()
     val count = maxOf(1, personal.cameras.size)
     val pager = rememberPagerState(pageCount = { count })
@@ -163,19 +169,14 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
         else -> listOf(Color(0xFF82BEE5), Color(0xFFADD6E8), Color(0xFF124863))
     }
     Atmosphere(modifier.fillMaxWidth().height(cardHeight).then(gesture)
-        .clickable(enabled = mode == "add" || personal.cameras.isEmpty(), role = Role.Button, onClick = onConnect), colours,
+        .clickable(enabled = mode == "add" || personal.cameras.isEmpty(), role = Role.Button, onClick = { onConnect(null) }), colours,
         flowing = !reduced && (mode == "add" || personal.cameras.isEmpty())) {
         AnimatedContent(targetState = mode, label = "camera-card-state") { target ->
             if (target == "add" || personal.cameras.isEmpty()) {
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        val titleSize = (maxWidth.value / 4.6f).coerceIn(40f, 65f)
-                        Text("新增你的\n松下相机", Modifier.fillMaxWidth(), fontFamily = MirrorFonts.Dots,
-                            fontSize = titleSize.sp, lineHeight = (titleSize * 1.22f).sp, color = Color.White,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                    }
-                    TextButton(enabled = !camera.busy, onClick = onConnect) { Text("点按开始连接 →", color = Color.White.copy(.75f)) }
+                    HomeDisplayText("新增你的\n松下相机", Modifier.fillMaxWidth().weight(1f), 72f, centered = true)
+                    TextButton(enabled = !camera.busy, onClick = { onConnect(null) }) { Text("点按开始连接 →", color = Color.White.copy(.75f)) }
                     if (personal.cameras.isNotEmpty()) TextButton(onClick = { mode = "normal" }) { Text("返回已有相机", color = Color.White) }
                 }
             } else if (target == "delete") {
@@ -192,17 +193,24 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
                 HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { index ->
                     val saved = personal.cameras.getOrNull(index)
                     val connected = camera.connected && saved?.id == camera.device?.rememberedIdentity()
-                    Column(Modifier.fillMaxSize().padding(24.dp)) {
-                        Text("你的", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-                        Text("松下相机", color = Color.White.copy(.6f), fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                    Column(Modifier.fillMaxSize().padding(20.dp)) {
+                        Text("你的", color = Color.White, fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
+                        Text("松下相机", color = Color.White.copy(.6f), fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.weight(1f))
-                        Text("Lumix", fontFamily = MirrorFonts.Dots, fontSize = 27.sp, lineHeight = 33.sp, color = Color.White)
-                        Text(saved?.model?.removePrefix("DC-") ?: "—", fontFamily = MirrorFonts.Dots, fontSize = 61.sp, lineHeight = 72.sp,
-                            color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        HomeDisplayText("Lumix", Modifier.fillMaxWidth().height(30.dp), 30f)
+                        HomeDisplayText(saved?.model?.removePrefix("DC-")?.removePrefix("DMC-") ?: "—",
+                            Modifier.fillMaxWidth().height(70.dp), 76f)
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (connected) "● 已连接" else "○ 未连接", Modifier.weight(1f), color = Color.White, fontSize = 12.sp)
-                            TextButton(enabled = !camera.busy, onClick = onConnect) {
-                                Text(if (connected) "浏览相册 →" else "连接 →", color = Color.White)
+                            Row(Modifier.clip(RoundedCornerShape(22.dp)).background(Color.White.copy(.08f))
+                                .border(.7.dp, Color.White.copy(.26f), RoundedCornerShape(22.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Canvas(Modifier.size(6.dp)) { drawCircle(if (connected) Color(0xFF5BEB9B) else Color(0xFFD9CBA4)) }
+                                Text(if (connected) "已连接" else "未连接", color = Color.White, fontSize = 11.sp, lineHeight = 14.sp)
+                            }
+                            Spacer(Modifier.weight(1f))
+                            TextButton(enabled = !camera.busy, onClick = { onConnect(saved?.id) }) {
+                                Text(if (connected) "浏览相册 →" else "连接 →", color = Color.White, fontSize = 12.sp, lineHeight = 16.sp)
                             }
                         }
                     }
@@ -262,18 +270,58 @@ internal fun Atmosphere(modifier: Modifier, colours: List<Color>, flowing: Boole
         .clip(shape).background(Brush.verticalGradient(colours)).border(1.dp,
             Brush.verticalGradient(listOf(Color.White.copy(.55f), Color.White.copy(.06f), Color.White.copy(.22f))), shape)) {
         if (flowing) LiquidMaterial(Modifier.fillMaxSize(), colours, moving = true)
+        HomeMaterialLighting(Modifier.fillMaxSize(), colours)
         content()
     }
 }
 
 @Composable
-private fun ActionAtmosphere(title: String, subtitle: String, colours: List<Color>, modifier: Modifier, height: Dp, onClick: () -> Unit) {
+private fun ActionAtmosphere(title: String, subtitle: String, colours: List<Color>, modifier: Modifier, height: Dp,
+    glyph: DotGlyph, footnote: String, onClick: () -> Unit) {
     Atmosphere(modifier.height(height).clickable(role = Role.Button, onClick = onClick), colours) {
-        Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Text(title, fontFamily = MirrorFonts.Dots, fontSize = 49.sp, lineHeight = 64.sp, color = Color.White)
-            Text(subtitle, color = Color.White.copy(.68f), fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(34.dp).clip(CircleShape).background(Color.White.copy(.09f))
+                    .border(.8.dp, Color.White.copy(.28f), CircleShape), contentAlignment = Alignment.Center) {
+                    CompositionLocalProvider(LocalMirrorDotArt provides false) { DotIcon(glyph, Modifier.size(22.dp), Color.White) }
+                }
+                Spacer(Modifier.weight(1f))
+                Box(Modifier.size(30.dp).border(.8.dp, Color.White.copy(.3f), CircleShape),contentAlignment = Alignment.Center) {
+                    DotIcon(DotGlyph.RIGHT, Modifier.size(16.dp), Color.White)
+                }
+            }
+            HomeDisplayText(title, Modifier.fillMaxWidth().weight(1f), 46f)
+            Text(subtitle, color = Color.White.copy(.76f), fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
+            Text(footnote, color = Color.White.copy(.58f), fontSize = 9.sp, lineHeight = 11.sp)
         }
-        DotIcon(DotGlyph.RIGHT, Modifier.align(Alignment.TopEnd).padding(14.dp), Color.White)
+    }
+}
+
+/** Fit display artwork to the space, leaving captions and touch targets at their readable size. */
+@Composable
+private fun HomeDisplayText(text: String, modifier: Modifier, preferredSize: Float, centered: Boolean = false) {
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier) {
+        val width = with(density) { maxWidth.roundToPx() }
+        val height = with(density) { maxHeight.roundToPx() }
+        val lines = text.count { it == '\n' } + 1
+        val size = remember(text, width, height, density.fontScale, preferredSize) {
+            var candidate = preferredSize
+            while (candidate > 14f) {
+                val result = measurer.measure(AnnotatedString(text),
+                    style = TextStyle(fontFamily = MirrorFonts.Dots, fontSize = candidate.sp, lineHeight = (candidate * 1.15f).sp),
+                    softWrap = true, maxLines = lines, constraints = Constraints(maxWidth = width))
+                if (!result.hasVisualOverflow && result.size.height <= height) break
+                candidate -= 1f
+            }
+            candidate
+        }
+        Text(text, modifier = Modifier.align(if (centered) Alignment.Center else Alignment.TopStart),
+            style = TextStyle(fontFamily = MirrorFonts.Dots, fontSize = size.sp, lineHeight = (size * 1.15f).sp),
+            color = Color.White, softWrap = true, maxLines = lines,
+            textAlign = if (centered) androidx.compose.ui.text.style.TextAlign.Center else androidx.compose.ui.text.style.TextAlign.Start,
+            overflow = if (lines > 1) TextOverflow.Clip else TextOverflow.Ellipsis)
     }
 }
 

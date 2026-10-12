@@ -23,7 +23,7 @@ internal val MirrorTypography = Typography().let { t ->
         headlineMedium = t.headlineMedium.copy(fontFamily = MirrorFonts.ChineseEditorial),
         headlineSmall = t.headlineSmall.copy(fontFamily = MirrorFonts.ChineseEditorial),
         titleLarge = t.titleLarge.copy(fontFamily = MirrorFonts.ChineseEditorial),
-        titleMedium = t.titleMedium.copy(fontFamily = MirrorFonts.Body),
+        titleMedium = t.titleMedium.copy(fontFamily = MirrorFonts.ChineseEditorial),
         titleSmall = t.titleSmall.copy(fontFamily = MirrorFonts.Body),
         bodyLarge = t.bodyLarge.copy(fontFamily = MirrorFonts.Body),
         bodyMedium = t.bodyMedium.copy(fontFamily = MirrorFonts.Body),

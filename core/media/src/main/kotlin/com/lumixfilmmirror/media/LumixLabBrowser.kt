@@ -20,6 +20,8 @@ data class LumixLabBrowserState(
     val colours: Map<String, LutExampleColours> = emptyMap(),
     val coloursLoading: Boolean = false, val coloursCompleted: Int = 0, val coloursTotal: Int = 0,
     val exampleErrors: Map<String, String> = emptyMap(),
+    val categoryPreviews: Map<String, List<LumixLabLut>> = emptyMap(),
+    val categoryPreviewErrors: Map<String, String> = emptyMap(),
 )
 
 data class LumixLabGalleryQuery(val text: String = "", val family: LutColourFamily? = null,
@@ -54,6 +56,39 @@ class LumixLabBrowser(private val client: LumixLabCatalogueClient, private val s
     private var detailRevision = 0L
     private var genreRevision = 0L
     private val loadedQueries = linkedMapOf<LumixLabLutQuery, LumixLabBrowserState>()
+    private val previewJobs = mutableMapOf<LumixLabLutQuery, Job>()
+    private val loadedPreviews = linkedMapOf<LumixLabLutQuery, List<LumixLabLut>>()
+    private var previewLanguage: String? = null
+
+    /** Small real previews for the default category rows; only called after the user enters Lab. */
+    fun loadCategoryPreviews(language: String) {
+        if (previewLanguage != language) {
+            previewJobs.values.forEach { it.cancel() }; previewJobs.clear()
+            previewLanguage = language
+            mutable.update { it.copy(categoryPreviews = emptyMap(), categoryPreviewErrors = emptyMap()) }
+        }
+        // Bound automatic preview work. Full categories and further pages remain explicit actions.
+        mutable.value.genres.take(4).forEach { genre ->
+            val query = LumixLabLutQuery(language, limit = 3, genreCode = genre.code)
+            val saved = loadedPreviews[query]
+            if (saved != null) {
+                mutable.update { it.copy(categoryPreviews = it.categoryPreviews + (genre.code to saved)) }
+            } else if (previewJobs[query]?.isActive != true) {
+                previewJobs[query] = scope.launch {
+                    try {
+                        val items = client.luts(query).items
+                        loadedPreviews[query] = items
+                        while (loadedPreviews.size > 8) loadedPreviews.remove(loadedPreviews.keys.first())
+                        if (previewLanguage == language) mutable.update { it.copy(
+                            categoryPreviews = it.categoryPreviews + (genre.code to items),
+                            categoryPreviewErrors = it.categoryPreviewErrors - genre.code) }
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { if (previewLanguage == language) mutable.update { it.copy(
+                        categoryPreviewErrors = it.categoryPreviewErrors + (genre.code to (e.message ?: "分类例图暂不可用"))) } }
+                }
+            }
+        }
+    }
 
     private fun rememberLoadedQuery() {
         val current = mutable.value
