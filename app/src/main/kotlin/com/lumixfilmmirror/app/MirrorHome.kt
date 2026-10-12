@@ -3,6 +3,7 @@ package com.lumixfilmmirror.app
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -29,8 +31,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.lumixfilmmirror.design.LocalFilmMaterials
 import com.lumixfilmmirror.design.MirrorFonts
@@ -39,6 +47,11 @@ import java.time.*
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.sin
+import kotlin.math.cos
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.res.ResourcesCompat
 
 @Composable
 internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, personal: MirrorPersonalState,
@@ -47,6 +60,9 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
     var noteEditing by rememberSaveable { mutableStateOf(false) }
     var note by rememberSaveable { mutableStateOf("") }
     var settings by rememberSaveable { mutableStateOf(false) }
+    CompositionLocalProvider(LocalMirrorDotArt provides true) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(if (isSystemInDarkTheme()) Color(0xFF070A0B) else Color(0xFFF1F0EB))) {
+    val cardHeight = ((maxWidth - 40.dp) * .654f).coerceIn(218.dp, 280.dp)
     LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 170.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
@@ -55,23 +71,24 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
                     color = tones.secondaryInk)
                 TextButton(onClick = { settings = true }) { Text("偏好") }
             }
-            Box(Modifier.fillMaxWidth().height(124.dp)) {
-                Text("WELCOME", Modifier.fillMaxWidth().align(Alignment.BottomStart).graphicsLayer { translationY = 24.dp.toPx() }, fontFamily = MirrorFonts.Welcome,
-                    fontSize = 91.sp, lineHeight = 100.sp, maxLines = 1)
+        }
+        item {
+            BoxWithConstraints(Modifier.fillMaxWidth().height(cardHeight + maxWidth * .40f)) {
+                WelcomePerspective(Modifier.fillMaxWidth().height(maxWidth * .53f).align(Alignment.TopCenter))
+                CameraHero(camera, personal, workspace, onCamera, Modifier.align(Alignment.BottomCenter), cardHeight)
             }
         }
-        item { CameraHero(camera, personal, workspace, onCamera) }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                ActionAtmosphere("连接\n相机", "蓝牙与 Wi-Fi", listOf(Color(0xFFECC080), Color(0xFFCD7055), Color(0xFF316B8F)),
-                    Modifier.weight(1f), onCamera)
-                ActionAtmosphere("进入\n相册", "选择与传入照片", listOf(Color(0xFF325E4D), Color(0xFF87AE69), Color(0xFFEAD68B)),
-                    Modifier.weight(1f), onAlbum)
+                ActionAtmosphere("蓝牙\n连接", "连接你的相机", listOf(Color(0xFFFFCF78), Color(0xFFED653B), Color(0xFF428FA6)),
+                    Modifier.weight(1f), cardHeight, onCamera)
+                ActionAtmosphere("进入\n相册", "导入图片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
+                    Modifier.weight(1f), cardHeight, onAlbum)
             }
         }
-        item { UsageCard(state, transfers) }
+        item { UsageCard(state, transfers, cardHeight) }
         item {
-            Atmosphere(Modifier.fillMaxWidth().height(248.dp).clickable(role = Role.Button) {
+            Atmosphere(Modifier.fillMaxWidth().height(cardHeight).clickable(role = Role.Button) {
                 note = personal.journal; noteEditing = true
             }, listOf(Color(0xFFAEA891), Color(0xFF777967), Color(0xFF414D43))) {
                 Column(Modifier.fillMaxSize().padding(24.dp)) {
@@ -84,6 +101,8 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
                 }
             }
         }
+    }
+    }
     }
     if (noteEditing) AlertDialog(onDismissRequest = { noteEditing = false }, title = {
         Text("创作记录", fontFamily = MirrorFonts.Dots)
@@ -106,7 +125,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
 
 @Composable
 private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalState,
-    workspace: WorkspaceViewModel, onConnect: () -> Unit) {
+    workspace: WorkspaceViewModel, onConnect: () -> Unit, modifier: Modifier, cardHeight: Dp) {
     val scope = rememberCoroutineScope()
     val count = maxOf(1, personal.cameras.size)
     val pager = rememberPagerState(pageCount = { count })
@@ -141,16 +160,22 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
     val colours = when {
         mode == "delete" -> listOf(Color(0xFFCEADA6), Color(0xFF9C6670), Color(0xFF4E394C))
         mode == "add" || personal.cameras.isEmpty() -> listOf(Color(0xFFDDD5BC), Color(0xFF779895), Color(0xFF345A65))
-        else -> listOf(Color(0xFF98C9DB), Color(0xFF507E9E), Color(0xFF193B58))
+        else -> listOf(Color(0xFF82BEE5), Color(0xFFADD6E8), Color(0xFF124863))
     }
-    Atmosphere(Modifier.fillMaxWidth().height(248.dp).then(gesture), colours,
+    Atmosphere(modifier.fillMaxWidth().height(cardHeight).then(gesture)
+        .clickable(enabled = mode == "add" || personal.cameras.isEmpty(), role = Role.Button, onClick = onConnect), colours,
         flowing = !reduced && (mode == "add" || personal.cameras.isEmpty())) {
         AnimatedContent(targetState = mode, label = "camera-card-state") { target ->
             if (target == "add" || personal.cameras.isEmpty()) {
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("新增你的\n松下相机", fontFamily = MirrorFonts.Dots, fontSize = 31.sp, color = Color.White)
-                    TextButton(enabled = !camera.busy, onClick = onConnect) { Text("开始连接 →", color = Color.White) }
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val titleSize = (maxWidth.value / 4.6f).coerceIn(40f, 65f)
+                        Text("新增你的\n松下相机", Modifier.fillMaxWidth(), fontFamily = MirrorFonts.Dots,
+                            fontSize = titleSize.sp, lineHeight = (titleSize * 1.22f).sp, color = Color.White,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                    TextButton(enabled = !camera.busy, onClick = onConnect) { Text("点按开始连接 →", color = Color.White.copy(.75f)) }
                     if (personal.cameras.isNotEmpty()) TextButton(onClick = { mode = "normal" }) { Text("返回已有相机", color = Color.White) }
                 }
             } else if (target == "delete") {
@@ -170,9 +195,9 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
                     Column(Modifier.fillMaxSize().padding(24.dp)) {
                         Text("你的", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                         Text("松下相机", color = Color.White.copy(.6f), fontSize = 23.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(12.dp))
-                        Text("Lumix", fontFamily = MirrorFonts.Dots, fontSize = 26.sp, color = Color.White)
-                        Text(saved?.model?.removePrefix("DC-") ?: "—", fontFamily = MirrorFonts.Dots, fontSize = 46.sp,
+                        Spacer(Modifier.weight(1f))
+                        Text("Lumix", fontFamily = MirrorFonts.Dots, fontSize = 27.sp, lineHeight = 33.sp, color = Color.White)
+                        Text(saved?.model?.removePrefix("DC-") ?: "—", fontFamily = MirrorFonts.Dots, fontSize = 61.sp, lineHeight = 72.sp,
                             color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(if (connected) "● 已连接" else "○ 未连接", Modifier.weight(1f), color = Color.White, fontSize = 12.sp)
@@ -209,40 +234,51 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
 }
 
 @Composable
+private fun WelcomePerspective(modifier: Modifier) {
+    val context = LocalContext.current
+    val dark = isSystemInDarkTheme()
+    val font = remember { ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.nhl_minnesota) }
+    val paint = remember { android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG) }
+    Canvas(modifier.semantics { contentDescription = "Welcome" }) {
+        paint.typeface = font; paint.textSize = 100f
+        paint.textSize *= size.width / paint.measureText("WELCOME")
+        val fm = paint.fontMetrics
+        val naturalHeight = fm.bottom - fm.top
+        val matrix = android.graphics.Matrix()
+        matrix.setPolyToPoly(floatArrayOf(0f, 0f, size.width, 0f, size.width, naturalHeight, 0f, naturalHeight), 0,
+            floatArrayOf(0f, 0f, size.width, size.height * .23f, size.width, size.height, 0f, size.height), 0, 4)
+        paint.shader = android.graphics.LinearGradient(0f, 0f, 0f, naturalHeight,
+            if (dark) intArrayOf(0xFFF6F3E9.toInt(), 0xFFE8EAE6.toInt(), 0xFF659EC0.toInt())
+            else intArrayOf(0xFF222A2E.toInt(), 0xFF294459.toInt(), 0xFF5D8FA8.toInt()), floatArrayOf(0f, .62f, 1f), android.graphics.Shader.TileMode.CLAMP)
+        drawContext.canvas.nativeCanvas.apply { save(); concat(matrix); drawText("WELCOME", 0f, -fm.top, paint); restore() }
+    }
+}
+
+@Composable
 internal fun Atmosphere(modifier: Modifier, colours: List<Color>, flowing: Boolean = false,
     content: @Composable BoxScope.() -> Unit) {
     val shape = RoundedCornerShape(30.dp)
-    val phase = if (flowing) rememberInfiniteTransition(label = "camera-ripple").animateFloat(0f, 1f,
-        infiniteRepeatable(tween(4800, easing = LinearEasing)), label = "ripple-phase").value else 0f
-    Box(modifier.clip(shape).background(Brush.verticalGradient(colours)).border(1.dp, Color.White.copy(.25f), shape)) {
-        Canvas(Modifier.fillMaxSize()) {
-            drawRect(Brush.radialGradient(listOf(Color.White.copy(.22f), Color.Transparent),
-                center = Offset(size.width * (.2f + phase * .45f), size.height * .2f), radius = size.width * .85f))
-            for (x in 0 until (size.width / 13.dp.toPx()).toInt()) for (y in 0 until (size.height / 13.dp.toPx()).toInt())
-                drawCircle(Color.White.copy(.075f), .65.dp.toPx(), Offset(x * 13.dp.toPx(), y * 13.dp.toPx()))
-            if (flowing) repeat(3) { n ->
-                val fraction = (phase + n / 3f) % 1f
-                drawCircle(Color.White.copy((1f - fraction) * .14f), fraction * size.width,
-                    center, style = Stroke(1.4.dp.toPx()))
-            }
-        }
+    Box(modifier.shadow(16.dp, shape, ambientColor = colours.first().copy(.15f), spotColor = colours.first().copy(.24f))
+        .clip(shape).background(Brush.verticalGradient(colours)).border(1.dp,
+            Brush.verticalGradient(listOf(Color.White.copy(.55f), Color.White.copy(.06f), Color.White.copy(.22f))), shape)) {
+        if (flowing) LiquidMaterial(Modifier.fillMaxSize(), colours, moving = true)
         content()
     }
 }
 
 @Composable
-private fun ActionAtmosphere(title: String, subtitle: String, colours: List<Color>, modifier: Modifier, onClick: () -> Unit) {
-    Atmosphere(modifier.height(190.dp).clickable(role = Role.Button, onClick = onClick), colours) {
+private fun ActionAtmosphere(title: String, subtitle: String, colours: List<Color>, modifier: Modifier, height: Dp, onClick: () -> Unit) {
+    Atmosphere(modifier.height(height).clickable(role = Role.Button, onClick = onClick), colours) {
         Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Text(title, fontFamily = MirrorFonts.Dots, fontSize = 34.sp, lineHeight = 40.sp, color = Color.White)
-            Text(subtitle, color = Color.White.copy(.85f), fontSize = 12.sp)
+            Text(title, fontFamily = MirrorFonts.Dots, fontSize = 49.sp, lineHeight = 64.sp, color = Color.White)
+            Text(subtitle, color = Color.White.copy(.68f), fontSize = 17.sp, fontWeight = FontWeight.Medium)
         }
         DotIcon(DotGlyph.RIGHT, Modifier.align(Alignment.TopEnd).padding(14.dp), Color.White)
     }
 }
 
 @Composable
-private fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>) {
+private fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>, height: Dp) {
     var offset by rememberSaveable { mutableIntStateOf(0) }
     var metric by rememberSaveable { mutableStateOf("transfer") }
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
@@ -250,11 +286,8 @@ private fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>) {
     val month = YearMonth.now().plusMonths(offset.toLong())
     val transferDates = remember(transfers) { transfers.filter { it.state in setOf("IMPORTED", "SAVED") && it.completedAt != null }
         .groupingBy { Instant.ofEpochMilli(requireNotNull(it.completedAt)).atZone(ZoneId.systemDefault()).toLocalDate() }.eachCount() }
-    val captureDates = remember(state.processingBatches) {
-        state.processingBatches.flatMap { it.photos }.distinctBy { it.id }.mapNotNull { photo ->
-            val value = photo.metadata.capturedAt.take(10).replace(':', '-')
-            runCatching { LocalDate.parse(value) }.getOrNull()
-        }.groupingBy { it }.eachCount()
+    val captureDates = remember(state.captureDays) {
+        state.captureDays.mapKeys { LocalDate.parse(it.key) }
     }
     val dates = if (metric == "transfer") transferDates else captureDates
     val total = dates.filterKeys { YearMonth.from(it) == month }.values.sum()
@@ -264,7 +297,7 @@ private fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>) {
             offset += pager.settledPage - 1; pager.scrollToPage(1)
         }
     }
-    Atmosphere(Modifier.fillMaxWidth().height(248.dp), listOf(Color(0xFF839FAF), Color(0xFF526E85), Color(0xFF2A4258))) {
+    Atmosphere(Modifier.fillMaxWidth().height(height), listOf(Color(0xFF839FAF), Color(0xFF526E85), Color(0xFF2A4258))) {
         Column(Modifier.fillMaxSize().padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("相机用量", Modifier.weight(1f), fontFamily = MirrorFonts.Dots, fontSize = 27.sp, color = Color.White)

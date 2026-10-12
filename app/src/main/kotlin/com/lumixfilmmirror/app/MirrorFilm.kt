@@ -5,6 +5,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,6 +25,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -39,15 +45,21 @@ import kotlin.math.abs
 
 internal fun FilmCategory.editorialTitle() = when (this) {
     FilmCategory.NEGATIVE -> "Negative"
-    FilmCategory.CINEMA -> "Cinema"
+    FilmCategory.CINEMA -> "Cine"
     FilmCategory.REVERSAL -> "Slide"
     FilmCategory.MONOCHROME -> "B&W"
 }
 internal fun FilmCategory.colour() = when (this) {
-    FilmCategory.NEGATIVE -> Color(0xFFE9BC57)
-    FilmCategory.CINEMA -> Color(0xFFBE7654)
-    FilmCategory.REVERSAL -> Color(0xFF7BACC0)
-    FilmCategory.MONOCHROME -> Color(0xFFB5B4AB)
+    FilmCategory.NEGATIVE -> Color(0xFFFFCC56)
+    FilmCategory.CINEMA -> Color(0xFF4E8CCC)
+    FilmCategory.REVERSAL -> Color(0xFF6DA275)
+    FilmCategory.MONOCHROME -> Color(0xFFC4C3B9)
+}
+
+private fun defaultFilmIndex(films: List<FilmPreset>, category: FilmCategory): Int {
+    val preferred = when(category) { FilmCategory.NEGATIVE -> "kodak_gold_200"; FilmCategory.CINEMA -> "kodak_vision3_500t"
+        FilmCategory.REVERSAL -> "fujifilm_velvia_100"; FilmCategory.MONOCHROME -> null }
+    return films.indexOfFirst { it.id == preferred }.coerceAtLeast(0)
 }
 
 @Composable
@@ -79,9 +91,10 @@ internal fun MirrorFilm(state: WorkspaceState, onImport: () -> Unit, onChoose: (
                 FilmCategory.entries.any { it.name == route } -> {
                     val shownCategory = FilmCategory.valueOf(route)
                     val films = state.filmPresets.filter { it.category == shownCategory }
-                    FilmCarousel(films, shownCategory, positions[route] ?: 0, armed, reduced, shared, visibility,
+                    FilmCarousel(films, shownCategory, positions[route] ?: defaultFilmIndex(films,shownCategory), armed, reduced, shared, visibility,
                         onBack = back, onPage = { page -> positions = HashMap(positions).apply { put(route, page) } },
-                        onUserScroll = { armed = true }, onDetail = { detailId = it.id },
+                        onUserScroll = { if (categoryName == route && detailId == null) armed = true },
+                        onDetail = { if (categoryName == route && detailId == null) { armed = false; detailId = it.id } },
                         onCategory = { selected -> categoryName = selected.name; armed = true })
                 }
                 else -> state.filmPresets.firstOrNull { it.id == route }?.let { film ->
@@ -98,35 +111,36 @@ internal fun MirrorFilm(state: WorkspaceState, onImport: () -> Unit, onChoose: (
 private fun FilmCategories(state: WorkspaceState, positions: Map<String, Int>, onImport: () -> Unit, shared: SharedTransitionScope,
     visibility: AnimatedVisibilityScope, onCategory: (FilmCategory) -> Unit) {
     val reduced = LocalMirrorReducedMotion.current
-    LazyColumn(contentPadding = PaddingValues(bottom = 172.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { PageHeading("ANALOG / DIGITAL", "Film", onImport) }
-        if (state.photos.isEmpty()) item {
-            Text("先浏览胶卷，或导入照片开始创作。", Modifier.padding(horizontal = 20.dp),
-                color = LocalFilmMaterials.current.secondaryInk, style = MaterialTheme.typography.bodySmall)
-        }
+    Column(Modifier.fillMaxSize()) {
+    PageHeading("LUMIX / 胶片模拟", "Film", onImport)
+    LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 172.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         FilmCategory.entries.forEachIndexed { index, category -> item(key = category.name) {
             val films = state.filmPresets.filter { it.category == category }
-            val representative = films.getOrNull(positions[category.name] ?: 0) ?: films.firstOrNull()
+            val representative = films.getOrNull(positions[category.name] ?: defaultFilmIndex(films,category)) ?: films.firstOrNull()
             Box(Modifier.padding(horizontal = 20.dp).fillMaxWidth().height(190.dp).clip(RoundedCornerShape(26.dp))
                 .background(Brush.linearGradient(listOf(category.colour(), category.colour().copy(.65f))))
                 .clickable { onCategory(category) }) {
                 Column(Modifier.padding(20.dp)) {
-                    Text("0${index + 1} / ${category.label}", fontSize = 11.sp, color = Color(0xFF24241E))
                     val headingMorph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("category-${category.name}"), visibility,
                         boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
-                    Text(category.editorialTitle(), headingMorph, fontFamily = MirrorFonts.Editorial, fontSize = 52.sp,
-                        color = Color(0xFF171916), maxLines = 1)
-                    Text("${state.filmPresets.count { it.category == category }} 款胶卷", fontSize = 12.sp, color = Color(0xFF31342B))
+                    Text(category.editorialTitle(), headingMorph, fontFamily = MirrorFonts.Editorial, fontSize = 76.sp, lineHeight = 78.sp,
+                        color = Color(0xFF171916), maxLines = 1, overflow = TextOverflow.Clip)
+                    Text(when(category) { FilmCategory.NEGATIVE -> "Color Negative"; FilmCategory.CINEMA -> "Motion Picture";
+                        FilmCategory.REVERSAL -> "Reversal Film"; FilmCategory.MONOCHROME -> "Black & White" },
+                        fontFamily=MirrorFonts.Editorial, fontSize=13.sp, lineHeight=16.sp, color=Color(0xFF24241E))
+                    Spacer(Modifier.height(8.dp))
+                    Text(category.label, fontSize=14.sp, lineHeight=18.sp, fontWeight=FontWeight.Bold, color=Color(0xFF22241F))
                 }
                 representative?.let { film ->
                     val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility,
                         boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
-                    FilmCartridge(film, Modifier.align(Alignment.CenterEnd).width(126.dp).height(176.dp).then(morph)
+                    FilmCartridge(film, Modifier.align(Alignment.CenterEnd).width(150.dp).height(195.dp).then(morph)
                         .graphicsLayer { rotationZ = 12f })
                 }
-                DotIcon(DotGlyph.RIGHT, Modifier.align(Alignment.BottomStart).padding(20.dp), Color(0xFF24241E))
+                RoundAction("浏览${category.label}", DotGlyph.RIGHT, Modifier.align(Alignment.BottomEnd).padding(14.dp), onClick={onCategory(category)})
             }
         } }
+    }
     }
 }
 
@@ -135,12 +149,17 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
     reduced: Boolean, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope, onBack: () -> Unit,
     onPage: (Int) -> Unit, onUserScroll: () -> Unit, onDetail: (FilmPreset) -> Unit, onCategory: (FilmCategory) -> Unit) {
     val tones = LocalFilmMaterials.current
-    val pager = rememberPagerState(initialPage = initial.coerceIn(0, maxOf(0, films.lastIndex)), pageCount = { films.size })
+    val pager = rememberPagerState(initialPage = if (films.isEmpty()) 0 else films.size * 100 + initial.coerceIn(0, films.lastIndex),
+        pageCount = { films.size * 201 })
     val haptics = LocalHapticFeedback.current
     var entered by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { delay(if (reduced) 0 else 450); entered = true }
-    LaunchedEffect(pager.isScrollInProgress) { if (pager.isScrollInProgress) onUserScroll() }
-    LaunchedEffect(pager.settledPage) { onPage(pager.settledPage) }
+    LaunchedEffect(Unit) { delay(if (reduced) 0 else 1000); entered = true }
+    LaunchedEffect(pager.interactionSource) {
+        pager.interactionSource.interactions.collect { interaction ->
+            if (interaction is androidx.compose.foundation.interaction.DragInteraction.Start) onUserScroll()
+        }
+    }
+    LaunchedEffect(pager.settledPage) { if (films.isNotEmpty()) onPage(pager.settledPage % films.size) }
     var previousPage by remember { mutableIntStateOf(pager.currentPage) }
     LaunchedEffect(pager.currentPage) {
         if (previousPage != pager.currentPage) {
@@ -149,43 +168,53 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
     }
     LaunchedEffect(pager.settledPage, pager.isScrollInProgress, armed, entered, films.size) {
         if (entered && armed && !pager.isScrollInProgress && !reduced && films.isNotEmpty()) {
-            delay(400); onDetail(films[pager.settledPage])
+            delay(500)
+            if (!pager.isScrollInProgress && abs(pager.currentPageOffsetFraction) < .01f)
+                onDetail(films[pager.settledPage % films.size])
         }
     }
-    BoxWithConstraints(Modifier.fillMaxSize().background(tones.background)) {
-        val pageHeight = (maxHeight / 3).coerceIn(165.dp, 250.dp)
-        if (films.isNotEmpty()) VerticalPager(pager, modifier = Modifier.fillMaxSize(), pageSize = PageSize.Fixed(pageHeight),
-            contentPadding = PaddingValues(vertical = (maxHeight - pageHeight) / 2), beyondViewportPageCount = 1) { index ->
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        FilmStage(category)
+        val pageHeight = (maxHeight * .23f).coerceIn(165.dp, 220.dp)
+        val viewportHeight = (maxHeight - 192.dp).coerceAtLeast(pageHeight)
+        if (films.isNotEmpty()) VerticalPager(pager, modifier = Modifier.fillMaxSize().padding(top = 88.dp, bottom = 104.dp),
+            pageSize = PageSize.Fixed(pageHeight), contentPadding = PaddingValues(vertical = (viewportHeight - pageHeight) / 2),
+            beyondViewportPageCount = 1) { index ->
             val distance = (pager.currentPage - index) + pager.currentPageOffsetFraction
+            val filmIndex = index % films.size
+            val film = films[filmIndex]
             val centre = 1f - abs(distance).coerceIn(0f, 1f)
-            Row(Modifier.fillMaxSize().padding(start = 20.dp, end = 28.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(.44f).graphicsLayer { alpha = .25f + centre * .75f }) {
-                    Text("${index + 1}".padStart(2, '0'), fontFamily = MirrorFonts.Dots, color = tones.amber)
-                    Text(films[index].name, style = MaterialTheme.typography.titleSmall)
-                    if (centre > .9f) TextButton(onClick = { onDetail(films[index]) }) { Text("查看介绍 →") }
+            Row(Modifier.fillMaxSize().padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(.30f).graphicsLayer { alpha = .22f + centre * .78f }) {
+                    Text("${filmIndex + 1}".padStart(2, '0'), color = tones.amber, fontSize=11.sp)
+                    Text(film.name, style = MaterialTheme.typography.bodySmall, maxLines=3)
+                    if (centre > .9f) TextButton(onClick = { onDetail(film) }) { Text("查看介绍 →") }
                 }
-                val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${films[index].id}"), visibility,
-                    boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
-                FilmCartridge(films[index], Modifier.weight(.56f).height(pageHeight - 6.dp).then(morph)
+                val morph = if (index == pager.currentPage) with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility,
+                    boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) } else Modifier
+                FilmCartridge(film, Modifier.weight(.70f).requiredHeight(pageHeight * 1.25f).then(morph)
                     .graphicsLayer {
                         scaleX = .72f + centre * .28f; scaleY = scaleX
-                        rotationZ = 18f - centre * 10f
+                        rotationZ = -66f + distance.coerceIn(-2f,2f) * 4f
                         rotationY = distance.coerceIn(-1f, 1f) * -18f
                         alpha = .2f + centre * .8f
                         cameraDistance = 12 * density
-                    }.clickable { onDetail(films[index]) })
+                        renderEffect = if (!reduced && abs(distance) > .5f) BlurEffect(abs(distance) * 1.8f * density,
+                            abs(distance) * 1.8f * density, TileMode.Clamp) else null
+                    }.clickable { onDetail(film) })
             }
         } else Text("此分类暂时没有胶卷模型。", Modifier.align(Alignment.Center))
         Row(Modifier.align(Alignment.TopStart).padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundAction("返回胶卷分类", DotGlyph.LEFT, onClick = onBack)
             val headingMorph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("category-${category.name}"), visibility,
                 boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
-            Text(category.editorialTitle(), Modifier.padding(start = 16.dp).then(headingMorph), fontFamily = MirrorFonts.Editorial, fontSize = 30.sp)
+            Text(category.editorialTitle(), Modifier.padding(start = 16.dp).then(headingMorph), fontFamily = MirrorFonts.Editorial,
+                fontStyle=FontStyle.Italic, fontSize = 36.sp)
         }
         Column(Modifier.align(Alignment.BottomStart).padding(24.dp)) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilmCategory.entries.forEach { entry -> item(key = entry.name) {
-                    FilterChip(category == entry, { if (category != entry) onCategory(entry) }, label = { Text(entry.label) })
+                    MirrorChoice(category == entry, { if (category != entry) onCategory(entry) }, label = { Text(entry.label) })
                 } }
             }
             Text(if (reduced) "上下滑动选卷 · 点击查看介绍" else "上下滑动选卷 · 停留片刻查看介绍",
@@ -199,46 +228,88 @@ private fun FilmDetail(film: FilmPreset, shared: SharedTransitionScope, visibili
     onBack: () -> Unit, onChoose: () -> Unit) {
     val tones = LocalFilmMaterials.current
     val reduced = LocalMirrorReducedMotion.current
+    val shortName = film.shortTitle()
+    val number = Regex("(?:^| )([0-9]{2,4}[A-Za-z]*)$").find(shortName)?.groupValues?.get(1)
+    val title = if (number == null) shortName else shortName.removeSuffix(number).trim()
+    val story = when {
+        film.id.contains("gold") -> "温暖的金色、柔和的层次与日常的光。把街道、旅行和身边的人，留在一卷熟悉的色彩里。"
+        film.id.contains("velvia") -> "饱满的色彩与鲜明的反差。适合用山林、天空与季节的变化，探索反转片的表现。"
+        film.category == FilmCategory.CINEMA -> "把电影胶卷的色彩语言带入静态照片。预览中调整曝光、颗粒与 Halation，找到属于这张照片的氛围。"
+        film.category == FilmCategory.MONOCHROME -> "让光影和形状成为主角。用明暗层次、颗粒和黑柔，重新观看一张照片。"
+        else -> "选择一卷，观察光线如何改变色彩。进入预览后，独立调整曝光、颗粒与黑柔，为照片找到合适的呈现。"
+    }
     Column(Modifier.fillMaxSize().background(tones.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            RoundAction("返回选卷", DotGlyph.LEFT, onClick = onBack)
+            Text("${film.category.label} / Film", Modifier.padding(start = 16.dp), color = tones.secondaryInk,
+                fontFamily = MirrorFonts.ChineseEditorial, fontSize = 16.sp)
+        }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item { RoundAction("返回选卷", DotGlyph.LEFT, onClick = onBack) }
             item {
-                Row(Modifier.fillMaxWidth().height(265.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().height(300.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(film.category.label, style = MaterialTheme.typography.labelSmall, color = tones.secondaryInk)
-                        Text(film.name, fontFamily = MirrorFonts.Editorial, fontSize = 42.sp, lineHeight = 44.sp)
+                        Text(film.name.substringBefore(' '), style = MaterialTheme.typography.labelSmall, color = tones.secondaryInk)
+                        Text(title, fontFamily = MirrorFonts.Editorial, fontSize = 60.sp, lineHeight = 62.sp)
+                        number?.let { Text(it, fontFamily = MirrorFonts.Editorial, fontSize = 74.sp, lineHeight = 76.sp, color = tones.amber) }
                     }
                     val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility,
                         boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
-                    FilmCartridge(film, Modifier.width(158.dp).height(255.dp).then(morph))
+                    FilmCartridge(film, Modifier.width(158.dp).height(280.dp).then(morph))
                 }
             }
-            item { HorizontalDivider(); Text(film.description ?: "${film.category.label} · ${film.name}", Modifier.padding(top = 20.dp),
+            item { Text("这一卷的故事", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 24.sp)
+                Text(film.description ?: story, Modifier.padding(top = 12.dp),
                 style = MaterialTheme.typography.bodyLarge) }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    listOf(DotGlyph.LUT to "色彩", DotGlyph.FILM to "颗粒", DotGlyph.FRAME to "层次").forEach { (icon, label) ->
+                        Column(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(tones.paperHighlight).padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            DotIcon(icon, tint = tones.amber)
+                            Text(label, fontFamily = MirrorFonts.ChineseEditorial, fontSize = 15.sp)
+                        }
+                    }
+                }
+            }
             item { Text("${if (film.positive) "直接呈现正像" else "显影后渐进反转"} / 可调整曝光、黑柔与 Halation",
                 color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall) }
         }
-        Button(onClick = onChoose, modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp),
+        MirrorButton(onClick = onChoose, modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp),
             shape = RoundedCornerShape(28.dp)) { Text("选择此卷 →") }
     }
 }
 
 @Composable
 internal fun FilmCartridge(film: FilmPreset, modifier: Modifier = Modifier) {
+    val artwork = when (film.id) {
+        "kodak_gold_200" -> R.drawable.cartridge_gold_200_v2
+        "fujifilm_velvia_100" -> R.drawable.cartridge_velvia_100_v2
+        "kodak_vision3_500t" -> R.drawable.cartridge_vision3_500t_v2
+        else -> null
+    }
+    if (artwork != null) {
+        Image(painterResource(artwork), film.name, modifier,
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+        return
+    }
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val height = minOf(maxHeight, maxWidth / .72f)
         val width = height * .72f
         Box(Modifier.width(width).height(height)) {
             Image(painterResource(R.drawable.cartridge_blank_v1), film.name, Modifier.fillMaxSize())
-            Column(Modifier.offset(x = width * .185f, y = height * .26f).width(width * .62f).height(height * .58f)
-                .background(Brush.horizontalGradient(listOf(film.category.colour().copy(.75f), film.category.colour(), film.category.colour().copy(.7f))))
-                .padding(horizontal = 5.dp, vertical = 8.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                Text("LUMIX", fontSize = 8.sp, color = Color(0xFF252620), fontWeight = FontWeight.Bold)
-                Text(film.name.removePrefix("Kodak ").removePrefix("Fujifilm "), fontFamily = MirrorFonts.Body,
-                    fontWeight = FontWeight.Bold, fontSize = if (width > 150.dp) 22.sp else 15.sp, lineHeight = 19.sp,
-                    maxLines = 3, overflow = TextOverflow.Ellipsis, color = Color(0xFF161A18))
-                Text("FILM MIRROR", fontSize = 7.sp, color = Color(0xFF252620))
-            }
+            StockLabel(film, Modifier.offset(x = width * .185f, y = height * .25f).width(width * .64f).height(height * .59f))
         }
+    }
+}
+
+@Composable
+private fun FilmStage(category: FilmCategory) {
+    val dark = isSystemInDarkTheme()
+    Canvas(Modifier.fillMaxSize()) {
+        drawRect(if(dark) Color(0xFF10120F) else Color(0xFFF0EADD))
+        drawRect(Brush.radialGradient(listOf(category.colour().copy(if(dark) .28f else .25f),Color.Transparent),
+            center=Offset(size.width*.88f,size.height*.42f),radius=size.width*.95f))
+        drawRect(Brush.verticalGradient(listOf(Color.Black.copy(if(dark) .44f else .04f),Color.Transparent,
+            Color.Black.copy(if(dark) .58f else .08f))))
     }
 }

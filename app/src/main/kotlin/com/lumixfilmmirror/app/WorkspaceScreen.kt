@@ -95,13 +95,13 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
             if (state.recovering) item {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Text("正在恢复工作台和传输记录")
+                    Text("正在打开素材库")
                 }
             }
             state.storageFailure?.let { message -> item {
                 Column {
                     Text(message, color = MaterialTheme.colorScheme.error)
-                    TextButton(enabled = !state.recovering, onClick = workspace::restoreWorkspace) { Text("重试恢复") }
+                    TextButton(enabled = !state.recovering, onClick = workspace::restoreWorkspace) { Text("重新打开") }
                 }
             } }
             item { CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null,

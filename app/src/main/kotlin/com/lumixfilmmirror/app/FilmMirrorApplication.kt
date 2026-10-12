@@ -6,6 +6,16 @@ import android.os.Build
 import com.lumixfilmmirror.media.PhotoProcessor
 
 class FilmMirrorApplication : Application() {
+    internal val editingSessionBatches = mutableSetOf<String>()
+    internal var uiSessionStarted = false
+    internal fun endEditingSession() {
+        val live = buildSet {
+            camera.cameraState.value.activeTransferBatch?.let(::add)
+            exports.state.value.takeIf { it.active }?.run?.batchId?.let(::add)
+        }
+        editingSessionBatches.retainAll(live)
+        uiSessionStarted = false
+    }
     val camera: CameraController by lazy { CameraController(this) }
     private val sharedProcessor = lazy { PhotoProcessor(this) }
     val processor: PhotoProcessor get() = sharedProcessor.value

@@ -65,6 +65,7 @@ data class PhotoImportResult(val requestId: String, val batchId: String?, val im
 data class WorkspaceState(
     val photos: List<SourceImage> = emptyList(),
     val processingBatches: List<ProcessingBatch> = emptyList(),
+    val captureDays: Map<String, Int> = emptyMap(),
     val processingBatchId: String? = null,
     val batchBusy: Boolean = false,
     val luts: List<LutAsset> = emptyList(),
@@ -142,6 +143,8 @@ private fun syncFilmBatch(existing: FilmBatch?, photos: List<SourceImage>): Film
 }
 
 class WorkspaceViewModel(application: Application) : AndroidViewModel(application) {
+    internal val displayPreviews = MirrorPreviewCache(viewModelScope)
+    private val editingSessionBatches = (application as FilmMirrorApplication).editingSessionBatches
     val processor = (application as FilmMirrorApplication).processor
     val writer get() = processor.writer
     /** Frontend-facing browser. Construction has no network side effects. */
@@ -222,6 +225,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             cameraState.collect { value ->
                 val nextBatch = value.activeTransferBatch?.takeIf { it != mutable.value.activeTransferBatch }
+                if (nextBatch != null) editingSessionBatches.add(nextBatch)
                 mutable.update { previous ->
                     val updated = previous.copy(cameraBusy = value.busy, activeTransferBatch = value.activeTransferBatch)
                     if (nextBatch == null || previous.exporting || previous.importing || previous.lutImporting || previous.batchBusy) updated
@@ -238,7 +242,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         mutable.update { it.copy(recovering = true, storageFailure = null) }
         restoreJob = viewModelScope.launch {
             try {
-                val problems = store.initialize(importer, recoverTransfers = !camera.isTransferring)
+                val problems = store.initialize(importer, recoverTransfers = !camera.isTransferring, recoverPhotos = false)
                 val settings = store.readPreferences()
                 exportQueue.initialize()
                 val exportRuns = exportQueue.runs.first()
@@ -276,6 +280,15 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     private fun observeStorage() {
         storageObservers.forEach { it.cancel() }
         storageObservers.clear()
+        storageObservers += viewModelScope.launch {
+            try { store.photos.collect { photos ->
+                val days = photos.mapNotNull { photo ->
+                    runCatching { java.time.LocalDate.parse(photo.metadata.capturedAt.take(10).replace(':', '-')).toString() }.getOrNull()
+                }.groupingBy { it }.eachCount()
+                mutable.update { if (it.captureDays == days) it else it.copy(captureDays = days) }
+            } } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { /* Editing remains available if historical usage cannot be read. */ }
+        }
         storageObservers += viewModelScope.launch {
             try {
                 store.processingBatches.collect { batches ->
@@ -333,9 +346,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private suspend fun availableBatches(batches: List<ProcessingBatch>): Pair<List<ProcessingBatch>, Int> {
-        val (available, missing) = store.available(batches.flatMap { it.photos })
+        val session = batches.filter { it.id in editingSessionBatches }
+        val (available, missing) = store.available(session.flatMap { it.photos })
         val ids = available.map { it.id }.toSet()
-        return batches.map { it.copy(photos = it.photos.filter { photo -> photo.id in ids }) } to missing
+        return session.map { it.copy(photos = it.photos.filter { photo -> photo.id in ids }) } to missing
     }
 
     private fun persistPreferences() {
@@ -677,6 +691,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun showCreatedBatch(batch: ProcessingBatch) {
+        editingSessionBatches.add(batch.id)
         mutable.update { previous -> previous.showBatch(
             (listOf(batch) + previous.processingBatches).distinctBy { it.id }, batch.id)
             .copy(notice = null) }

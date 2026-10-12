@@ -18,6 +18,10 @@ import java.util.UUID
 
 /** User-started local photo processing; no boot, sticky restart or camera control. */
 class PhotoExportService : Service() {
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        (application as FilmMirrorApplication).endEditingSession()
+        super.onTaskRemoved(rootIntent)
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val controller get() = (application as FilmMirrorApplication).exports
     private val manager get() = getSystemService(NotificationManager::class.java)

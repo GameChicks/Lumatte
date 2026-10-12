@@ -41,7 +41,9 @@ $gradleArguments += ':app:assembleDebug'
 if ($LASTEXITCODE -ne 0) { throw "Prototype compilation failed (exit $LASTEXITCODE); see dist/prototype-build.log" }
 $apk = Join-Path $workspaceRoot 'app/build/outputs/apk/debug/app-debug.apk'
 if (-not (Test-Path -LiteralPath $apk)) { throw 'Gradle finished without the expected APK' }
-$output = Join-Path $distribution ('lumix-film-mirror-prototype-0.1.0-' + (Get-Date -Format yyyyMMdd-HHmmss) + '-debug.apk')
+$versionName = [regex]::Match((Get-Content -LiteralPath (Join-Path $workspaceRoot 'app/build.gradle.kts') -Raw), 'versionName\s*=\s*"([^"]+)"').Groups[1].Value
+if ($versionName -notmatch '^[0-9A-Za-z._-]+$') { throw 'Invalid application version for package filename' }
+$output = Join-Path $distribution ('lumix-film-mirror-prototype-' + $versionName + '-' + (Get-Date -Format yyyyMMdd-HHmmss) + '-debug.apk')
 Copy-Item -LiteralPath $apk -Destination $output
 Get-FileHash -LiteralPath $output -Algorithm SHA256 | Select-Object Path,Hash |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $distribution 'prototype-apk-sha256.json') -Encoding utf8

@@ -6,7 +6,8 @@ import org.json.JSONObject
 /** Only recovered response shapes; missing roots never masquerade as a successful empty page. */
 internal object LumixLabJson {
     fun genres(root: JSONObject): List<LumixLabGenre> = root.array("genres", 256).objects().map { genre ->
-        LumixLabGenre(genre.required("code", 256), genre.required("title", 1024),
+        LumixLabGenre(genre.required("code", 256), genre.text("title", 1024)?.takeIf { it.isNotBlank() }
+            ?: when (val code = genre.required("code", 256)) { "movie" -> "电影"; "still" -> "摄影"; else -> code },
             genre.image("thumbnail"), genre.optionalArray("top", 64)?.objects()?.map { top ->
                 LumixLabGenreTop(top.text("region", 256), top.image("thumbnail"))
             }.orEmpty())

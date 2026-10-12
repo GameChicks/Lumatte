@@ -21,6 +21,10 @@ import java.util.UUID
 
 /** User-started Wi-Fi camera transfer. No automatic boot/restart/reconnection. */
 class CameraTransferService : Service() {
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        (application as FilmMirrorApplication).endEditingSession()
+        super.onTaskRemoved(rootIntent)
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val controller get() = (application as FilmMirrorApplication).camera
     private var running: Job? = null

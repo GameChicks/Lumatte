@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.lumixfilmmirror.design.LocalFilmMaterials
 import com.lumixfilmmirror.design.MirrorFonts
@@ -68,7 +69,7 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
             else if (state.treatment == PhotoTreatment.LUT) item { LutControls(state, workspace, onChooseLut) }
             item { OutputControls(state, workspace) }
         }
-        Button(enabled = state.current != null && !state.busy, onClick = onNext,
+        MirrorButton(enabled = state.current != null && !state.busy, onClick = onNext,
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp), shape = RoundedCornerShape(28.dp)) {
             Text(if (state.treatment == PhotoTreatment.FILM) "显影与反转 →" else "选择画框与导出 →")
         }
@@ -77,18 +78,26 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
 
 @Composable
 internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel, frame: Boolean = false,
-    original: Boolean = false, colourFilter: ColorFilter? = null, onReady: ((Bitmap) -> Unit)? = null) {
+    original: Boolean = false, colourFilter: ColorFilter? = null, onReady: ((Bitmap) -> Unit)? = null, compactHeight: Dp? = null) {
     val source = state.current ?: return
     val recipe = if (original) PhotoRecipe.Original else runCatching { workspace.photoRecipe(state, source.id) }.getOrNull()
-    var bitmap by remember(source.id, frame) { mutableStateOf<Bitmap?>(null) }
+    val options = state.exportOptions
+    val frameNumber = state.photos.indexOfFirst { it.id == source.id } + 1
+    val previewKey = listOf("editor", source.id, recipe, if (frame) options else null, if (frame) frameNumber else null)
+    var bitmap by remember(source.id, frame) { mutableStateOf(workspace.displayPreviews.peek(previewKey)?.image) }
     var problem by remember(source.id, frame) { mutableStateOf<String?>(null) }
     var loading by remember(source.id, frame) { mutableStateOf(true) }
     var retry by rememberSaveable(source.id.value, frame) { mutableIntStateOf(0) }
     LaunchedEffect(source.id, recipe, if (frame) state.frame else null, if (frame) state.output else null, state.luts, retry) {
-        loading = true; problem = null
+        loading = workspace.displayPreviews.peek(previewKey) == null; problem = null
         try {
-            delay(160)
-            val result = if (frame) workspace.previewExportPhoto(source.id) else workspace.previewEditedPhoto(source.id, original = original)
+            if (loading) delay(160)
+            val frozenRecipe = recipe ?: error("照片配方不可用")
+            val result = workspace.displayPreviews.load(previewKey, keepLoading = false) {
+                val catalogue = ProcessingCatalogue(state.luts, state.filmPresets, emptyList())
+                MirrorPreview(if (frame) workspace.processor.previewExport(source, frozenRecipe, catalogue, options, longEdge = 960, frameNumber = frameNumber)
+                    else workspace.processor.preview(source, frozenRecipe, catalogue, longEdge = 960))
+            }.image
             bitmap = result; onReady?.invoke(result)
         } catch (error: CancellationException) { throw error }
         catch (error: Exception) { bitmap = null; problem = error.message ?: "预览暂不可用" }
@@ -97,7 +106,8 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
     }
     val ratio = if (frame) runCatching { workspace.exportLayout(source.id).canvas.let { it.width.toFloat() / it.height } }.getOrDefault(1f)
         else source.size.width.toFloat() / source.size.height
-    Box(Modifier.fillMaxWidth().aspectRatio(ratio.coerceIn(.65f, 1.8f)).background(LocalFilmMaterials.current.paperHighlight),
+    val previewModifier = Modifier.fillMaxWidth().let { if(compactHeight != null) it.height(compactHeight) else it.aspectRatio(ratio.coerceIn(.65f,1.8f)) }
+    Box(previewModifier.background(LocalFilmMaterials.current.paperHighlight),
         contentAlignment = Alignment.Center) {
         bitmap?.let { Image(it.asImageBitmap(), source.name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit, colorFilter = colourFilter) }
         if (loading) CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
@@ -112,7 +122,7 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
 internal fun PhotoStrip(state: WorkspaceState, workspace: WorkspaceViewModel) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(state.photos, key = { it.id.value }) { photo ->
-            FilterChip(state.selected == photo.id, { workspace.select(photo.id) }, label = { Text(photo.name, maxLines = 1) })
+            MirrorChoice(state.selected == photo.id, { workspace.select(photo.id) }, label = { Text(photo.name, maxLines = 1) })
         }
     }
 }
@@ -125,8 +135,8 @@ private fun FilmControls(state: WorkspaceState, workspace: WorkspaceViewModel, o
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TextButton(enabled = !state.busy, onClick = onChooseFilm) { Text("${film?.name ?: "选择胶卷"} · 更换") }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(batch.mode == FilmBatchMode.INDIVIDUAL, { workspace.filmMode(FilmBatchMode.INDIVIDUAL) }, label = { Text("逐张独立") })
-            FilterChip(batch.mode == FilmBatchMode.FIRST_PHOTO, { workspace.filmMode(FilmBatchMode.FIRST_PHOTO) }, label = { Text("继承首张") })
+            MirrorChoice(batch.mode == FilmBatchMode.INDIVIDUAL, { workspace.filmMode(FilmBatchMode.INDIVIDUAL) }, label = { Text("逐张独立") })
+            MirrorChoice(batch.mode == FilmBatchMode.FIRST_PHOTO, { workspace.filmMode(FilmBatchMode.FIRST_PHOTO) }, label = { Text("继承首张") })
         }
         if (batch.mode == FilmBatchMode.FIRST_PHOTO) Text("整批继承基准照片：${state.photos.firstOrNull { it.id == batch.referenceId }?.name ?: "照片缺失"}",
             style = MaterialTheme.typography.bodySmall, color = LocalFilmMaterials.current.secondaryInk)
@@ -138,7 +148,7 @@ private fun FilmControls(state: WorkspaceState, workspace: WorkspaceViewModel, o
         }
         Text("黑柔")
         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(DiffusionGrade.entries) { grade -> FilterChip(parameters.diffusion == grade,
+            items(DiffusionGrade.entries) { grade -> MirrorChoice(parameters.diffusion == grade,
                 { workspace.updateFilm(parameters.copy(diffusion = grade)) }, enabled = !state.busy,
                 label = { Text(when (grade) { DiffusionGrade.OFF -> "关闭"; DiffusionGrade.EIGHTH -> "1/8";
                     DiffusionGrade.QUARTER -> "1/4"; DiffusionGrade.HALF -> "1/2" }) }) }
@@ -269,19 +279,26 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
         Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             onBack?.let { RoundAction("返回预览", DotGlyph.LEFT, onClick = it) }
             Text("水印 / Frame", Modifier.weight(1f).padding(start = if (onBack != null) 12.dp else 0.dp),
-                fontFamily = MirrorFonts.Editorial, fontSize = 30.sp)
+                fontFamily = MirrorFonts.ChineseEditorial, fontSize = 30.sp)
             TextButton(enabled = !state.busy, onClick = onImport) { Text("导入") }
         }
-        if (state.current == null) EmptyImport("给照片一个归属。", "导入照片后选择画框与签名。", onImport)
+        if (state.current == null) Box(Modifier.weight(1f).fillMaxWidth()) {
+            EmptyImport("给照片一个归属。", "导入照片后选择画框与签名。", onImport)
+        }
         else LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item { EditedPreview(state, workspace, frame = true); PhotoStrip(state, workspace) }
+            item { EditedPreview(state, workspace, frame = true, compactHeight = 218.dp) }
             item {
-                Text("本批全部照片使用同一款画框", color = LocalFilmMaterials.current.secondaryInk, style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment=Alignment.CenterVertically) {
+                    Text("选择画框",Modifier.weight(1f),fontFamily=MirrorFonts.ChineseEditorial,fontSize=24.sp)
+                    Text("左右滑动 · ${FramePreset.entries.size} 款",style=MaterialTheme.typography.bodySmall,color=LocalFilmMaterials.current.secondaryInk)
+                }
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(FramePreset.entries) { preset -> FrameSample(preset, state, workspace) }
                 }
+                Text("本批全部照片使用同一款画框", color = LocalFilmMaterials.current.secondaryInk, style = MaterialTheme.typography.bodySmall)
             }
+            item { PhotoStrip(state, workspace) }
             if (state.frame.preset != FramePreset.NONE) {
                 item { OutlinedTextField(state.frame.signature, { workspace.updateFrame(state.frame.copy(signature = it.take(240))) },
                     label = { Text("签名 / 水印文字") }, modifier = Modifier.fillMaxWidth(), enabled = !state.busy) }
@@ -292,13 +309,13 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
                 item {
                     Text("画布比例")
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(FrameRatio.entries) { ratio -> FilterChip(state.frame.ratio == ratio,
+                        items(FrameRatio.entries) { ratio -> MirrorChoice(state.frame.ratio == ratio,
                             { workspace.updateFrame(state.frame.copy(ratio = ratio)) }, label = { Text(ratio.title) }, enabled = !state.busy) }
                     }
                     ParameterSlider("纸边", "${(state.frame.borderFraction * 100).roundToInt()}%", state.frame.borderFraction, .02f.. .12f,
                         !state.busy) { workspace.updateFrame(state.frame.copy(borderFraction = it)) }
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(FrameFont.entries) { font -> FilterChip(state.frame.signatureFont == font && state.frame.signatureFontKey == null,
+                        items(FrameFont.entries) { font -> MirrorChoice(state.frame.signatureFont == font && state.frame.signatureFontKey == null,
                             { workspace.updateFrame(state.frame.copy(signatureFont = font, signatureFontKey = null)) }, enabled = !state.busy,
                             label = { Text(font.title) }) }
                     }
@@ -320,7 +337,7 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
                         TextButton(enabled = !state.busy, onClick = { art.launch(arrayOf("image/*")) }) { Text("导入装饰图") }
                         if (frame.imageKey != null) TextButton(onClick = { workspace.updateFrame(frame.copy(imageKey = null)) }) { Text("移除装饰图") }
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(FrameMood.entries) { mood -> FilterChip(frame.mood == mood,
+                            items(FrameMood.entries) { mood -> MirrorChoice(frame.mood == mood,
                                 { workspace.updateFrame(frame.copy(mood = mood)) }, label = { Text(mood.title) }) }
                         }
                         Row { for ((label, argb) in listOf("自动" to null, "暖白" to 0xFFF7F4EC.toInt(), "黑" to 0xFF171A18.toInt()))
@@ -328,7 +345,7 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
                         Text("画布方向")
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             for ((label, portrait) in listOf("跟随照片" to null, "横向" to false, "竖向" to true))
-                                FilterChip(frame.portrait == portrait,
+                                MirrorChoice(frame.portrait == portrait,
                                     { workspace.updateFrame(frame.copy(portrait = portrait)) }, enabled = !state.busy,
                                     label = { Text(label) })
                         }
@@ -342,7 +359,7 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
                             Text("暗盒标签风格")
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 for ((label, blackWhite) in listOf("跟随胶卷" to null, "彩色" to false, "黑白" to true))
-                                    FilterChip(frame.filmBlackWhite == blackWhite,
+                                    MirrorChoice(frame.filmBlackWhite == blackWhite,
                                         { workspace.updateFrame(frame.copy(filmBlackWhite = blackWhite)) }, enabled = !state.busy,
                                         label = { Text(label) })
                             }
@@ -364,7 +381,7 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
                 TextButton(onClick = { workspace.export(retryOnly = true) }) { Text("重试失败照片") }
             }
         }
-        Button(enabled = state.current != null && !state.busy, onClick = { workspace.export() },
+        if (state.current != null) MirrorButton(enabled = !state.busy, onClick = { workspace.export() },
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp), shape = RoundedCornerShape(28.dp)) {
             Text(if (state.exporting) "保存中…" else "导出本批 · ${state.photos.size} 张")
         }
@@ -375,12 +392,15 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
 private fun FrameSample(preset: FramePreset, state: WorkspaceState, workspace: WorkspaceViewModel) {
     val source = state.current ?: return
     val options = state.exportOptions.copy(frame = state.frame.copy(preset = preset))
-    var thumbnail by remember(source.id, preset, state.treatment, state.lutRecipe, state.filmBatch, options) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(source.id, preset, state.treatment, state.lutRecipe, state.filmBatch, options) {
+    // A preset thumbnail is independent of the currently selected preset and other photos' edits.
+    val recipe = workspace.photoRecipe(state, source.id)
+    val previewKey = listOf("frame", source.id, recipe, options)
+    var thumbnail by remember(previewKey) { mutableStateOf(workspace.displayPreviews.peek(previewKey)?.image) }
+    LaunchedEffect(previewKey) {
         try {
-            thumbnail = workspace.processor.previewExport(source, workspace.photoRecipe(state, source.id),
+            thumbnail = workspace.displayPreviews.load(previewKey) { MirrorPreview(workspace.processor.previewExport(source, recipe,
                 ProcessingCatalogue(state.luts, state.filmPresets, emptyList()),
-                options, longEdge = 192)
+                options, longEdge = 192)) }.image
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) { /* Keep labelled selectable placeholder; main preview shows the error. */ }
     }
@@ -390,7 +410,7 @@ private fun FrameSample(preset: FramePreset, state: WorkspaceState, workspace: W
             thumbnail?.let { Image(it.asImageBitmap(), preset.title, Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit) }
                 ?: DotIcon(DotGlyph.FRAME)
         }
-        FilterChip(state.frame.preset == preset, { workspace.updateFrame(state.frame.copy(preset = preset)) },
+        MirrorChoice(state.frame.preset == preset, { workspace.updateFrame(state.frame.copy(preset = preset)) },
             enabled = !state.busy, label = { Text(preset.title, fontSize = 11.sp) })
     }
 }

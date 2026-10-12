@@ -7,6 +7,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +42,7 @@ import com.lumixfilmmirror.media.ExportDestination
 import com.lumixfilmmirror.model.*
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun MirrorScreen(workspace: WorkspaceViewModel) {
     val state by workspace.state.collectAsStateWithLifecycle()
     val camera by workspace.cameraState.collectAsStateWithLifecycle()
@@ -42,6 +52,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
     val tones = LocalFilmMaterials.current
     val context = LocalContext.current
     val savedPages = rememberSaveableStateHolder()
+    val backdrop = androidx.compose.ui.graphics.rememberGraphicsLayer()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var pane by rememberSaveable { mutableStateOf<String?>(null) }
     var fullscreen by remember { mutableStateOf(false) }
@@ -52,6 +63,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
     var importAccepted by rememberSaveable { mutableStateOf(false) }
     var importRequest by rememberSaveable { mutableStateOf<String?>(null) }
     var importCreatesBatch by rememberSaveable { mutableStateOf(true) }
+    var importSources by rememberSaveable { mutableStateOf(false) }
     var pendingFilm by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingLut by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingLutSecond by rememberSaveable { mutableStateOf(false) }
@@ -71,7 +83,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
             notificationAction = target; notification.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else executeTransfer(target)
     }
-    val photos = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+    val receivePhotos: (List<android.net.Uri>) -> Unit = { uris ->
         val request = importRequest
         if (uris.isNotEmpty() && request != null) {
             importAccepted = workspace.importImages(uris, newBatch = importCreatesBatch, requestId = request)
@@ -81,6 +93,8 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
             }
         } else { selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importRequest = null; importAccepted = false }
     }
+    val photos = rememberLauncherForActivityResult(MirrorPhotoPicker(), receivePhotos)
+    val rawPhotos = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), receivePhotos)
     val luts = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> workspace.importLuts(uris) }
     val importPhotos: (PhotoTreatment) -> Unit = { treatment ->
         if (!state.busy) {
@@ -88,7 +102,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
             importRequest = java.util.UUID.randomUUID().toString()
             importCreatesBatch = pane != "editor" && pane != "export"
             selectedImportTreatment = treatment.name
-            photos.launch(arrayOf("image/jpeg", "image/x-panasonic-rw2", "image/x-panasonic-raw", "application/octet-stream"))
+            importSources = true
         }
     }
     val chooseFilm: (FilmPreset) -> Unit = { film ->
@@ -116,7 +130,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
         val result = state.photoImportResult
         if (importAccepted && !state.busy && result == null) {
             selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importAccepted = false; importRequest = null
-            workspace.notice("已恢复工作台，请确认上次导入的照片后继续编辑")
+            workspace.notice("本次导入已结束，请重新选择照片")
             return@LaunchedEffect
         }
         if (importAccepted && !state.busy && selectedImportTreatment != null && result != null && result.requestId == importRequest) {
@@ -178,8 +192,11 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
     }
     CompositionLocalProvider(LocalMirrorReducedMotion provides reduced) {
         Box(Modifier.fillMaxSize().background(tones.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
-            ProgressiveBackdrop(Modifier.fillMaxSize(), enabled = navigation && !reduced) {
-                when (pane) {
+            ProgressiveBackdrop(Modifier.fillMaxSize(), enabled = navigation && !reduced, source = backdrop) {
+                AnimatedContent(targetState = pane, label = "workspace-card-entry", transitionSpec = {
+                    (fadeIn(tween(if (reduced) 0 else 300)) + scaleIn(tween(if (reduced) 0 else 420, easing = MirrorEase), initialScale = .97f)) togetherWith
+                        (fadeOut(tween(if (reduced) 0 else 160)) + scaleOut(tween(if (reduced) 0 else 300), targetScale = 1.015f))
+                }) { scene -> when (scene) {
                     "camera" -> Column(Modifier.fillMaxSize()) {
                         Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                             RoundAction("返回连接页", DotGlyph.LEFT, onClick = { pane = null })
@@ -221,9 +238,9 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
                             }
                         }
                     }
-                }
+                } }
             }
-            if (navigation) MirrorNavigation(tab, Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 16.dp)) {
+            if (navigation) MirrorNavigation(tab, Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 16.dp), backdrop) {
                 tab = it; fullscreen = false
             }
             val active = camera.activeTransferBatch != null || state.exporting
@@ -246,7 +263,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
                 modifier = Modifier.align(Alignment.TopEnd).background(tones.paperHighlight, RoundedCornerShape(24.dp))) { Text("显示进度") }
             if (state.recovering) Surface(Modifier.align(Alignment.TopCenter), shape = RoundedCornerShape(20.dp)) {
                 Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CircularProgressIndicator(Modifier.size(20.dp)); Text("恢复照片与记录…")
+                    CircularProgressIndicator(Modifier.size(20.dp)); Text("正在打开素材库…")
                 }
             }
             state.storageFailure?.let { failure -> AlertDialog(onDismissRequest = {}, title = { Text("工作台暂不可用") },
@@ -266,26 +283,49 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
             TextButton(onClick = { transferDestination = "lut"; transferChoice = null; startTransfer(target) }) { Text("进入 LUT 编辑") }
             Text("视频保持原文件保存到相册。", style = MaterialTheme.typography.bodySmall)
         } }, confirmButton = { TextButton(onClick = { transferChoice = null }) { Text("取消") } }) }
+    if(importSources) ModalBottomSheet(onDismissRequest = {
+        importSources=false; importRequest=null; selectedImportTreatment=null; pendingFilm=null; pendingLut=null
+    }, containerColor = tones.paper) {
+        Column(Modifier.fillMaxWidth().padding(horizontal=24.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            Text("从哪里导入？",fontFamily=androidx.compose.ui.text.font.FontFamily.Serif,style=MaterialTheme.typography.headlineSmall)
+            MirrorButton(onClick={importSources=false;photos.launch(Unit)},Modifier.fillMaxWidth().height(56.dp)) { Text("系统相册 · 多选照片") }
+            OutlinedButton(onClick={importSources=false;rawPhotos.launch(arrayOf("image/jpeg","image/x-panasonic-rw2","image/x-panasonic-raw","application/octet-stream"))},
+                Modifier.fillMaxWidth().height(56.dp)) { Text("从文件导入 JPEG / RAW") }
+            Text("RAW 仅提取内嵌 JPEG。",style=MaterialTheme.typography.bodySmall,color=tones.secondaryInk)
+            Spacer(Modifier.height(24.dp))
+        }
+    }
 }
 
 @Composable
-private fun MirrorNavigation(selected: Int, modifier: Modifier, onSelect: (Int) -> Unit) {
+private fun MirrorNavigation(selected: Int, modifier: Modifier,
+    backdrop: androidx.compose.ui.graphics.layer.GraphicsLayer, onSelect: (Int) -> Unit) {
     val tones = LocalFilmMaterials.current
     val shape = RoundedCornerShape(38.dp)
-    Row(modifier.fillMaxWidth().height(76.dp).clip(shape)
-        .background(Brush.horizontalGradient(listOf(tones.paperHighlight.copy(.92f), tones.paper.copy(.86f))))
-        .border(1.dp, tones.rim.copy(.65f), shape).padding(6.dp)) {
+    val dark = isSystemInDarkTheme()
+    val position by animateFloatAsState(selected.toFloat(), tween(if (LocalMirrorReducedMotion.current) 0 else 380, easing = MirrorEase), label = "nav-position")
+    BoxWithConstraints(modifier.fillMaxWidth().height(76.dp).clip(shape)
+        .frostedBackdrop(backdrop, !LocalMirrorReducedMotion.current)
+        .background(if (dark) Color(0xFF0F1920).copy(.45f) else Color.White.copy(.42f))
+        .border(1.dp, if (dark) Color.White.copy(.24f) else Color.White.copy(.75f), shape)) {
+        val cell = (maxWidth - 12.dp) / 4
+        val accent = if (selected == 1 || selected == 3) tones.amber else Color(0xFF94D3ED)
+        Box(Modifier.offset(x = 6.dp + cell * position, y = 6.dp).width(cell).height(64.dp).clip(RoundedCornerShape(32.dp))
+            .background(Brush.verticalGradient(if (dark) listOf(accent.copy(.35f), Color(0xFF12232F).copy(.78f)) else listOf(tones.ink, tones.ink.copy(.86f))))
+            .border(.8.dp, if (dark) accent.copy(.48f) else Color.Transparent, RoundedCornerShape(32.dp)))
+    Row(Modifier.fillMaxSize().padding(6.dp)) {
         val names = listOf("连接", "Film", "LUT", "水印")
         val icons = listOf(DotGlyph.CAMERA, DotGlyph.FILM, DotGlyph.LUT, DotGlyph.FRAME)
         names.forEachIndexed { index, label ->
             val active = selected == index
             Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(32.dp))
-                .background(if (active) tones.ink else Color.Transparent).clickable(role = Role.Tab) { onSelect(index) }
+                .clickable(role = Role.Tab) { onSelect(index) }
                 .semantics { this.selected = active; contentDescription = label },
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                DotIcon(icons[index], tint = if (active) tones.paper else tones.secondaryInk)
-                Text(label, color = if (active) tones.paper else tones.secondaryInk, style = MaterialTheme.typography.labelSmall)
+                DotIcon(icons[index], tint = if (active) if (dark) Color.White else tones.paper else tones.secondaryInk)
+                Text(label, color = if (active) if (dark) Color.White else tones.paper else tones.secondaryInk, style = MaterialTheme.typography.labelSmall)
             }
         }
+    }
     }
 }

@@ -44,8 +44,9 @@ class WorkspaceStore(context: Context) {
     val transfers = dao.transfers()
     val incomingTransfers = dao.incomingTransfers()
 
-    suspend fun initialize(importer: ImageImporter, recoverTransfers: Boolean = true): List<String> {
+    suspend fun initialize(importer: ImageImporter, recoverTransfers: Boolean = true, recoverPhotos: Boolean = true): List<String> {
         if (recoverTransfers) { dao.recoverInterrupted(); dao.recoverReceivers() }
+        if (!recoverPhotos) return emptyList()
         val recovery = importer.recoverImports()
         recovery.photos.forEach { dao.saveRecoveredPhoto(row(it)) }
         return recovery.problems
