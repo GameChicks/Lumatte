@@ -119,7 +119,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                     camera.wifiSelection != null -> "请选择用于本次相机连接的 Wi-Fi"
                     camera.cacheBusy -> "正在整理传输缓存"
                     camera.waitingForIncoming -> "等待后续拍摄 · 已保存 ${camera.transferred} 项"
-                    camera.bluetoothStep == BluetoothConnectionStep.SCANNING -> "正在查找蓝牙相机 · 最多 12 秒"
+                    camera.bluetoothStep == BluetoothConnectionStep.SCANNING -> "正在查找蓝牙相机 · 最多 20 秒"
                     camera.bluetoothStep == BluetoothConnectionStep.CONNECTING -> "正在连接蓝牙相机，请在相机上确认配对"
                     camera.bluetoothStep == BluetoothConnectionStep.READING_SERVICES -> "正在读取蓝牙连接能力"
                     camera.bluetoothStep == BluetoothConnectionStep.IDENTIFYING -> "正在登记本应用，请在相机上确认配对"

@@ -7,6 +7,7 @@ import com.lumixfilmmirror.camera.ConnectionStep
 import com.lumixfilmmirror.camera.DownloadProgress
 import com.lumixfilmmirror.camera.DiscoveredCamera
 import com.lumixfilmmirror.camera.BluetoothCamera
+import com.lumixfilmmirror.camera.BluetoothScanReport
 import com.lumixfilmmirror.camera.BluetoothConnectionStep
 import com.lumixfilmmirror.camera.CameraSendingReconnectRequest
 import com.lumixfilmmirror.camera.CameraWifiNetwork
@@ -26,6 +27,7 @@ data class CameraWorkspaceState(
     val incomingCount: Int? = null,
     val discovered: List<DiscoveredCamera> = emptyList(),
     val bluetoothCameras: List<BluetoothCamera> = emptyList(),
+    val bluetoothScanReport: BluetoothScanReport? = null,
     val bluetoothStep: BluetoothConnectionStep? = null,
     val bluetoothWifiSsid: String? = null,
     val bluetoothCanStartWifi: Boolean = false,

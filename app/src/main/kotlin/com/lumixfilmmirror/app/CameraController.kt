@@ -109,9 +109,14 @@ class CameraController(private val application: Application) {
 
     fun scanBluetoothCameras() = cameraOperation {
         clearBluetoothCredentials()
-        cameraMutable.update { it.copy(bluetoothCameras = emptyList(), bluetoothStep = BluetoothConnectionStep.SCANNING) }
-        val cameras = bluetooth.scan { found -> cameraMutable.update { it.copy(bluetoothCameras = found) } }
-        if (cameras.isEmpty()) error("未发现可连接的蓝牙相机，请在相机菜单开启蓝牙配对，或使用 Wi-Fi 入口")
+        cameraMutable.update { it.copy(bluetoothCameras = emptyList(), bluetoothScanReport = null,
+            bluetoothStep = BluetoothConnectionStep.SCANNING) }
+        var report: BluetoothScanReport? = null
+        val cameras = bluetooth.scan(onReport = { evidence ->
+            report = evidence
+            cameraMutable.update { it.copy(bluetoothScanReport = evidence) }
+        }) { found -> cameraMutable.update { it.copy(bluetoothCameras = found) } }
+        if (cameras.isEmpty()) error(report?.noCameraMessage() ?: "未收到可连接的相机广播，请重新查找")
     }
 
     fun readBluetoothCamera(address: String) = cameraOperation {
@@ -384,7 +389,7 @@ class CameraController(private val application: Application) {
     }
 
     fun bluetoothPermissionDenied() {
-        cameraMutable.update { it.copy(problem = "未获得蓝牙权限，可以使用 Wi-Fi 入口连接相机") }
+        cameraMutable.update { it.copy(problem = "所需权限未完整授予。请允许附近设备权限；查找相机还需精确定位权限。也可以使用 Wi-Fi 入口。") }
     }
 
     private fun clearBluetoothCredentials() {

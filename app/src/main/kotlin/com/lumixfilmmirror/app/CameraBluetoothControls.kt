@@ -20,7 +20,8 @@ import com.lumixfilmmirror.camera.CameraRouterSsid
 fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspace: WorkspaceViewModel) {
     val context = LocalContext.current
     val bluetoothPermissions = if (Build.VERSION.SDK_INT >= 31)
-        arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+        arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
     else arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
     var pendingStartup by rememberSaveable { mutableStateOf(false) }
     var pendingSending by rememberSaveable { mutableStateOf(false) }
@@ -86,6 +87,8 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("扫描需要附近设备、精确定位权限和系统定位开关，用于兼容相机广播；应用不读取手机位置。请保持此页面前台和屏幕亮起。",
+                style = MaterialTheme.typography.bodySmall)
             MirrorButton(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
                 if (bluetoothPermissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
                     workspace.scanBluetoothCameras()
@@ -94,6 +97,13 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             TextButton(enabled = !busy, onClick = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }) {
                 Text("打开系统蓝牙设置 →")
             }
+            TextButton(enabled = !busy, onClick = { context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }) {
+                Text("打开系统定位设置 →")
+            }
+        if (!busy) camera.bluetoothScanReport?.let { report ->
+            Text("本轮扫描：收到 ${report.advertisements} 条蓝牙广播，其中 ${report.panasonicAdvertisements} 条为松下广播。",
+                style = MaterialTheme.typography.labelSmall)
+        }
         for (found in camera.bluetoothCameras) TextButton(enabled = !busy,
             onClick = { workspace.readBluetoothCamera(found.address) }) {
             Text("${found.name} · ${if (found.pairing) "正在配对" else "可连接"}")

@@ -11,7 +11,9 @@ import android.os.Build
 import java.io.Closeable
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
@@ -31,15 +33,17 @@ class CameraWifiCredentials(val ssid: String, private var secret: String?, val c
 
 /** User-initiated BLE operations; scoped GATT closes when reads or foreground-service observation ends. */
 class CameraBluetooth(private val context: Context) {
-    private fun adapter(): BluetoothAdapter {
-        val permissions = if (Build.VERSION.SDK_INT >= 31)
-            listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
-        else listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+    private fun adapter(scanning: Boolean = false): BluetoothAdapter {
+        val permissions = if (Build.VERSION.SDK_INT >= 31) {
+            if (scanning) listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION) else listOf(Manifest.permission.BLUETOOTH_CONNECT)
+        } else if (scanning) listOf(Manifest.permission.ACCESS_FINE_LOCATION) else emptyList()
         check(permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
-            "需要附近设备权限才能查找蓝牙相机"
+            if (scanning) "查找蓝牙相机需要附近设备和精确定位权限；定位权限用于兼容扫描，不读取手机位置"
+            else "连接蓝牙相机需要附近设备权限"
         }
-        if (Build.VERSION.SDK_INT < 31) check(context.getSystemService(LocationManager::class.java)?.isLocationEnabled == true) {
-            "当前 Android 版本需要开启系统定位后才能查找蓝牙相机"
+        if (scanning) check(context.getSystemService(LocationManager::class.java)?.isLocationEnabled == true) {
+            "蓝牙兼容扫描需要开启系统定位后再查找相机；应用不会读取手机位置"
         }
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter ?: error("此设备没有蓝牙功能")
         check(adapter.isEnabled) { "请先在系统设置中开启蓝牙" }
@@ -47,18 +51,32 @@ class CameraBluetooth(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    suspend fun scan(onFound: (List<BluetoothCamera>) -> Unit): List<BluetoothCamera> = coroutineScope {
-        val scanner = adapter().bluetoothLeScanner ?: error("蓝牙暂时无法扫描，请重新开启蓝牙")
+    suspend fun scan(onReport: (BluetoothScanReport) -> Unit = {},
+        onFound: (List<BluetoothCamera>) -> Unit): List<BluetoothCamera> = coroutineScope {
+        val scanner = adapter(scanning = true).bluetoothLeScanner ?: error("蓝牙暂时无法扫描，请重新开启蓝牙")
         val events = Channel<BluetoothCamera>(64)
+        val scanning = AtomicBoolean(true)
+        val advertisements = AtomicInteger()
+        val panasonicAdvertisements = AtomicInteger()
+        val emptyPanasonicPayloads = AtomicInteger()
+        val observedStates = ConcurrentHashMap.newKeySet<Int>()
+        fun report() = BluetoothScanReport(advertisements.get(), panasonicAdvertisements.get(),
+            emptyPanasonicPayloads.get(), observedStates.toSet())
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) { accept(result) }
             override fun onBatchScanResults(results: MutableList<ScanResult>) { results.forEach(::accept) }
             private fun accept(result: ScanResult) {
+                if (!scanning.get()) return
+                advertisements.incrementAndGet()
                 val record = result.scanRecord ?: return
                 // Android omits the two company-ID bytes from this manufacturer payload.
                 val payload = record.getManufacturerSpecificData(0x003a) ?: return
-                if (payload.size < 7) return
+                panasonicAdvertisements.incrementAndGet()
+                // Discovery reads only the state; the camera identity is verified via GATT.
+                // The reference scanner does not require the six identity bytes to be present.
+                if (payload.isEmpty()) { emptyPanasonicPayloads.incrementAndGet(); return }
                 val state = payload[0].toInt() and 255
+                observedStates += state
                 if (state != 0 && state != 3) return // Never wake or power on a sleeping camera.
                 try {
                     events.trySend(BluetoothCamera(result.device.address,
@@ -71,18 +89,23 @@ class CameraBluetooth(private val context: Context) {
         }
         val cameras = linkedMapOf<String, BluetoothCamera>()
         try {
-            scanner.startScan(listOf(ScanFilter.Builder().setManufacturerData(0x003a, byteArrayOf()).build()),
+            // Match the reference's unfiltered foreground discovery; filter Panasonic in software.
+            // Do not depend on chipset offload support for a zero-length manufacturer filter.
+            scanner.startScan(null,
                 ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(), callback)
-            withTimeoutOrNull(12_000L) {
+            withTimeoutOrNull(20_000L) {
                 for (camera in events) {
                     cameras[camera.address] = camera
                     onFound(cameras.values.sortedByDescending { it.signal })
+                    onReport(report())
                 }
             }
             cameras.values.sortedByDescending { it.signal }
         } finally {
+            scanning.set(false)
             runCatching { scanner.stopScan(callback) }
             events.close()
+            onReport(report())
         }
     }
 
