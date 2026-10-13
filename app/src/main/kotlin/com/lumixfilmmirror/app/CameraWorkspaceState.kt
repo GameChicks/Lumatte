@@ -27,6 +27,7 @@ data class CameraWorkspaceState(
     val incomingCount: Int? = null,
     val discovered: List<DiscoveredCamera> = emptyList(),
     val bluetoothCameras: List<BluetoothCamera> = emptyList(),
+    val bluetoothSelectedCamera: BluetoothCamera? = null,
     val bluetoothScanReport: BluetoothScanReport? = null,
     val bluetoothStep: BluetoothConnectionStep? = null,
     val bluetoothWifiSsid: String? = null,

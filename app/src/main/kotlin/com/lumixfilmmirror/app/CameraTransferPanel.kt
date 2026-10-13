@@ -115,6 +115,15 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                     style = MaterialTheme.typography.labelSmall)
             }
             if (cameraBusy) {
+                if (!transferring && !camera.cacheBusy && !camera.waitingForIncoming) {
+                    camera.bluetoothSelectedCamera?.let {
+                        Text("正在连接 ${it.name}", style = MaterialTheme.typography.titleSmall)
+                    }
+                    // Connection stages are observable; their durations have no reliable percentage.
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    Text("① 选择相机  →  ② 蓝牙登记  →  ③ Wi-Fi 连接  →  ④ 读取照片",
+                        style = MaterialTheme.typography.labelSmall)
+                }
                 val caption = when {
                     camera.wifiSelection != null -> "请选择用于本次相机连接的 Wi-Fi"
                     camera.cacheBusy -> "正在整理传输缓存"
@@ -122,6 +131,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                     camera.bluetoothStep == BluetoothConnectionStep.SCANNING -> "正在查找蓝牙相机 · 最多 20 秒"
                     camera.bluetoothStep == BluetoothConnectionStep.CONNECTING -> "正在连接蓝牙相机，请在相机上确认配对"
                     camera.bluetoothStep == BluetoothConnectionStep.READING_SERVICES -> "正在读取蓝牙连接能力"
+                    camera.bluetoothStep == BluetoothConnectionStep.REGISTERING_NOTIFICATIONS -> "正在启用相机连接通知"
                     camera.bluetoothStep == BluetoothConnectionStep.IDENTIFYING -> "正在登记本应用，请在相机上确认配对"
                     camera.bluetoothStep == BluetoothConnectionStep.READING_WIFI -> "正在读取相机 Wi-Fi 资料"
                     camera.bluetoothStep == BluetoothConnectionStep.WAITING_FOR_SEND -> "等待相机发送请求 · 请在相机上开启拍后发送或选定文件发送"
@@ -147,7 +157,8 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 Row {
                     if (transferring) TextButton(onClick = workspace::pauseTransfer) { Text("暂停传输") }
                     TextButton(onClick = workspace::cancelCameraOperation) {
-                        Text(if (camera.followingIncoming) "停止后续接收" else if (transferring) "取消后续传输" else "取消操作")
+                        Text(if (camera.followingIncoming) "停止后续接收" else if (transferring) "取消后续传输"
+                            else if (camera.bluetoothStep == BluetoothConnectionStep.SCANNING) "停止查找" else "取消连接")
                     }
                 }
             }

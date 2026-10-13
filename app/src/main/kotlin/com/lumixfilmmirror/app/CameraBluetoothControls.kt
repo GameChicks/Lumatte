@@ -14,6 +14,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import com.lumixfilmmirror.design.PaperPanel
 import com.lumixfilmmirror.camera.CameraRouterSsid
 import com.lumixfilmmirror.camera.BluetoothConnectionStep
 
@@ -26,6 +29,8 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
     else arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
     var pendingStartup by rememberSaveable { mutableStateOf(false) }
     var pendingSending by rememberSaveable { mutableStateOf(false) }
+    var selectedCamera by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingCamera by rememberSaveable { mutableStateOf<String?>(null) }
     // Router SSID is an optional input, not a password or a value read from Android.
     var routerSsid by remember { mutableStateOf("") }
     val routerError = remember(routerSsid) {
@@ -65,14 +70,17 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
     val wifiLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         val required = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.NEARBY_WIFI_DEVICES else Manifest.permission.ACCESS_FINE_LOCATION
         val startup = pendingStartup
+        val candidate = pendingCamera
+        pendingCamera = null
         val sending = pendingSending
         pendingStartup = false
         pendingSending = false
-        val hasBluetooth = !startup || bluetoothPermissions.all { permission ->
+        val hasBluetooth = !(startup || candidate != null) || bluetoothPermissions.all { permission ->
             context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED }
         if (!hasBluetooth) workspace.bluetoothPermissionDenied()
         else if (context.checkSelfPermission(required) == PackageManager.PERMISSION_GRANTED) {
-            if (sending) workspace.connectBluetoothSendingWifi() else workspace.connectBluetoothWifi(startup)
+            if (candidate != null) workspace.readBluetoothCamera(candidate)
+            else if (sending) workspace.connectBluetoothSendingWifi() else workspace.connectBluetoothWifi(startup)
         }
         else workspace.cameraPermissionDenied()
     }
@@ -105,9 +113,42 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             Text("本轮扫描：收到 ${report.advertisements} 条蓝牙广播，其中 ${report.panasonicAdvertisements} 条为松下广播。",
                 style = MaterialTheme.typography.labelSmall)
         }
-        for (found in camera.bluetoothCameras) TextButton(enabled = !busy || camera.bluetoothStep == BluetoothConnectionStep.SCANNING,
-            onClick = { workspace.readBluetoothCamera(found.address) }) {
-            Text("${found.name} · ${if (found.pairing) "正在配对" else "可连接"}")
+        if (camera.bluetoothCameras.isNotEmpty()) {
+            Text("选择你的相机", style = MaterialTheme.typography.titleMedium)
+            val selectable = !busy || camera.bluetoothStep == BluetoothConnectionStep.SCANNING
+            camera.bluetoothCameras.forEach { found ->
+                PaperPanel(Modifier.fillMaxWidth().clickable(enabled = selectable) { selectedCamera = found.address }) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = selectedCamera == found.address, enabled = selectable,
+                            onClick = { selectedCamera = found.address })
+                        DotIcon(DotGlyph.CAMERA, Modifier.padding(end = 12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(found.name, style = MaterialTheme.typography.titleSmall)
+                            Text(if (found.pairing) "相机正在等待配对" else "相机已开机",
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+            MirrorButton(modifier = Modifier.fillMaxWidth(), enabled = selectable &&
+                camera.bluetoothCameras.any { it.address == selectedCamera }, onClick = {
+                val address = selectedCamera ?: return@MirrorButton
+                val permissions = (wifiPermissions + bluetoothPermissions).distinct().toTypedArray()
+                if (permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
+                    workspace.readBluetoothCamera(address)
+                else {
+                    pendingCamera = address
+                    wifiLauncher.launch(permissions)
+                }
+            }) { Text("配对并连接所选相机") }
+            val selected = camera.bluetoothCameras.firstOrNull { it.address == selectedCamera }
+            if (selected != null && !selected.pairing) {
+                TextButton(enabled = selectable, onClick = {
+                    workspace.readBluetoothCamera(selected.address, startTransfer = false)
+                }) { Text("已完成配对 · 查看其他连接方式") }
+                Text("仅供已完成配对的相机选择路由器或发送方式；首次配对请使用上方按钮。",
+                    style = MaterialTheme.typography.labelSmall)
+            }
         }
         camera.bluetoothWifiSsid?.let { ssid ->
             Text("相机网络 · $ssid", style = MaterialTheme.typography.bodySmall)

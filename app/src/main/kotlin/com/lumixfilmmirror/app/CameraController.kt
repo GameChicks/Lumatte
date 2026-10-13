@@ -44,6 +44,7 @@ class CameraController(private val application: Application) {
     private var bluetoothCredentials: CameraWifiCredentials? = null
     private var bluetoothTarget: BluetoothCamera? = null
     private class PendingBluetoothSelection {
+        var startTransfer = true
         val stop = CompletableDeferred<Unit>()
         var camera: BluetoothCamera? = null
     }
@@ -115,6 +116,7 @@ class CameraController(private val application: Application) {
     fun scanBluetoothCameras() = cameraOperation {
         clearBluetoothCredentials()
         cameraMutable.update { it.copy(bluetoothCameras = emptyList(), bluetoothScanReport = null,
+            bluetoothSelectedCamera = null,
             bluetoothStep = BluetoothConnectionStep.SCANNING) }
         var report: BluetoothScanReport? = null
         val selection = PendingBluetoothSelection()
@@ -127,17 +129,18 @@ class CameraController(private val application: Application) {
             currentCoroutineContext().ensureActive()
             // One operation owns both scan shutdown and GATT startup; cancellation closes both.
             val chosen = selection.camera
-            if (chosen != null) readBluetoothCandidate(chosen)
+            if (chosen != null) readBluetoothCandidate(chosen, selection.startTransfer)
             else if (cameras.isEmpty()) error(report?.noCameraMessage() ?: "未收到可连接的相机广播，请重新查找")
         } finally { if (pendingBluetoothSelection === selection) pendingBluetoothSelection = null }
     }
 
-    fun readBluetoothCamera(address: String) {
+    fun readBluetoothCamera(address: String, startTransfer: Boolean = true) {
         val selection = pendingBluetoothSelection
         if (selection != null && cameraMutable.value.bluetoothStep == BluetoothConnectionStep.SCANNING) {
             val candidate = cameraMutable.value.bluetoothCameras.firstOrNull { it.address == address } ?: return
             if (!selection.stop.isCompleted) {
                 selection.camera = candidate
+                selection.startTransfer = startTransfer
                 selection.stop.complete(Unit)
             }
             return
@@ -145,26 +148,37 @@ class CameraController(private val application: Application) {
         cameraOperation {
             val candidate = cameraMutable.value.bluetoothCameras.firstOrNull { it.address == address }
                 ?: error("请重新查找蓝牙相机")
-            readBluetoothCandidate(candidate)
+            readBluetoothCandidate(candidate, startTransfer)
         }
     }
 
-    private suspend fun readBluetoothCandidate(candidate: BluetoothCamera) {
+    private suspend fun readBluetoothCandidate(candidate: BluetoothCamera, startTransfer: Boolean) {
         clearSendingReconnect()
         clearBluetoothCredentials()
-        cameraMutable.update { it.copy(bluetoothStep = BluetoothConnectionStep.CONNECTING) }
+        cameraMutable.update { it.copy(bluetoothStep = BluetoothConnectionStep.CONNECTING, bluetoothSelectedCamera = candidate) }
         // The reference stops scanning before connecting and leaves a 500 ms handoff interval.
         delay(500L)
-        val credentials = bluetooth.readWifi(candidate, ownClientId()) { step ->
-            cameraMutable.update { it.copy(bluetoothStep = step) }
+        if (!startTransfer) {
+            // Explicit advanced action for an already paired camera. Does not claim a new pairing.
+            val credentials = bluetooth.readWifi(candidate, ownClientId()) { step ->
+                cameraMutable.update { it.copy(bluetoothStep = step) }
+            }
+            bluetoothCredentials = credentials
+            bluetoothTarget = candidate
+            cameraMutable.update { it.copy(bluetoothWifiSsid = credentials.ssid,
+                bluetoothCanStartWifi = credentials.canStartTransferWifi,
+                bluetoothCanStartRouterWifi = credentials.canStartRouterWifi,
+                bluetoothCanStartSendingWifi = credentials.canStartTransferWifi && credentials.canObserveIncoming,
+                notice = "已读取网络资料，请选择传输或路由器连接方式；这不代表新配对已完成。") }
+            return
         }
-        bluetoothCredentials = credentials
-        bluetoothTarget = candidate
-        cameraMutable.update { it.copy(bluetoothWifiSsid = credentials.ssid, bluetoothCanStartWifi = credentials.canStartTransferWifi,
-            bluetoothCanStartRouterWifi = credentials.canStartRouterWifi,
-            bluetoothCanStartSendingWifi = credentials.canStartTransferWifi && credentials.canObserveIncoming,
-            notice = if (credentials.canStartTransferWifi) "已读取相机网络，可以启动传输 Wi-Fi 后连接。"
-                else "已读取相机网络。请在相机上开启 Wi-Fi 传输，然后点击连接。") }
+        bluetooth.withTransferWifi(candidate, ownClientId(), expectedSsid = null,
+            onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { credentials ->
+            // Do not disconnect immediately after credentials: finish Wi-Fi and camera approval
+            // while the original pairing GATT is alive, instead of reconnecting in a second action.
+            connectWifi(credentials.ssid, credentials.password())
+            bindBluetoothWifi(candidate, credentials)
+        }
     }
 
     fun connectBluetoothWifi(startOnCamera: Boolean = false) = cameraOperation {
@@ -448,6 +462,7 @@ class CameraController(private val application: Application) {
         wifiConnection?.close()
         wifiConnection = null
         cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.REQUESTING_WIFI, operationRunning = true,
+            bluetoothSelectedCamera = cameraMutable.value.bluetoothSelectedCamera,
             bluetoothStep = cameraMutable.value.bluetoothStep)
         if (Build.VERSION.SDK_INT < 33 &&
             application.getSystemService(LocationManager::class.java)?.isLocationEnabled != true) {

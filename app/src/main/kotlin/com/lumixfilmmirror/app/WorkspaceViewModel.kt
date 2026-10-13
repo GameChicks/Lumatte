@@ -592,7 +592,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun connectCameraWifi(ssid: String, password: String, security: CameraWifiSecurity) =
         withCamera { camera.connectCameraWifi(ssid, password, security) }
     fun scanBluetoothCameras() = withCamera(camera::scanBluetoothCameras)
-    fun readBluetoothCamera(address: String) = withCamera { camera.readBluetoothCamera(address) }
+    fun readBluetoothCamera(address: String, startTransfer: Boolean = true) = withCamera { camera.readBluetoothCamera(address, startTransfer) }
     fun connectBluetoothWifi(startOnCamera: Boolean = false) = withCamera { camera.connectBluetoothWifi(startOnCamera) }
     fun connectBluetoothSendingWifi() = withCamera(camera::connectBluetoothSendingWifi)
     fun connectBluetoothRouterWifi(ssid: String) = withCamera { camera.connectBluetoothRouterWifi(ssid) }

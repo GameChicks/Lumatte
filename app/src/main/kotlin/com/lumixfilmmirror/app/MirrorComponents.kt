@@ -89,6 +89,7 @@ internal fun systemMotionReduced(): Boolean {
 }
 
 internal enum class DotGlyph(val rows: List<String>) {
+    SETTINGS(listOf("0010100", "0111110", "1100011", "0101010", "1100011", "0111110", "0010100")),
     LEFT(listOf("00100", "01000", "11111", "01000", "00100")),
     RIGHT(listOf("00100", "00010", "11111", "00010", "00100")),
     PLUS(listOf("00100", "00100", "11111", "00100", "00100")),
@@ -112,6 +113,15 @@ internal fun DotIcon(glyph: DotGlyph, modifier: Modifier = Modifier, tint: Color
             val stroke = Stroke(size.minDimension * .075f, cap = StrokeCap.Round, join = StrokeJoin.Round)
             fun line(x1: Float, y1: Float, x2: Float, y2: Float) = drawLine(tint, Offset(w*x1,h*y1), Offset(w*x2,h*y2), stroke.width, StrokeCap.Round)
             when (glyph) {
+                DotGlyph.SETTINGS -> {
+                    drawCircle(tint, w*.27f, Offset(w*.5f,h*.5f), style = stroke)
+                    drawCircle(tint, w*.09f, Offset(w*.5f,h*.5f), style = stroke)
+                    repeat(8) { i ->
+                        val a = i * Math.PI / 4
+                        line(.5f + cos(a).toFloat()*.27f, .5f + sin(a).toFloat()*.27f,
+                            .5f + cos(a).toFloat()*.41f, .5f + sin(a).toFloat()*.41f)
+                    }
+                }
                 DotGlyph.LEFT, DotGlyph.RIGHT -> {
                     val right = glyph == DotGlyph.RIGHT
                     val end = if (right) .76f else .24f; val from = if (right) .24f else .76f

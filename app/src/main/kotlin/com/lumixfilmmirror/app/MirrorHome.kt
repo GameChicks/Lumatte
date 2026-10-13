@@ -25,6 +25,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -63,16 +68,19 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
     val tones = LocalFilmMaterials.current
     var noteEditing by rememberSaveable { mutableStateOf(false) }
     var note by rememberSaveable { mutableStateOf("") }
+    val homePixels = rememberGraphicsLayer()
+    val homeOrigin = remember { mutableStateOf(Offset.Zero) }
     CompositionLocalProvider(LocalMirrorDotArt provides true) {
     BoxWithConstraints(Modifier.fillMaxSize().background(if (com.lumixfilmmirror.design.LocalFilmDark.current) Color(0xFF070A0B) else Color(0xFFF1F0EB))) {
     val displayScale = LocalDensity.current.fontScale
     val viewportWidth = maxWidth
     val cardHeight = ((maxWidth - 40.dp) * .654f + 120.dp * (displayScale - 1f).coerceAtLeast(0f)).coerceIn(218.dp, 340.dp)
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().onGloballyPositioned { homeOrigin.value = it.positionInRoot() }
+        .drawWithContent { homePixels.record { this@drawWithContent.drawContent() }; drawLayer(homePixels) }) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("LUMIX / FILM MIRROR", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
                     color = tones.secondaryInk)
-                TextButton(onClick = onSettings) { Text("设置") }
+                Spacer(Modifier.size(52.dp))
             }
     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 170.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -111,6 +119,9 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
         }
     }
     }
+    RoundAction("设置", DotGlyph.SETTINGS, Modifier.align(Alignment.TopEnd).padding(end = 20.dp, top = 14.dp)
+        .clip(CircleShape).frostedBackdrop(homePixels, !LocalMirrorReducedMotion.current, homeOrigin),
+        glass = true, onClick = onSettings)
     }
     }
     if (noteEditing) MirrorDialog("创作记录", onDismiss = { noteEditing = false }, titleFont = MirrorFonts.Dots) { close ->

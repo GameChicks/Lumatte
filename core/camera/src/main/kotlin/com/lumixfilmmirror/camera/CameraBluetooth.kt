@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
+import android.util.Log
 import java.io.Closeable
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -21,7 +22,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.selects.select
 
 data class BluetoothCamera(val address: String, val name: String, val signal: Int, val pairing: Boolean)
-enum class BluetoothConnectionStep { SCANNING, CONNECTING, READING_SERVICES, IDENTIFYING, READING_WIFI, WAITING_FOR_SEND, STARTING_WIFI }
+enum class BluetoothConnectionStep { SCANNING, CONNECTING, READING_SERVICES, REGISTERING_NOTIFICATIONS, IDENTIFYING, READING_WIFI, WAITING_FOR_SEND, STARTING_WIFI }
 
 /** Deliberately not a data class: generated toString must never reveal a Wi-Fi password. */
 class CameraWifiCredentials(val ssid: String, private var secret: String?, val canStartTransferWifi: Boolean,
@@ -167,13 +168,13 @@ class CameraBluetooth(private val context: Context) {
         session.withIncomingEvents(mode, block)
     }
 
-    /** User chooses this action separately from reading credentials. Keep BLE until Wi-Fi handoff finishes. */
-    suspend fun <T> withTransferWifi(camera: BluetoothCamera, clientId: String, expectedSsid: String,
+    /** Pair/connect is one operation. A first connection has no previously read SSID. */
+    suspend fun <T> withTransferWifi(camera: BluetoothCamera, clientId: String, expectedSsid: String?,
         onStep: (BluetoothConnectionStep) -> Unit, block: suspend (CameraWifiCredentials) -> T): T =
         withConnection(camera, onStep) { session ->
             val credentials = identifyAndRead(session, clientId, onStep)
             try {
-                check(credentials.ssid == expectedSsid) { "相机网络名称已变化，请重新读取连接资料后选择" }
+                check(expectedSsid == null || credentials.ssid == expectedSsid) { "相机网络名称已变化，请重新读取连接资料后选择" }
                 check(credentials.canStartTransferWifi) { "此相机的蓝牙启动流程暂不支持，请在相机上开启 Wi-Fi 后连接" }
                 onStep(BluetoothConnectionStep.STARTING_WIFI)
                 session.startTransferWifi()
@@ -229,9 +230,12 @@ class CameraBluetooth(private val context: Context) {
     private suspend fun identifyAndRead(session: ConnectionGatt, clientId: String,
         onStep: (BluetoothConnectionStep) -> Unit): CameraWifiCredentials {
         val protocol = LumixBleProtocol
+        onStep(BluetoothConnectionStep.REGISTERING_NOTIFICATIONS)
+        session.prepareConnectionNotifications()
         val aps = session.has(protocol.apsClientId)
         onStep(BluetoothConnectionStep.IDENTIFYING)
         val identity = protocol.identity(clientId)
+        var legacyChallenge = false
         val challenge = try {
             if (aps) {
                 val challenge = protocol.challenge(session.read(protocol.challenge))
@@ -241,13 +245,16 @@ class CameraBluetooth(private val context: Context) {
             } else {
                 session.write(protocol.clientId, identity)
                 session.write(protocol.friendlyName, protocol.appName)
-                protocol.challenge(session.read(protocol.challenge))
+                legacyChallenge = true
+                0
             }
         } finally { identity.fill(0) }
         onStep(BluetoothConnectionStep.READING_WIFI)
         val ssid = protocol.decodeSsid(session.read(protocol.ssid))
+        // Reference legacy order: identity -> name -> SSID -> challenge -> password.
+        val passwordChallenge = if (legacyChallenge) protocol.challenge(session.read(protocol.challenge)) else challenge
         val passwordBytes = session.read(protocol.password)
-        try { return CameraWifiCredentials(ssid, protocol.decodePassword(passwordBytes, challenge),
+        try { return CameraWifiCredentials(ssid, protocol.decodePassword(passwordBytes, passwordChallenge),
             session.canStartTransferWifi(), session.canObserveIncoming(), session.canStartRouterWifi()) }
         finally { passwordBytes.fill(0) }
     }
@@ -276,6 +283,7 @@ private class ConnectionGatt(private val context: Context, private val device: B
     private val sendingModeWriteStarted = AtomicBoolean(false)
     private val sendingNetworkReady = CompletableDeferred<Unit>()
     private var gatt: BluetoothGatt? = null
+    private val subscriptions = mutableSetOf<Pair<UUID, UUID>>()
     private val callback = object : BluetoothGattCallback() {
         private fun fail(message: String) {
             val problem = IllegalStateException(message)
@@ -443,8 +451,14 @@ private class ConnectionGatt(private val context: Context, private val device: B
     }
     private fun descriptor(characteristic: BluetoothGattCharacteristic): BluetoothGattDescriptor? =
         characteristic.getDescriptor(characteristic.uuid) ?: characteristic.getDescriptor(LumixBleProtocol.cccd)
+    suspend fun prepareConnectionNotifications() {
+        val protocol = LumixBleProtocol
+        if (hasNotification(protocol.connectionStatus, protocol.service)) subscribe(protocol.connectionStatus, protocol.service)
+        if (hasNotification(protocol.wifiChoiceReply, protocol.wifiService)) subscribe(protocol.wifiChoiceReply, protocol.wifiService)
+    }
     @Suppress("DEPRECATION")
     private suspend fun subscribe(uuid: UUID, service: UUID) = mutex.withLock {
+        if ((service to uuid) in subscriptions) return@withLock
         val characteristic = characteristic(uuid, service)
         val descriptor = descriptor(characteristic) ?: error("相机连接通知暂不支持，请在相机上开启 Wi-Fi 后连接")
         check(requireGatt().setCharacteristicNotification(characteristic, true)) { "无法启用相机连接通知" }
@@ -454,6 +468,7 @@ private class ConnectionGatt(private val context: Context, private val device: B
         else { descriptor.value = value.copyOf(); requireGatt().writeDescriptor(descriptor) }
         check(accepted) { "连接通知未被系统接受，请使用 Wi-Fi 入口" }
         await(Kind.DESCRIPTOR, uuid)
+        subscriptions += service to uuid
         Unit
     }
     suspend fun startTransferWifi() {
@@ -611,6 +626,19 @@ private class ConnectionGatt(private val context: Context, private val device: B
         return gatt ?: error("蓝牙会话已经结束")
     }
     private suspend fun await(kind: Kind, uuid: UUID? = null, timeout: Long = 20_000L): Event {
+        val operation = when (uuid) {
+            LumixBleProtocol.clientId, LumixBleProtocol.apsClientId -> "登记手机标识"
+            LumixBleProtocol.friendlyName, LumixBleProtocol.apsFriendlyName -> "登记手机名称"
+            LumixBleProtocol.ssid -> "读取相机网络名称"
+            LumixBleProtocol.challenge -> "读取相机认证资料"
+            LumixBleProtocol.password -> "读取相机网络资料"
+            else -> when (kind) {
+                Kind.CONNECTED -> "建立蓝牙连接"
+                Kind.SERVICES -> "读取蓝牙服务"
+                Kind.DESCRIPTOR -> "启用相机连接通知"
+                else -> "蓝牙连接资料操作"
+            }
+        }
         try {
             return withTimeout(timeout) {
                 while (true) {
@@ -623,7 +651,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
                     if (event.kind != kind || event.uuid != uuid) { event.bytes.fill(0); continue }
                     if (event.status != BluetoothGatt.GATT_SUCCESS) {
                         event.bytes.fill(0)
-                        error("相机拒绝蓝牙连接资料操作（${event.status}），请在相机上确认配对或使用 Wi-Fi 入口")
+                        Log.w("LFMBle", "operation=$kind uuid=$uuid status=${event.status}")
+                        error("$operation 失败（状态 ${event.status}），请重新进入相机配对页面后重试")
                     }
                     return@withTimeout event
                 }
@@ -631,7 +660,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
             }
         } catch (_: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
-            error("蓝牙相机响应超时，请在相机上确认配对后重试，或使用 Wi-Fi 入口")
+            Log.w("LFMBle", "operation=$kind uuid=$uuid timeoutMs=$timeout")
+            error("$operation 超时，请重新进入相机配对页面后重试")
         }
     }
     override fun close() {
