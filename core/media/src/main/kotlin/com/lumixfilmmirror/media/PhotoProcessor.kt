@@ -32,6 +32,9 @@ class PhotoProcessor(context: Context) {
     private val luts = LutLibrary(context)
     private val films = FilmCatalogue(context)
     private val lutGallery = LutGalleryLibrary(context)
+    private val lutRecommender = LutRecommender(context)
+    /** Metadata/curves for offline modelling; drafts are not silently added to the render catalogue. */
+    val filmProfileDrafts = FilmProfileDraftLibrary(context)
     /** Explicit Internet requests only. Local catalogue/preview/export do not contact Lumix Lab. */
     val officialLutCatalogue by lazy { LumixLabCatalogueClient() }
     private val mobileFilmModels = MobileFilmModelLibrary(context)
@@ -47,6 +50,18 @@ class PhotoProcessor(context: Context) {
     }
 
     suspend fun importLut(uri: Uri): LutAsset = luts.import(uri)
+    /** Frontend-independent suggestions. Uses at most a 256 px JPEG and bounded colour samples. */
+    suspend fun recommendLuts(source: SourceImage, assets: List<LutAsset>,
+        options: LutRecommendationOptions = LutRecommendationOptions()): LutRecommendationResult = withContext(Dispatchers.Default) {
+        previewGate.withPermit {
+            val scale = minOf(1.0, 256.0 / maxOf(source.size.width, source.size.height))
+            val size = PixelSize(maxOf(1, (source.size.width * scale).toInt()), maxOf(1, (source.size.height * scale).toInt()))
+            val current = coroutineContext
+            val pixels = writer.previewPixels(source, size, null, null) { current.ensureActive() }
+            try { lutRecommender.recommend(pixels, assets, options) { current.ensureActive() } }
+            finally { pixels.recycle() }
+        }
+    }
     /** Explicit download action; returns a normal offline asset usable in either LUT slot. */
     fun officialLutLanguage(): String = LumixLabLanguages.forContext(applicationContext)
 
