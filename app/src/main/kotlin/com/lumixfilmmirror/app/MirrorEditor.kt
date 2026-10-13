@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package com.lumixfilmmirror.app
 
 import android.content.Intent
@@ -86,14 +87,16 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
     original: Boolean = false, colourFilter: ColorFilter? = null, onReady: ((Bitmap) -> Unit)? = null, compactHeight: Dp? = null) {
     val source = state.current ?: return
     val recipe = if (original) PhotoRecipe.Original else runCatching { workspace.photoRecipe(state, source.id) }.getOrNull()
-    val options = state.exportOptions
+    // The bitmap preview has no JPEG encoding stage. Quality belongs to the export
+    // snapshot, and must not invalidate identical composition pixels while editing.
+    val options = state.exportOptions.copy(jpeg = state.output.copy(compressionQuality = 100))
     val frameNumber = state.photos.indexOfFirst { it.id == source.id } + 1
     val previewKey = listOf("editor", source.id, recipe, if (frame) options else null, if (frame) frameNumber else null)
     var bitmap by remember(source.id, frame) { mutableStateOf(workspace.displayPreviews.peek(previewKey)?.image) }
     var problem by remember(source.id, frame) { mutableStateOf<String?>(null) }
     var loading by remember(source.id, frame) { mutableStateOf(true) }
     var retry by rememberSaveable(source.id.value, frame) { mutableIntStateOf(0) }
-    LaunchedEffect(source.id, recipe, if (frame) state.frame else null, if (frame) state.output else null, state.luts, retry) {
+    LaunchedEffect(source.id, recipe, if (frame) state.frame else null, if (frame) state.output.dimensionPercent else null, state.luts, retry) {
         loading = workspace.displayPreviews.peek(previewKey) == null; problem = null
         try {
             if (loading) delay(160)
@@ -127,7 +130,8 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
 internal fun PhotoStrip(state: WorkspaceState, workspace: WorkspaceViewModel) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(state.photos, key = { it.id.value }) { photo ->
-            MirrorChoice(state.selected == photo.id, { workspace.select(photo.id) }, label = { Text(photo.name, maxLines = 1) })
+            MirrorChoice(state.selected == photo.id, { workspace.select(photo.id) }, enabled = !state.busy,
+                label = { Text(photo.name, maxLines = 1) })
         }
     }
 }
@@ -191,8 +195,7 @@ private fun LutControls(state: WorkspaceState, workspace: WorkspaceViewModel, on
 
 @Composable
 internal fun OutputControls(state: WorkspaceState, workspace: WorkspaceViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("JPEG 输出", style = MaterialTheme.typography.titleMedium)
+    MirrorControlSection("JPEG 输出", "尺寸决定像素数量，压缩质量决定文件的精细度。") {
         ParameterSlider("照片尺寸", "${state.output.dimensionPercent}%", state.output.dimensionPercent.toFloat(), 1f..100f,
             !state.busy, steps = 98) { workspace.output(state.output.copy(dimensionPercent = it.roundToInt())) }
         ParameterSlider("JPEG 压缩质量", "${state.output.compressionQuality}", state.output.compressionQuality.toFloat(), 1f..100f,
@@ -210,8 +213,7 @@ internal fun OutputControls(state: WorkspaceState, workspace: WorkspaceViewModel
 @Composable
 private fun ParameterSlider(title: String, valueLabel: String, value: Float, range: ClosedFloatingPointRange<Float>,
     enabled: Boolean, steps: Int = 0, onValue: (Float) -> Unit) {
-    Row { Text(title, Modifier.weight(1f)); Text(valueLabel) }
-    Slider(value, onValue, enabled = enabled, valueRange = range, steps = steps)
+    MirrorParameterSlider(title, valueLabel, value, range, enabled, steps, onValue)
 }
 
 @Composable
@@ -324,87 +326,23 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
             }
             }
             if (state.photos.size > 1) item { PhotoStrip(state, workspace) }
-            if (frameTab == "details" && state.frame.preset == FramePreset.NONE) item {
-                Text("无框直接呈现照片。选择画框后可添加文字、拍摄参数与纸边。", color = LocalFilmMaterials.current.secondaryInk)
-            }
-            if (frameTab == "details" && state.frame.preset != FramePreset.NONE) {
-                item {
-                    Text("签名", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 22.sp)
-                    MirrorTextField(state.frame.signature, { workspace.updateFrame(state.frame.copy(signature = it.take(240))) },
-                        "签名 / 水印文字", enabled = !state.busy)
-                }
-                item { Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("显示拍摄参数", Modifier.weight(1f)); MirrorToggle(state.frame.showPhotoMetadata,
-                        "显示拍摄参数", enabled = !state.busy) { workspace.updateFrame(state.frame.copy(showPhotoMetadata = it)) }
-                } }
-                item {
-                    Text("画布比例")
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(FrameRatio.entries) { ratio -> MirrorChoice(state.frame.ratio == ratio,
-                            { workspace.updateFrame(state.frame.copy(ratio = ratio)) }, label = { Text(ratio.title) }, enabled = !state.busy) }
-                    }
-                    ParameterSlider("纸边", "${(state.frame.borderFraction * 100).roundToInt()}%", state.frame.borderFraction, .02f.. .12f,
-                        !state.busy) { workspace.updateFrame(state.frame.copy(borderFraction = it)) }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(FrameFont.entries) { font -> MirrorChoice(state.frame.signatureFont == font && state.frame.signatureFontKey == null,
-                            { workspace.updateFrame(state.frame.copy(signatureFont = font, signatureFontKey = null)) }, enabled = !state.busy,
-                            label = { Text(font.title) }) }
-                    }
-                }
-                item { TextButton(onClick = { showAdvanced = !showAdvanced }) { Text(if (showAdvanced) "收起画框细节" else "画框细节与字体") } }
-                if (showAdvanced) item {
-                    val frame = state.frame
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        for (target in listOf("title", "subtitle", "footer")) {
-                            val value = when (target) { "title" -> frame.title; "subtitle" -> frame.subtitle; else -> frame.footer }
-                            Text(when (target) { "title" -> "标题"; "subtitle" -> "副标题"; else -> "页脚" }, fontFamily = MirrorFonts.ChineseEditorial, fontSize = 20.sp)
-                            MirrorTextField(value.orEmpty(), { text -> workspace.updateFrame(when (target) {
-                                "title" -> frame.copy(title = text.take(240).ifBlank { null })
-                                "subtitle" -> frame.copy(subtitle = text.take(240).ifBlank { null })
-                                else -> frame.copy(footer = text.take(240).ifBlank { null }) }) },
-                                "留空使用照片信息", enabled = !state.busy)
-                            TextButton(enabled = !state.busy, onClick = { fontTarget = target; fontPicker.launch(arrayOf("*/*")) }) { Text("导入该区域字体") }
-                        }
-                        TextButton(enabled = !state.busy, onClick = { fontTarget = "signature"; fontPicker.launch(arrayOf("*/*")) }) { Text("导入签名字体") }
-                        TextButton(enabled = !state.busy, onClick = { art.launch(arrayOf("image/*")) }) { Text("导入装饰图") }
-                        if (frame.imageKey != null) TextButton(onClick = { workspace.updateFrame(frame.copy(imageKey = null)) }) { Text("移除装饰图") }
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(FrameMood.entries) { mood -> MirrorChoice(frame.mood == mood,
-                                { workspace.updateFrame(frame.copy(mood = mood)) }, label = { Text(mood.title) }) }
-                        }
-                        Row { for ((label, argb) in listOf("自动" to null, "暖白" to 0xFFF7F4EC.toInt(), "黑" to 0xFF171A18.toInt()))
-                            TextButton(onClick = { workspace.updateFrame(frame.copy(fixedColorArgb = argb)) }) { Text(label) } }
-                        Text("画布方向")
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            for ((label, portrait) in listOf("跟随照片" to null, "横向" to false, "竖向" to true))
-                                MirrorChoice(frame.portrait == portrait,
-                                    { workspace.updateFrame(frame.copy(portrait = portrait)) }, enabled = !state.busy,
-                                    label = { Text(label) })
-                        }
-                        if (frame.preset == FramePreset.FILM) {
-                            Row(verticalAlignment = Alignment.CenterVertically) { Text("120 暗盒", Modifier.weight(1f)); MirrorToggle(frame.roll120,
-                                "120 暗盒", enabled = !state.busy) { workspace.updateFrame(frame.copy(roll120 = it)) } }
-                            MirrorTextField(frame.filmBrand, { workspace.updateFrame(frame.copy(filmBrand = it.take(60))) }, "胶卷品牌", enabled = !state.busy)
-                            MirrorTextField(frame.filmName, { workspace.updateFrame(frame.copy(filmName = it.take(80))) }, "胶卷名称", enabled = !state.busy)
-                            MirrorTextField(frame.filmNotes, { workspace.updateFrame(frame.copy(filmNotes = it.take(60))) }, "片尾文字", enabled = !state.busy)
-                            Text("暗盒标签风格")
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                for ((label, blackWhite) in listOf("跟随胶卷" to null, "彩色" to false, "黑白" to true))
-                                    MirrorChoice(frame.filmBlackWhite == blackWhite,
-                                        { workspace.updateFrame(frame.copy(filmBlackWhite = blackWhite)) }, enabled = !state.busy,
-                                        label = { Text(label) })
-                            }
-                        }
-                    }
-                }
+            if (frameTab == "details") item(key = "frame-details") {
+                MirrorFrameDetails(state, workspace,
+                    onFont = { target -> fontTarget = target; fontPicker.launch(arrayOf("*/*")) },
+                    onArt = { art.launch(arrayOf("image/*")) })
             }
             if (frameTab == "output") {
             item { OutputControls(state, workspace) }
             item {
-                Text("保存位置：${if (state.destination is ExportDestination.Gallery) "相册 / Pictures/LumixFilmMirror" else "所选文件夹"}")
-                Row {
-                    TextButton(enabled = !state.busy, onClick = { workspace.destination(ExportDestination.Gallery) }) { Text("相册") }
-                    TextButton(enabled = !state.busy, onClick = { folder.launch(null) }) { Text("选择文件夹") }
+                MirrorControlSection("保存位置") {
+                    Text(if (state.destination is ExportDestination.Gallery) "相册 / Pictures/LumixFilmMirror" else "当前使用所选文件夹",
+                        color = LocalFilmMaterials.current.secondaryInk, style = MaterialTheme.typography.bodySmall)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        MirrorChoice(state.destination is ExportDestination.Gallery, { workspace.destination(ExportDestination.Gallery) },
+                            enabled = !state.busy, label = { Text("相册") })
+                        MirrorChoice(state.destination is ExportDestination.Folder, { folder.launch(null) }, enabled = !state.busy,
+                            label = { Text("选择文件夹 ↗") })
+                    }
                 }
             }
             if (state.exported.isNotEmpty()) item { Text("已保存 ${state.exported.size} 张照片", color = MaterialTheme.colorScheme.primary) }
@@ -432,7 +370,8 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
 @Composable
 private fun FrameSample(preset: FramePreset, state: WorkspaceState, workspace: WorkspaceViewModel, modifier: Modifier = Modifier) {
     val source = state.current ?: return
-    val options = state.exportOptions.copy(frame = state.frame.copy(preset = preset))
+    val options = state.exportOptions.copy(frame = state.frame.copy(preset = preset),
+        jpeg = state.output.copy(compressionQuality = 100))
     // A preset thumbnail is independent of the currently selected preset and other photos' edits.
     val recipe = workspace.photoRecipe(state, source.id)
     val previewKey = listOf("frame", source.id, recipe, options)

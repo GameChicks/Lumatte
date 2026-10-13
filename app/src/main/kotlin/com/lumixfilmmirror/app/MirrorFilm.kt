@@ -4,6 +4,8 @@ package com.lumixfilmmirror.app
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -31,6 +33,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,6 +66,25 @@ private fun defaultFilmIndex(films: List<FilmPreset>, category: FilmCategory): I
     return films.indexOfFirst { it.id == preferred }.coerceAtLeast(0)
 }
 
+private fun filmSceneAngle(route: String) = when {
+    route == "home" -> 12f
+    FilmCategory.entries.any { it.name == route } -> -66f
+    else -> 0f
+}
+
+@Composable
+private fun filmObjectRotation(visibility: AnimatedVisibilityScope, visibleAngle: Float,
+    arrivalAngle: Float, departureAngle: Float): State<Float> {
+    val duration = if (LocalMirrorReducedMotion.current) 0 else 420
+    return visibility.transition.animateFloat(transitionSpec = { tween(duration, easing = MirrorEase) }, label = "cartridge-pose") { phase ->
+        when (phase) {
+            EnterExitState.PreEnter -> arrivalAngle
+            EnterExitState.Visible -> visibleAngle
+            EnterExitState.PostExit -> departureAngle
+        }
+    }
+}
+
 @Composable
 internal fun MirrorFilm(state: WorkspaceState, onImport: () -> Unit, onChoose: (FilmPreset) -> Unit,
     onFullscreen: (Boolean) -> Unit) {
@@ -82,24 +104,30 @@ internal fun MirrorFilm(state: WorkspaceState, onImport: () -> Unit, onChoose: (
     DisposableEffect(Unit) { onDispose { onFullscreen(false) } }
     SharedTransitionLayout {
         val shared = this
-        AnimatedContent(targetState = detailId ?: categoryName ?: "home", label = "film-scene",
-            transitionSpec = { fadeIn(tween(if (reduced) 0 else 420)) togetherWith fadeOut(tween(if (reduced) 0 else 280)) }) { route ->
+        val scene = updateTransition(detailId ?: categoryName ?: "home", label = "film-scene")
+        val arrivalAngle = filmSceneAngle(scene.currentState)
+        val departureAngle = filmSceneAngle(scene.targetState)
+        scene.AnimatedContent(transitionSpec = {
+            fadeIn(tween(if (reduced) 0 else 420)) togetherWith fadeOut(tween(if (reduced) 0 else 420))
+        }) { route ->
             val visibility = this
             when {
-                route == "home" -> FilmCategories(state, positions, onImport, shared, visibility) { selected ->
+                route == "home" -> FilmCategories(state, positions, onImport, shared, visibility, arrivalAngle, departureAngle,
+                    categoryName ?: scene.currentState.takeIf { key -> FilmCategory.entries.any { it.name == key } }) { selected ->
                     categoryName = selected.name; armed = true
                 }
                 FilmCategory.entries.any { it.name == route } -> {
                     val shownCategory = FilmCategory.valueOf(route)
                     val films = state.filmPresets.filter { it.category == shownCategory }
                     FilmCarousel(films, shownCategory, positions[route] ?: defaultFilmIndex(films,shownCategory), armed, reduced, shared, visibility,
+                        arrivalAngle, departureAngle,
                         onBack = back, onPage = { page -> positions = HashMap(positions).apply { put(route, page) } },
                         onUserScroll = { if (categoryName == route && detailId == null) armed = true },
                         onDetail = { if (categoryName == route && detailId == null) { armed = false; detailId = it.id } },
                         onCategory = { selected -> categoryName = selected.name; armed = true })
                 }
                 else -> state.filmPresets.firstOrNull { it.id == route }?.let { film ->
-                    FilmDetail(film, shared, visibility, onBack = back, onChoose = {
+                    FilmDetail(film, shared, visibility, arrivalAngle, departureAngle, onBack = back, onChoose = {
                         detailId = null; armed = false; onChoose(film)
                     })
                 }
@@ -110,7 +138,8 @@ internal fun MirrorFilm(state: WorkspaceState, onImport: () -> Unit, onChoose: (
 
 @Composable
 private fun FilmCategories(state: WorkspaceState, positions: Map<String, Int>, onImport: () -> Unit, shared: SharedTransitionScope,
-    visibility: AnimatedVisibilityScope, onCategory: (FilmCategory) -> Unit) {
+    visibility: AnimatedVisibilityScope, arrivalAngle: Float, departureAngle: Float,
+    linkedCategory: String?, onCategory: (FilmCategory) -> Unit) {
     val reduced = LocalMirrorReducedMotion.current
     Column(Modifier.fillMaxSize()) {
     PageHeading("LUMIX / 胶片模拟", "Film", onImport)
@@ -133,10 +162,12 @@ private fun FilmCategories(state: WorkspaceState, positions: Map<String, Int>, o
                     Text(category.label, fontSize=14.sp, lineHeight=18.sp, fontWeight=FontWeight.Bold, color=Color(0xFF22241F))
                 }
                 representative?.let { film ->
-                    val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility,
+                    val linked = category.name == linkedCategory
+                    val rotation = filmObjectRotation(visibility, 12f, if (linked) arrivalAngle else 12f, if (linked) departureAngle else 12f)
+                    val morph = with(shared) { Modifier.sharedElement(rememberSharedContentState("film-${film.id}"), visibility,
                         boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
                     FilmCartridge(film, Modifier.align(Alignment.CenterEnd).width(150.dp).height(195.dp).then(morph)
-                        .graphicsLayer { rotationZ = 12f })
+                        .graphicsLayer { rotationZ = rotation.value })
                 }
                 RoundAction("浏览${category.label}", DotGlyph.RIGHT, Modifier.align(Alignment.BottomEnd).padding(14.dp), onClick={onCategory(category)})
             }
@@ -147,13 +178,20 @@ private fun FilmCategories(state: WorkspaceState, positions: Map<String, Int>, o
 
 @Composable
 private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initial: Int, armed: Boolean,
-    reduced: Boolean, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope, onBack: () -> Unit,
+    reduced: Boolean, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope,
+    arrivalAngle: Float, departureAngle: Float, onBack: () -> Unit,
     onPage: (Int) -> Unit, onUserScroll: () -> Unit, onDetail: (FilmPreset) -> Unit, onCategory: (FilmCategory) -> Unit) {
     val tones = LocalFilmMaterials.current
     val pager = rememberPagerState(initialPage = if (films.isEmpty()) 0 else films.size * 100 + initial.coerceIn(0, films.lastIndex),
         pageCount = { films.size * 201 })
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
+    val sceneRotation = filmObjectRotation(visibility, -66f, arrivalAngle, departureAngle)
+    val displayDensity = LocalDensity.current.density
+    val neighbourBlurs = remember(displayDensity, reduced) {
+        List(8) { level -> if (level == 0 || reduced) null else
+            BlurEffect(level * .6f * displayDensity, level * .6f * displayDensity, TileMode.Clamp) }
+    }
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(if (reduced) 0 else 1000); entered = true }
     LaunchedEffect(pager.interactionSource) {
@@ -182,32 +220,38 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
         if (films.isNotEmpty()) VerticalPager(pager, modifier = Modifier.fillMaxSize().padding(top = 148.dp, bottom = 104.dp),
             pageSize = PageSize.Fixed(pageHeight), contentPadding = PaddingValues(vertical = (viewportHeight - pageHeight) / 2),
             beyondViewportPageCount = 1) { index ->
-            val distance = (pager.currentPage - index) + pager.currentPageOffsetFraction
             val filmIndex = index % films.size
             val film = films[filmIndex]
-            val centre = 1f - abs(distance).coerceIn(0f, 1f)
+            val isCentre by remember(pager, index) { derivedStateOf {
+                index == pager.currentPage && abs(pager.currentPageOffsetFraction) < .1f
+            } }
             Row(Modifier.fillMaxSize().padding(start = 24.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Canvas(Modifier.width(8.dp).fillMaxHeight()) {
+                    val centre = 1f - abs((pager.currentPage - index) + pager.currentPageOffsetFraction).coerceIn(0f, 1f)
                     drawLine(tones.secondaryInk.copy(.20f), Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), 1.dp.toPx())
                     drawCircle(if (centre > .9f) tones.amber else tones.secondaryInk.copy(.3f),
                         if (centre > .9f) 3.dp.toPx() else 2.dp.toPx(), Offset(size.width / 2, size.height / 2))
                 }
-                Column(Modifier.weight(.30f).padding(start = 10.dp).graphicsLayer { alpha = .22f + centre * .78f }) {
+                Column(Modifier.weight(.30f).padding(start = 10.dp).graphicsLayer {
+                    val centre = 1f - abs((pager.currentPage - index) + pager.currentPageOffsetFraction).coerceIn(0f, 1f)
+                    alpha = .22f + centre * .78f
+                }) {
                     Text("${filmIndex + 1}".padStart(2, '0'), color = tones.amber, fontSize=11.sp)
                     Text(film.name, fontFamily = MirrorFonts.Editorial, fontSize = 14.sp, lineHeight = 19.sp, maxLines=3)
-                    if (centre > .9f) MirrorTextAction("介绍 →", { onDetail(film) })
+                    if (isCentre) MirrorTextAction("介绍 →", { onDetail(film) })
                 }
-                val morph = if (index == pager.currentPage) with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility,
+                val morph = if (index == pager.currentPage) with(shared) { Modifier.sharedElement(rememberSharedContentState("film-${film.id}"), visibility,
                     boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) } else Modifier
                 FilmCartridge(film, Modifier.weight(.70f).requiredHeight(pageHeight * 1.25f).then(morph)
                     .graphicsLayer {
+                        val distance = (pager.currentPage - index) + pager.currentPageOffsetFraction
+                        val centre = 1f - abs(distance).coerceIn(0f, 1f)
                         scaleX = .72f + centre * .28f; scaleY = scaleX
-                        rotationZ = -66f + distance.coerceIn(-2f,2f) * 4f
+                        rotationZ = sceneRotation.value + distance.coerceIn(-2f,2f) * 4f
                         rotationY = distance.coerceIn(-1f, 1f) * -18f
                         alpha = .2f + centre * .8f
                         cameraDistance = 12 * density
-                        renderEffect = if (!reduced && abs(distance) > .5f) BlurEffect(abs(distance) * 1.8f * density,
-                            abs(distance) * 1.8f * density, TileMode.Clamp) else null
+                        renderEffect = neighbourBlurs[if (abs(distance) > .5f) (abs(distance) * 3f).toInt().coerceIn(1, 7) else 0]
                     }.clickable {
                         if (index == pager.currentPage) onDetail(film)
                         else scope.launch {
@@ -246,9 +290,11 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
 
 @Composable
 private fun FilmDetail(film: FilmPreset, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope,
+    arrivalAngle: Float, departureAngle: Float,
     onBack: () -> Unit, onChoose: () -> Unit) {
     val tones = LocalFilmMaterials.current
     val reduced = LocalMirrorReducedMotion.current
+    val rotation = filmObjectRotation(visibility, 0f, arrivalAngle, departureAngle)
     val shortName = film.shortTitle()
     val number = Regex("(?:^| )([0-9]{2,4}[A-Za-z]*)$").find(shortName)?.groupValues?.get(1)
     val title = if (number == null) shortName else shortName.removeSuffix(number).trim()
@@ -273,9 +319,9 @@ private fun FilmDetail(film: FilmPreset, shared: SharedTransitionScope, visibili
                         Text(title, fontFamily = MirrorFonts.Editorial, fontSize = 60.sp, lineHeight = 62.sp)
                         number?.let { Text(it, fontFamily = MirrorFonts.Editorial, fontSize = 74.sp, lineHeight = 76.sp, color = tones.amber) }
                     }
-                    val morph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("film-${film.id}"), visibility,
+                    val morph = with(shared) { Modifier.sharedElement(rememberSharedContentState("film-${film.id}"), visibility,
                         boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
-                    FilmCartridge(film, Modifier.width(158.dp).height(280.dp).then(morph))
+                    FilmCartridge(film, Modifier.width(158.dp).height(280.dp).then(morph).graphicsLayer { rotationZ = rotation.value })
                 }
             }
             item { Text("这一卷的故事", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 24.sp)

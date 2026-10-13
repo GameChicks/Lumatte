@@ -97,11 +97,11 @@ internal fun MirrorTextField(value: String, onValueChange: (String) -> Unit, hin
 }
 
 @Composable
-internal fun MirrorTextAction(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun MirrorTextAction(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     val tones = LocalFilmMaterials.current
-    Box(modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp)).clickable(role = Role.Button, onClick = onClick)
+    Box(modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp)).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
         .padding(horizontal = 16.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = tones.amber)
+        Text(label, style = MaterialTheme.typography.labelLarge, color = tones.amber.copy(if (enabled) 1f else .45f))
     }
 }
 
