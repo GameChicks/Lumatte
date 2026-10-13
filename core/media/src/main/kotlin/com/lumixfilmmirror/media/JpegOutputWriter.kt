@@ -8,6 +8,7 @@ import android.graphics.ColorSpace
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
+import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import androidx.exifinterface.media.ExifInterface
 import com.lumixfilmmirror.model.JpegOutput
@@ -43,6 +44,9 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
     private val filmEngine = FilmEngine(models)
     private val frames = FrameRenderer(this.context)
     val frameAssets get() = frames.assets
+    /** Frontends can inspect the last export, including the actual CPU/GPU route. */
+    @Volatile var lastExportPerformance: ExportPerformanceReport? = null
+        private set
     internal suspend fun releaseIdleFilmEngine() = filmEngine.releaseIdleEngine()
 
     suspend fun inspectCache(): JpegExportCacheSnapshot = cache.inspect()
@@ -64,52 +68,86 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         onPublished: suspend (Uri) -> Unit = {},
         preserveEmbeddedJpeg: Boolean = false): Uri = withContext(Dispatchers.IO) {
         JpegExportAccess.mutex.withLock {
-            require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
-            require(frameNumber > 0)
-            onStage(PhotoProcessingStage.PREPARING)
-            if (preserveEmbeddedJpeg) {
-                require(lut == null && film == null && frame.preset == FramePreset.NONE && settings.dimensionPercent == 100)
-                coroutineContext.ensureActive()
-                val name = "LFM-original-${UUID.randomUUID()}.jpg"
-                onStage(PhotoProcessingStage.PUBLISHING)
-                return@withLock when (destination) {
-                    ExportDestination.Gallery -> publishGallery(source.jpeg, name, onTargetCreated, onPublished)
-                    is ExportDestination.Folder -> publishFolder(source, source.jpeg, name, destination.treeUri, onTargetCreated, onPublished)
-                }
-            }
-            val size = settings.contentSize(source.size)
-            val layout = FrameLayouts.plan(size, frame)
-            val temp = cache.newTemporaryFile()
+            val timing = ExportPerformanceTrace()
+            lastExportPerformance = null
+            var completed = false
+            var filmStarted = false
+            var actualFilmBackend: FilmExecutionBackend? = null
+            var fallbackReason: String? = null
             try {
-                var pixels = decode(source, size)
-                try {
-                    onStage(PhotoProcessingStage.RENDERING)
-                    film?.let { renderFilm(source, size, it, pixels) { fresh -> pixels = fresh } }
-                    val renderContext = coroutineContext
-                    lut?.render(pixels, source) { renderContext.ensureActive() }
-                    if (frame.preset != FramePreset.NONE) {
-                        onStage(PhotoProcessingStage.FRAMING)
-                        val framed = frames.render(pixels, source, frame, layout, film?.preset, frameNumber) { renderContext.ensureActive() }
-                        if (framed !== pixels) { pixels.recycle(); pixels = framed }
+                require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
+                require(frameNumber > 0)
+                onStage(PhotoProcessingStage.PREPARING)
+                if (preserveEmbeddedJpeg) {
+                    require(lut == null && film == null && frame.preset == FramePreset.NONE && settings.dimensionPercent == 100)
+                    coroutineContext.ensureActive()
+                    val name = "LFM-original-${UUID.randomUUID()}.jpg"
+                    onStage(PhotoProcessingStage.PUBLISHING)
+                    timing.mark("prepare_original")
+                    val result = when (destination) {
+                        ExportDestination.Gallery -> publishGallery(source.jpeg, name, onTargetCreated, onPublished)
+                        is ExportDestination.Folder -> publishFolder(source, source.jpeg, name, destination.treeUri, onTargetCreated, onPublished)
                     }
-                    renderContext.ensureActive()
-                    onStage(PhotoProcessingStage.ENCODING)
-                    temp.outputStream().buffered().use { output ->
-                        check(pixels.compress(Bitmap.CompressFormat.JPEG, settings.compressionQuality, output)) { "无法写入 JPG" }
-                    }
-                } finally { pixels.recycle() }
-                coroutineContext.ensureActive()
-                writeExif(source, temp, layout.canvas)
-                FileOutputStream(temp, true).use { it.fd.sync() }
-                coroutineContext.ensureActive()
-                val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))
-                val name = "LFM-$stamp-${UUID.randomUUID()}.jpg"
-                onStage(PhotoProcessingStage.PUBLISHING)
-                when (destination) {
-                    ExportDestination.Gallery -> publishGallery(temp, name, onTargetCreated, onPublished)
-                    is ExportDestination.Folder -> publishFolder(source, temp, name, destination.treeUri, onTargetCreated, onPublished)
+                    timing.mark("publish")
+                    completed = true
+                    return@withLock result
                 }
-            } finally { temp.delete() }
+                val size = settings.contentSize(source.size)
+                val layout = FrameLayouts.plan(size, frame)
+                val temp = cache.newTemporaryFile()
+                try {
+                    var pixels = decode(source, size)
+                    timing.mark("decode_and_orientation")
+                    try {
+                        onStage(PhotoProcessingStage.RENDERING)
+                        film?.let {
+                            filmStarted = true
+                            actualFilmBackend = renderFilm(source, size, it, pixels) { fresh -> pixels = fresh }
+                            if (actualFilmBackend == FilmExecutionBackend.CPU) fallbackReason = filmEngine.gpuFallbackReason
+                        }
+                        val renderContext = coroutineContext
+                        lut?.render(pixels, source) { renderContext.ensureActive() }
+                        timing.mark("effect_render")
+                        if (frame.preset != FramePreset.NONE) {
+                            onStage(PhotoProcessingStage.FRAMING)
+                            val framed = frames.render(pixels, source, frame, layout, film?.preset, frameNumber) { renderContext.ensureActive() }
+                            if (framed !== pixels) { pixels.recycle(); pixels = framed }
+                        }
+                        timing.mark("frame")
+                        renderContext.ensureActive()
+                        onStage(PhotoProcessingStage.ENCODING)
+                        temp.outputStream().buffered().use { output ->
+                            check(pixels.compress(Bitmap.CompressFormat.JPEG, settings.compressionQuality, output)) { "无法写入 JPG" }
+                        }
+                        timing.mark("jpeg_encode")
+                    } finally { pixels.recycle() }
+                    coroutineContext.ensureActive()
+                    writeExif(source, temp, layout.canvas)
+                    FileOutputStream(temp, true).use { it.fd.sync() }
+                    coroutineContext.ensureActive()
+                    val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))
+                    val name = "LFM-$stamp-${UUID.randomUUID()}.jpg"
+                    timing.mark("metadata_and_sync")
+                    onStage(PhotoProcessingStage.PUBLISHING)
+                    val result = when (destination) {
+                        ExportDestination.Gallery -> publishGallery(temp, name, onTargetCreated, onPublished)
+                        is ExportDestination.Folder -> publishFolder(source, temp, name, destination.treeUri, onTargetCreated, onPublished)
+                    }
+                    timing.mark("publish")
+                    completed = true
+                    result
+                } finally { temp.delete() }
+            } finally {
+                val report = timing.report(completed, actualFilmBackend,
+                    fallbackReason ?: if (filmStarted && !completed) filmEngine.gpuFallbackReason else null)
+                lastExportPerformance = report
+                Log.i("LFMExport", "completed=${report.completed} totalMs=${report.totalMillis} " +
+                    "input=${source.size.width}x${source.size.height} dimensions=${settings.dimensionPercent}% " +
+                    "quality=${settings.compressionQuality} frame=${frame.preset} " +
+                    "backend=${report.filmBackend} halation=${film?.parameters?.halationEnabled} " +
+                    "diffusion=${film?.parameters?.diffusion} stages=${report.stages} " +
+                    "gpuFallback=${report.gpuFallbackReason.orEmpty()}")
+            }
         }
     }
 
@@ -151,15 +189,15 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
 
     /** GPU may have committed earlier tiles. CPU must start from the private immutable JPEG. */
     private suspend fun renderFilm(source: SourceImage, size: PixelSize, plan: FilmRenderPlan,
-        initial: Bitmap, onReset: (Bitmap) -> Unit) {
-        try { filmEngine.render(initial, plan, source.size) }
+        initial: Bitmap, onReset: (Bitmap) -> Unit): FilmExecutionBackend {
+        try { return filmEngine.render(initial, plan, source.size) }
         catch (error: MobileFilmGpuFailure) {
             coroutineContext.ensureActive()
             filmEngine.disableGpu()
             initial.recycle()
             val fresh = decode(source, size)
             onReset(fresh) // Transfer cleanup ownership before the next cancellable operation.
-            filmEngine.renderCpu(fresh, plan, source.size)
+            return filmEngine.renderCpu(fresh, plan, source.size)
         }
     }
 
@@ -170,8 +208,12 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         val input = BitmapFactory.decodeFile(source.jpeg.absolutePath, BitmapFactory.Options().apply {
             inSampleSize = sample
             inPreferredConfig = Bitmap.Config.ARGB_8888
+            inMutable = true
             inPreferredColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)
         }) ?: error("无法解码内嵌 JPEG")
+        // JPEG is privately owned. A normal, full-size decode needs no second 24 MP canvas.
+        if (source.orientation !in 2..8 && input.width == size.width && input.height == size.height &&
+            input.isMutable && input.config == Bitmap.Config.ARGB_8888) return input
         try {
             return BitmapOrientation.render(input, size, source.orientation)
         } finally { input.recycle() }

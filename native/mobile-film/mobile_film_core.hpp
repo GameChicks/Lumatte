@@ -6,10 +6,57 @@
 #include <functional>
 #include <stdexcept>
 #include <vector>
+#include <atomic>
+#include <exception>
+#include <mutex>
+#include <thread>
 
 namespace lfm::mobile {
 using Colour = std::array<float, 3>;
 using Check = std::function<void()>;
+// Workers only touch disjoint rows and shared immutable data. Check must be native/thread-safe.
+// Join all workers before propagating failure, so no bitmap is unlocked/recycled prematurely.
+template<class Row> inline void parallel_rows(uint32_t rows, uint64_t work_per_row,
+                                             const Check& check, const Row& process) {
+    const uint32_t workers = std::min({4u, rows, std::max(1u, std::thread::hardware_concurrency())});
+    if (workers < 2 || uint64_t(rows) * work_per_row < 262144) {
+        for (uint32_t y = 0; y < rows; ++y) { check(); process(y); }
+        return;
+    }
+    std::atomic_uint32_t next{0};
+    std::atomic_bool stopped{false};
+    std::exception_ptr failure;
+    std::mutex failure_lock;
+    {
+        struct JoinedThreads {
+            std::vector<std::thread> values;
+            ~JoinedThreads() { for (auto& thread : values) if (thread.joinable()) thread.join(); }
+        } threads;
+        threads.values.reserve(workers);
+        try {
+            for (uint32_t i = 0; i < workers; ++i) threads.values.emplace_back([&] {
+                try {
+                    while (!stopped.load(std::memory_order_relaxed)) {
+                        const uint32_t first = next.fetch_add(4, std::memory_order_relaxed);
+                        if (first >= rows) break;
+                        for (uint32_t y = first; y < std::min(first + 4, rows); ++y) {
+                            if (stopped.load(std::memory_order_relaxed)) break;
+                            check(); process(y);
+                        }
+                    }
+                } catch (...) {
+                    { std::lock_guard lock(failure_lock); if (!failure) failure = std::current_exception(); }
+                    stopped.store(true, std::memory_order_relaxed);
+                }
+            });
+        } catch (...) {
+            stopped.store(true, std::memory_order_relaxed);
+            throw; // The guard joins the workers already created, including partial startup.
+        }
+    }
+    if (failure) std::rethrow_exception(failure);
+    check();
+}
 struct Image { uint8_t* pixels; uint32_t width, height, stride; };
 struct Table {
     int size;
@@ -89,8 +136,7 @@ inline Field gaussian(const Field& source, Colour sigmas, const Check& check) {
         }
         for (float& weight : weights[c]) weight = float(weight / sum);
     }
-    for (uint32_t y = 0; y < source.height; ++y) {
-        check();
+    parallel_rows(source.height, uint64_t(source.width) * 12, check, [&](uint32_t y) {
         for (uint32_t x = 0; x < source.width; ++x) for (int c = 0; c < 3; ++c) {
             double sum = 0;
             for (int offset = -radius[c]; offset <= radius[c]; ++offset) {
@@ -99,9 +145,8 @@ inline Field gaussian(const Field& source, Colour sigmas, const Check& check) {
             }
             horizontal.values[(size_t(y) * source.width + x) * 3 + c] = float(sum);
         }
-    }
-    for (uint32_t y = 0; y < source.height; ++y) {
-        check();
+    });
+    parallel_rows(source.height, uint64_t(source.width) * 12, check, [&](uint32_t y) {
         for (uint32_t x = 0; x < source.width; ++x) for (int c = 0; c < 3; ++c) {
             double sum = 0;
             for (int offset = -radius[c]; offset <= radius[c]; ++offset) {
@@ -110,7 +155,7 @@ inline Field gaussian(const Field& source, Colour sigmas, const Check& check) {
             }
             output.values[(size_t(y) * source.width + x) * 3 + c] = float(sum);
         }
-    }
+    });
     return output;
 }
 
@@ -135,8 +180,9 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
     // Analysis precedes all output mutation. Each source pixel belongs to exactly one cell.
     if (effects.diffusion > 0) {
         Field light(w, h), highlights(w, h);
-        for (uint32_t gy = 0; gy < h; ++gy) {
-            check();
+        std::vector<float> peaks(h);
+        parallel_rows(h, uint64_t(image.width) * image.height / h, check, [&](uint32_t gy) {
+            float row_peak = 0;
             const uint32_t y0 = uint32_t(uint64_t(gy) * image.height / h), y1 = uint32_t(uint64_t(gy + 1) * image.height / h);
             for (uint32_t gx = 0; gx < w; ++gx) {
                 const uint32_t x0 = uint32_t(uint64_t(gx) * image.width / w), x1 = uint32_t(uint64_t(gx + 1) * image.width / w);
@@ -147,7 +193,7 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
                     for (uint32_t x = x0; x < x1; ++x) {
                         if ((x & 1023u) == 0) check();
                         const Colour rgb = read_linear(row + size_t(x) * 4, decode_lut);
-                        peak = std::max(peak, luminance(rgb));
+                        row_peak = std::max(row_peak, luminance(rgb));
                         for (int c = 0; c < 3; ++c) { sum[c] += rgb[c]; high[c] += std::max(rgb[c] - .18f, 0.f); }
                     }
                 }
@@ -157,7 +203,9 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
                     light.values[index] = float(sum[c] / count); highlights.values[index] = float(high[c] / count);
                 }
             }
-        }
+            peaks[gy] = row_peak;
+        });
+        peak = *std::max_element(peaks.begin(), peaks.end());
         spatial.softness = effects.diffusion * .15f;
         spatial.lens = gaussian(light, {.75f, .75f, .75f}, check);
         for (float& value : spatial.lens.values) value *= spatial.softness;
@@ -169,21 +217,23 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
             }
         }
     } else {
-        for (uint32_t y = 0; y < image.height; ++y) {
-            check();
+        std::vector<float> peaks(image.height);
+        parallel_rows(image.height, image.width, check, [&](uint32_t y) {
+            float row_peak = 0;
             const uint8_t* row = image.pixels + size_t(y) * image.stride;
             for (uint32_t x = 0; x < image.width; ++x) {
                 if ((x & 1023u) == 0) check();
-                peak = std::max(peak, luminance(read_linear(row + size_t(x) * 4, decode_lut)));
+                row_peak = std::max(row_peak, luminance(read_linear(row + size_t(x) * 4, decode_lut)));
             }
-        }
+            peaks[y] = row_peak;
+        });
+        peak = *std::max_element(peaks.begin(), peaks.end());
     }
     if (!effects.halation) return spatial;
     Field emitters(w, h);
     const float threshold = std::max(.06f, peak * .55f);
     const float span = std::max(.04f, peak - threshold);
-    for (uint32_t gy = 0; gy < h; ++gy) {
-        check();
+    parallel_rows(h, uint64_t(image.width) * image.height / h, check, [&](uint32_t gy) {
         const uint32_t y0 = uint32_t(uint64_t(gy) * image.height / h), y1 = uint32_t(uint64_t(gy + 1) * image.height / h);
         for (uint32_t gx = 0; gx < w; ++gx) {
             const uint32_t x0 = uint32_t(uint64_t(gx) * image.width / w), x1 = uint32_t(uint64_t(gx + 1) * image.width / w);
@@ -208,7 +258,7 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
             const double count = double(x1 - x0) * (y1 - y0);
             for (int c = 0; c < 3; ++c) emitters.values[(size_t(gy) * w + gx) * 3 + c] = float(sum[c] / count);
         }
-    }
+    });
     // Broad minus core creates a surrounding halo without an independent high-light boost.
     const Field core = gaussian(emitters, {.55f, .55f, .55f}, check);
     Colour sigma{}, tail{}, strength{};
@@ -272,8 +322,7 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
     const float pixel_um = effects.format_mm * 1000 / std::max(image.width, image.height);
     const uint32_t seed = uint32_t(grain_seed) ^ hash(uint32_t(grain_seed >> 32));
     // All spatial input fields are complete. In-place output never feeds a later pixel.
-    for (uint32_t y = 0; y < image.height; ++y) {
-        check();
+    parallel_rows(image.height, image.width, check, [&](uint32_t y) {
         uint8_t* row = image.pixels + size_t(y) * image.stride;
         const double gy = (double(y) + .5) * source_height / image.height - .5;
         for (uint32_t x = 0; x < image.width; ++x) {
@@ -292,7 +341,7 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
                 pixel[c] = uint8_t(std::lround(std::clamp(result[c], 0.f, 1.f) * 255));
             }
         }
-    }
+    });
     check();
 }
 } // namespace lfm::mobile

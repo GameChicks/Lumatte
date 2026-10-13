@@ -9,6 +9,7 @@ enum class FilmBackend { MOBILE_GLES3_WITH_CPU_FALLBACK, MOBILE_NATIVE_CPU }
 /** Product facade; the full spectral Vulkan implementation remains a separate developer reference. */
 internal class FilmEngine(models: MobileFilmModelLibrary) {
     private val renderer = MobileFilmRenderer(models)
+    val gpuFallbackReason get() = fallbackReason
     suspend fun render(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize) =
         renderer.render(bitmap, plan, effectiveInput, preferGpu = !gpuDisabled)
     suspend fun renderCpu(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize) =
@@ -18,7 +19,11 @@ internal class FilmEngine(models: MobileFilmModelLibrary) {
     companion object {
         /** One driver failure disables retries across all processors until the process restarts. */
         @Volatile private var gpuDisabled = false
+        @Volatile private var fallbackReason: String? = null
         internal fun canUseGpu(): Boolean = !gpuDisabled
-        internal fun disableGpuForProcess() { gpuDisabled = true }
+        internal fun disableGpuForProcess(reason: String? = null) {
+            if (reason != null) fallbackReason = reason.take(2048)
+            gpuDisabled = true
+        }
     }
 }

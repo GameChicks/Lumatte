@@ -8,7 +8,9 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 add_library(lfm_mobile_film SHARED mobile_film_jni.cpp mobile_film_gles.cpp)
 target_include_directories(lfm_mobile_film PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(lfm_mobile_film PRIVATE cxx_std_20)
-target_compile_options(lfm_mobile_film PRIVATE -ffp-contract=off)
+# Prototypes use Debug, but full-resolution image processing still needs optimization.
+# Preserve IEEE checks and cancellation; do not enable fast-math.
+target_compile_options(lfm_mobile_film PRIVATE -O3 -ffp-contract=off)
 target_link_libraries(lfm_mobile_film PRIVATE jnigraphics EGL GLESv3 m)
 target_link_options(lfm_mobile_film PRIVATE "-Wl,--no-undefined"
     "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")

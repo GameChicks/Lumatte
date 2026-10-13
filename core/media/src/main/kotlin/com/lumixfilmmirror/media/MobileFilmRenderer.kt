@@ -38,7 +38,7 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
         finished.await().getOrThrow()
     }
 
-    suspend fun render(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize, preferGpu: Boolean) {
+    suspend fun render(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize, preferGpu: Boolean): FilmExecutionBackend {
         check(NativeMobileFilmBridge.available) { "移动胶片原生库不可用" }
         val model = models.load(plan.preset)
         coroutineContext.ensureActive()
@@ -64,16 +64,19 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
         var released = false
         val finished = CompletableDeferred<Unit>()
         try {
-            suspendCancellableCoroutine<Unit> { continuation ->
+            return suspendCancellableCoroutine<FilmExecutionBackend> { continuation ->
                 continuation.invokeOnCancellation {
                     synchronized(taskLock) { if (!released) NativeMobileFilmBridge.cancelTask(task) }
                 }
                 try {
                     executor.execute {
+                        val useGpu = preferGpu && FilmEngine.canUseGpu()
                         val result = runCatching { NativeMobileFilmBridge.render(task, bitmap, tables, sizes, bounds,
                             controls, effectiveInput.width, effectiveInput.height, plan.grainSeed,
-                            preferGpu && FilmEngine.canUseGpu(), modelKey) }
-                        if (result.exceptionOrNull() is MobileFilmGpuFailure) FilmEngine.disableGpuForProcess()
+                            useGpu, modelKey)
+                            if (useGpu) FilmExecutionBackend.GLES3 else FilmExecutionBackend.CPU
+                        }
+                        (result.exceptionOrNull() as? MobileFilmGpuFailure)?.let { FilmEngine.disableGpuForProcess(it.message) }
                         synchronized(taskLock) { NativeMobileFilmBridge.releaseTask(task); released = true }
                         finished.complete(Unit)
                         continuation.resumeWith(result)
