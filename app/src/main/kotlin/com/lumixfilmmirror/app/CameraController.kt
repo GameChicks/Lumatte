@@ -43,6 +43,11 @@ class CameraController(private val application: Application) {
     private val bluetooth = CameraBluetooth(application)
     private var bluetoothCredentials: CameraWifiCredentials? = null
     private var bluetoothTarget: BluetoothCamera? = null
+    private class PendingBluetoothSelection {
+        val stop = CompletableDeferred<Unit>()
+        var camera: BluetoothCamera? = null
+    }
+    private var pendingBluetoothSelection: PendingBluetoothSelection? = null
     private data class BluetoothWifiBinding(val network: Network, val camera: BluetoothCamera,
         val ssid: String, val canObserve: Boolean, val expectedMode: CameraAccessMode? = null,
         val expectedDevice: CameraDevice? = null, val routerSsid: String? = null)
@@ -112,18 +117,44 @@ class CameraController(private val application: Application) {
         cameraMutable.update { it.copy(bluetoothCameras = emptyList(), bluetoothScanReport = null,
             bluetoothStep = BluetoothConnectionStep.SCANNING) }
         var report: BluetoothScanReport? = null
-        val cameras = bluetooth.scan(onReport = { evidence ->
-            report = evidence
-            cameraMutable.update { it.copy(bluetoothScanReport = evidence) }
-        }) { found -> cameraMutable.update { it.copy(bluetoothCameras = found) } }
-        if (cameras.isEmpty()) error(report?.noCameraMessage() ?: "未收到可连接的相机广播，请重新查找")
+        val selection = PendingBluetoothSelection()
+        pendingBluetoothSelection = selection
+        try {
+            val cameras = bluetooth.scan(onReport = { evidence ->
+                report = evidence
+                cameraMutable.update { it.copy(bluetoothScanReport = evidence) }
+            }, stopRequested = selection.stop) { found -> cameraMutable.update { it.copy(bluetoothCameras = found) } }
+            currentCoroutineContext().ensureActive()
+            // One operation owns both scan shutdown and GATT startup; cancellation closes both.
+            val chosen = selection.camera
+            if (chosen != null) readBluetoothCandidate(chosen)
+            else if (cameras.isEmpty()) error(report?.noCameraMessage() ?: "未收到可连接的相机广播，请重新查找")
+        } finally { if (pendingBluetoothSelection === selection) pendingBluetoothSelection = null }
     }
 
-    fun readBluetoothCamera(address: String) = cameraOperation {
-        val candidate = cameraMutable.value.bluetoothCameras.firstOrNull { it.address == address }
-            ?: error("请重新查找蓝牙相机")
+    fun readBluetoothCamera(address: String) {
+        val selection = pendingBluetoothSelection
+        if (selection != null && cameraMutable.value.bluetoothStep == BluetoothConnectionStep.SCANNING) {
+            val candidate = cameraMutable.value.bluetoothCameras.firstOrNull { it.address == address } ?: return
+            if (!selection.stop.isCompleted) {
+                selection.camera = candidate
+                selection.stop.complete(Unit)
+            }
+            return
+        }
+        cameraOperation {
+            val candidate = cameraMutable.value.bluetoothCameras.firstOrNull { it.address == address }
+                ?: error("请重新查找蓝牙相机")
+            readBluetoothCandidate(candidate)
+        }
+    }
+
+    private suspend fun readBluetoothCandidate(candidate: BluetoothCamera) {
         clearSendingReconnect()
         clearBluetoothCredentials()
+        cameraMutable.update { it.copy(bluetoothStep = BluetoothConnectionStep.CONNECTING) }
+        // The reference stops scanning before connecting and leaves a 500 ms handoff interval.
+        delay(500L)
         val credentials = bluetooth.readWifi(candidate, ownClientId()) { step ->
             cameraMutable.update { it.copy(bluetoothStep = step) }
         }
@@ -470,12 +501,30 @@ class CameraController(private val application: Application) {
         val network = requireNotNull(wifiConnection?.network) { "请先选择并连接相机网络" }
         check(network in discovery.wifiNetworks()) { "相机网络已断开，请重新连接" }
         val candidates = if (address != null) discoverCameraAddress(network, address, expectedDevice)
-        else discovery.discover(listOf(network))
-            .filter { expectedDevice == null || matchesExpected(it.device, expectedDevice) }
+        else discoverReadyCamera(network, expectedDevice)
         cameraMutable.update { it.copy(discovered = candidates) }
         if (candidates.isEmpty()) error(if (expectedDevice == null) "未发现相机，请开启相机的 Wi-Fi 传输功能并确认连接"
             else "新网络未发现原相机，未将旧队列绑定到其他相机")
         if (candidates.size == 1) connectTarget(candidates.single(), expectedMode = expectedMode, expectedDevice = expectedDevice)
+    }
+
+    private suspend fun discoverReadyCamera(network: Network, expectedDevice: CameraDevice?): List<DiscoveredCamera> {
+        try {
+            return withTimeout(25_000L) {
+                while (true) {
+                    check(network in discovery.wifiNetworks()) { "相机 Wi-Fi 已断开，请重新连接" }
+                    val found = discovery.discover(listOf(network))
+                        .filter { expectedDevice == null || matchesExpected(it.device, expectedDevice) }
+                    if (found.isNotEmpty()) return@withTimeout found
+                    delay(1_000L)
+                }
+                @Suppress("UNREACHABLE_CODE") emptyList<DiscoveredCamera>()
+            }
+        } catch (_: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            error(if (expectedDevice == null) "已连接 Wi-Fi，但相机传输服务尚未响应。请保持相机传输页面打开后重试。"
+                else "当前 Wi-Fi 未发现原相机，旧队列保留，请确认原相机网络后重试。")
+        }
     }
 
     private suspend fun connectTarget(candidate: DiscoveredCamera, restoreSelection: Boolean = false,

@@ -1,6 +1,7 @@
 package com.lumixfilmmirror.camera
 
 import android.net.Network
+import android.os.SystemClock
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -159,41 +160,48 @@ class LumixCameraSession private constructor(
             require(clientId.isNotBlank() && clientName.isNotBlank())
             val selectedInterface = networkInterfaceName?.let { NetworkInterface.getByName(it) }
             val http = CameraHttp(network, host, selectedInterface)
-            onStep(ConnectionStep.READING_DEVICE)
-            val description = descriptionUri
-            val device = CameraXml.device(http.text(description), description)
-            http.validate(device.contentDirectory)
-            onStep(ConnectionStep.REQUESTING_ACCESS)
-            var identity = clientId
-            var name = clientName
-            if (device.requiresChallenge) {
-                val challengeReply = http.command("accctrl", "type" to "req_acc_g").trim().split(',')
-                if (challengeReply.firstOrNull() != "ok") throw CameraProtocolException(challengeReply.firstOrNull().orEmpty())
-                val challenge = requireNotNull(challengeReply.getOrNull(1)?.trim()?.toLongOrNull(16)) { "相机握手缺少挑战值" }
-                require(challenge in 0..0xffffffffL)
-                identity = CameraHttp.challengeEncode(identity, challenge.toInt())
-                name = CameraHttp.challengeEncode(name, challenge.toInt())
-            }
-            while (true) {
-                currentCoroutineContext().ensureActive()
-                val reply = http.command("accctrl", "type" to if (device.requiresChallenge) "req_acc_e" else "req_acc",
-                    "value" to identity, "value2" to name)
-                val fields = accessFields(reply, device.friendlyName)
-                when (fields.firstOrNull()) {
-                    "ok_under_research", "ok_under_research_no_msg" -> {
-                        onStep(ConnectionStep.WAITING_FOR_CAMERA_APPROVAL)
-                        delay(1_000)
-                    }
-                    "err_busy" -> delay(1_000)
-                    "ok", "upload_bt", "transfer" -> {
-                        require(fields.size >= 4) { "相机会话响应不完整" }
-                        http.setSession(fields.getOrNull(4)?.trim())
-                        onStep(ConnectionStep.READY)
-                        return LumixCameraSession(device, http, CameraAccessMode.fromReply(fields.first()))
-                    }
-                    else -> throw CameraProtocolException(fields.firstOrNull().orEmpty())
+            var established = false
+            try {
+                onStep(ConnectionStep.READING_DEVICE)
+                val description = descriptionUri
+                val device = CameraXml.device(http.text(description), description)
+                http.validate(device.contentDirectory)
+                onStep(ConnectionStep.REQUESTING_ACCESS)
+                var identity = clientId
+                var name = clientName
+                if (device.requiresChallenge) {
+                    val challengeReply = http.command("accctrl", "type" to "req_acc_g").trim().split(',')
+                    if (challengeReply.firstOrNull() != "ok") throw CameraProtocolException(challengeReply.firstOrNull().orEmpty())
+                    val challenge = requireNotNull(challengeReply.getOrNull(1)?.trim()?.toLongOrNull(16)) { "相机握手缺少挑战值" }
+                    require(challenge in 0..0xffffffffL)
+                    identity = CameraHttp.challengeEncode(identity, challenge.toInt())
+                    name = CameraHttp.challengeEncode(name, challenge.toInt())
                 }
-            }
+                val approvalDeadline = SystemClock.elapsedRealtime() + 120_000L
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    check(SystemClock.elapsedRealtime() < approvalDeadline) { "等待相机确认超时，请在相机屏幕确认连接后重试" }
+                    val reply = http.command("accctrl", "type" to if (device.requiresChallenge) "req_acc_e" else "req_acc",
+                        "value" to identity, "value2" to name)
+                    val fields = accessFields(reply, device.friendlyName)
+                    when (fields.firstOrNull()) {
+                        "ok_under_research", "ok_under_research_no_msg" -> {
+                            onStep(ConnectionStep.WAITING_FOR_CAMERA_APPROVAL)
+                            delay(1_000)
+                        }
+                        "err_busy" -> delay(1_000)
+                        "ok", "upload_bt", "transfer" -> {
+                            require(fields.size >= 4) { "相机会话响应不完整" }
+                            http.setSession(fields.getOrNull(4)?.trim())
+                            onStep(ConnectionStep.READY)
+                            val session = LumixCameraSession(device, http, CameraAccessMode.fromReply(fields.first()))
+                            established = true
+                            return session
+                        }
+                        else -> throw CameraProtocolException(fields.firstOrNull().orEmpty())
+                    }
+                }
+            } finally { if (!established) http.close() }
         }
 
         private fun accessFields(reply: String, friendlyName: String): List<String> {

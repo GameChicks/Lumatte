@@ -51,7 +51,7 @@ class CameraBluetooth(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    suspend fun scan(onReport: (BluetoothScanReport) -> Unit = {},
+    suspend fun scan(onReport: (BluetoothScanReport) -> Unit = {}, stopRequested: Deferred<Unit>? = null,
         onFound: (List<BluetoothCamera>) -> Unit): List<BluetoothCamera> = coroutineScope {
         val scanner = adapter(scanning = true).bluetoothLeScanner ?: error("蓝牙暂时无法扫描，请重新开启蓝牙")
         val events = Channel<BluetoothCamera>(64)
@@ -94,10 +94,14 @@ class CameraBluetooth(private val context: Context) {
             scanner.startScan(null,
                 ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(), callback)
             withTimeoutOrNull(20_000L) {
-                for (camera in events) {
-                    cameras[camera.address] = camera
-                    onFound(cameras.values.sortedByDescending { it.signal })
-                    onReport(report())
+                var stopped = false
+                while (!stopped) select<Unit> {
+                    if (stopRequested != null) stopRequested.onAwait { stopped = true }
+                    events.onReceive { camera ->
+                        cameras[camera.address] = camera
+                        onFound(cameras.values.sortedByDescending { it.signal })
+                        onReport(report())
+                    }
                 }
             }
             cameras.values.sortedByDescending { it.signal }
@@ -400,10 +404,15 @@ private class ConnectionGatt(private val context: Context, private val device: B
     @Suppress("DEPRECATION")
     suspend fun write(uuid: UUID, bytes: ByteArray, service: UUID = LumixBleProtocol.service) = mutex.withLock {
         val characteristic = characteristic(uuid, service)
+        val writeType = when {
+            characteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0 -> BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            characteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0 -> BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            else -> error("相机连接特征不可写，请重新读取连接资料")
+        }
         val accepted = if (Build.VERSION.SDK_INT >= 33)
-            requireGatt().writeCharacteristic(characteristic, bytes, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) == BluetoothStatusCodes.SUCCESS
+            requireGatt().writeCharacteristic(characteristic, bytes, writeType) == BluetoothStatusCodes.SUCCESS
         else {
-            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            characteristic.writeType = writeType
             characteristic.value = bytes.copyOf()
             requireGatt().writeCharacteristic(characteristic)
         }

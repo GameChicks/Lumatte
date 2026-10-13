@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lumixfilmmirror.camera.CameraRouterSsid
+import com.lumixfilmmirror.camera.BluetoothConnectionStep
 
 @Composable
 fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspace: WorkspaceViewModel) {
@@ -104,7 +105,7 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             Text("本轮扫描：收到 ${report.advertisements} 条蓝牙广播，其中 ${report.panasonicAdvertisements} 条为松下广播。",
                 style = MaterialTheme.typography.labelSmall)
         }
-        for (found in camera.bluetoothCameras) TextButton(enabled = !busy,
+        for (found in camera.bluetoothCameras) TextButton(enabled = !busy || camera.bluetoothStep == BluetoothConnectionStep.SCANNING,
             onClick = { workspace.readBluetoothCamera(found.address) }) {
             Text("${found.name} · ${if (found.pairing) "正在配对" else "可连接"}")
         }

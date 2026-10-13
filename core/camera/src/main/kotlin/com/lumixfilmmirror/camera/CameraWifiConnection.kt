@@ -4,12 +4,17 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.LinkProperties
 import android.net.NetworkRequest
 import android.net.wifi.WifiNetworkSpecifier
 import android.net.wifi.WifiManager
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resumeWithException
@@ -57,47 +62,86 @@ object CameraWifiConnector {
             .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).setNetworkSpecifier(specifier).build()
         val manager = requireNotNull(context.applicationContext.getSystemService(ConnectivityManager::class.java))
         val handler = Handler(Looper.getMainLooper())
-        return suspendCancellableCoroutine { continuation ->
-            val released = AtomicBoolean(false)
-            val delivered = AtomicBoolean(false)
-            var registered = false
-            lateinit var callback: ConnectivityManager.NetworkCallback
-            fun release() {
-                if (released.compareAndSet(false, true)) handler.post {
-                    if (registered) {
-                        runCatching { manager.unregisterNetworkCallback(callback) }
-                        registered = false
+        try {
+            return withTimeout(45_000L) {
+                suspendCancellableCoroutine { continuation ->
+                    val released = AtomicBoolean(false)
+                    val delivered = AtomicBoolean(false)
+                    var offeredNetwork: Network? = null
+                    var wifiReady = false
+                    var addressReady = false
+                    var registered = false
+                    lateinit var callback: ConnectivityManager.NetworkCallback
+                    fun release() {
+                        if (released.compareAndSet(false, true)) handler.post {
+                            if (registered) {
+                                runCatching { manager.unregisterNetworkCallback(callback) }
+                                registered = false
+                            }
+                        }
+                    }
+                    fun deliverReadyNetwork() {
+                        val network = offeredNetwork ?: return
+                        if (!released.get() && wifiReady && addressReady && delivered.compareAndSet(false, true)) {
+                            val connection = CameraWifiConnection(network, ::release)
+                            continuation.resume(connection, onCancellation = { _, value, _ -> value.close() })
+                        }
+                    }
+                    callback = object : ConnectivityManager.NetworkCallback() {
+                        override fun onAvailable(network: Network) {
+                            if (released.get()) return
+                            if (delivered.get()) {
+                                // The caller owns one exact Network; never switch it behind an active session.
+                                offeredNetwork?.takeIf { it != network }?.let(onLost)
+                                return
+                            }
+                            // onAvailable alone does not guarantee capabilities or IP configuration.
+                            offeredNetwork = network
+                            wifiReady = false
+                            addressReady = false
+                        }
+                        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                            if (network != offeredNetwork) return
+                            wifiReady = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+                                !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+                            deliverReadyNetwork()
+                        }
+                        override fun onLinkPropertiesChanged(network: Network, properties: LinkProperties) {
+                            if (network != offeredNetwork) return
+                            addressReady = properties.linkAddresses.any { !it.address.isAnyLocalAddress && !it.address.isLoopbackAddress }
+                            deliverReadyNetwork()
+                        }
+                        override fun onUnavailable() {
+                            if (delivered.compareAndSet(false, true)) continuation.resumeWithException(
+                                java.io.IOException("未能连接相机 Wi-Fi，请检查名称、安全类型、密码或系统连接确认"))
+                            release()
+                        }
+                        override fun onLost(network: Network) {
+                            if (!released.get() && network == offeredNetwork) {
+                                if (delivered.compareAndSet(false, true)) {
+                                    continuation.resumeWithException(java.io.IOException("相机 Wi-Fi 在网络地址准备完成前已断开，请重新连接"))
+                                    release()
+                                } else onLost(network)
+                            }
+                        }
+                    }
+                    continuation.invokeOnCancellation { release() }
+                    handler.post {
+                        if (!released.get() && continuation.isActive) {
+                            try {
+                                registered = true
+                                manager.requestNetwork(request, callback, handler, 30_000)
+                            } catch (error: Exception) {
+                                if (delivered.compareAndSet(false, true)) continuation.resumeWithException(error)
+                                release()
+                            }
+                        }
                     }
                 }
             }
-            callback = object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    if (delivered.compareAndSet(false, true)) {
-                        val connection = CameraWifiConnection(network, ::release)
-                        continuation.resume(connection, onCancellation = { _, value, _ -> value.close() })
-                    }
-                }
-                override fun onUnavailable() {
-                    if (delivered.compareAndSet(false, true)) continuation.resumeWithException(
-                        java.io.IOException("未能连接相机 Wi-Fi，请检查名称、安全类型、密码或系统连接确认"))
-                    release()
-                }
-                override fun onLost(network: Network) {
-                    if (!released.get()) onLost(network)
-                }
-            }
-            continuation.invokeOnCancellation { release() }
-            handler.post {
-                if (!released.get() && continuation.isActive) {
-                    try {
-                        registered = true
-                        manager.requestNetwork(request, callback, handler, 30_000)
-                    } catch (error: Exception) {
-                        if (delivered.compareAndSet(false, true)) continuation.resumeWithException(error)
-                        release()
-                    }
-                }
-            }
+        } catch (_: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            throw java.io.IOException("相机 Wi-Fi 尚未准备好网络地址，请确认系统连接弹窗后重试")
         }
     }
 

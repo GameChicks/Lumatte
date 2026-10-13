@@ -121,33 +121,38 @@ internal class CameraHttp(private val network: Network, val host: String, privat
 
     suspend fun text(uri: URI, body: String? = null, headers: Map<String, String> = emptyMap()): String =
         withContext(Dispatchers.IO) {
-            val connection = open(uri)
-            try {
-                headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
-                if (body != null) {
-                    val bytes = body.toByteArray(Charsets.UTF_8)
-                    connection.requestMethod = "POST"
-                    connection.doOutput = true
-                    connection.setFixedLengthStreamingMode(bytes.size)
-                    connection.outputStream.use { it.write(bytes) }
+            coroutineScope {
+                val connection = open(uri)
+                val cancellation = launch(start = CoroutineStart.UNDISPATCHED) {
+                    try { awaitCancellation() } finally { release(connection) }
                 }
-                currentCoroutineContext().ensureActive()
-                if (connection.responseCode !in 200..299) {
-                    throw CameraProtocolException("HTTP ${connection.responseCode}")
-                }
-                val output = ByteArrayOutputStream()
-                connection.inputStream.use { input ->
-                    val buffer = ByteArray(32 * 1024)
-                    while (true) {
-                        currentCoroutineContext().ensureActive()
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        require(output.size() + count <= 16 * 1024 * 1024) { "相机 XML 响应过大" }
-                        output.write(buffer, 0, count)
+                try {
+                    headers.forEach { (key, value) -> connection.setRequestProperty(key, value) }
+                    if (body != null) {
+                        val bytes = body.toByteArray(Charsets.UTF_8)
+                        connection.requestMethod = "POST"
+                        connection.doOutput = true
+                        connection.setFixedLengthStreamingMode(bytes.size)
+                        connection.outputStream.use { it.write(bytes) }
                     }
-                }
-                output.toString(Charsets.UTF_8.name())
-            } finally { release(connection) }
+                    currentCoroutineContext().ensureActive()
+                    if (connection.responseCode !in 200..299) {
+                        throw CameraProtocolException("HTTP ${connection.responseCode}")
+                    }
+                    val output = ByteArrayOutputStream()
+                    connection.inputStream.use { input ->
+                        val buffer = ByteArray(32 * 1024)
+                        while (true) {
+                            currentCoroutineContext().ensureActive()
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            require(output.size() + count <= 16 * 1024 * 1024) { "相机 XML 响应过大" }
+                            output.write(buffer, 0, count)
+                        }
+                    }
+                    output.toString(Charsets.UTF_8.name())
+                } finally { cancellation.cancel(); release(connection) }
+            }
         }
 
     suspend fun command(mode: String, vararg fields: Pair<String, String>): String {
