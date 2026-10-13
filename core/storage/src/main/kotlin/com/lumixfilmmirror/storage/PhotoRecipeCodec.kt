@@ -16,6 +16,7 @@ internal object PhotoRecipeCodec {
                 }) }
                 slot("first", recipe.parameters.first); slot("second", recipe.parameters.second)
                 put("grain", recipe.parameters.grain.toDouble())
+                put("grainEnabled", recipe.parameters.grainEnabled); put("ditheringEnabled", recipe.parameters.ditheringEnabled)
             }
             is PhotoRecipe.Film -> {
                 put("type", "FILM"); put("preset", recipe.parameters.presetId)
@@ -36,7 +37,8 @@ internal object PhotoRecipeCodec {
                     val value = json.getJSONObject(name)
                     return LutSlot(if (value.isNull("id")) null else value.getString("id"), value.getDouble("strength").toFloat())
                 }
-                PhotoRecipe.Lut(LutRecipe(slot("first"), slot("second"), json.getDouble("grain").toFloat()))
+                PhotoRecipe.Lut(LutRecipe(slot("first"), slot("second"), json.getDouble("grain").toFloat(),
+                    json.optBoolean("grainEnabled", true), json.optBoolean("ditheringEnabled", false)))
             }
             "FILM" -> PhotoRecipe.Film(FilmParameters(json.getString("preset"), json.getDouble("exposure").toFloat(),
                 DiffusionGrade.valueOf(json.getString("diffusion")), json.getBoolean("halation")), json.getLong("seed"))

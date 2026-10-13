@@ -12,10 +12,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -192,8 +193,11 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
     BackHandler(pane != null) {
         pane = when (pane) { "export" -> "editor"; "reveal" -> "editor"; else -> null }
     }
-    CompositionLocalProvider(LocalMirrorReducedMotion provides reduced) {
-        Box(Modifier.fillMaxSize().background(tones.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
+    CompositionLocalProvider(LocalMirrorReducedMotion provides reduced, LocalMirrorHaptics provides personal.haptics,
+        LocalMirrorAutomaticFilmDetails provides personal.automaticFilmDetails) {
+        Column(Modifier.fillMaxSize().background(tones.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
+            MirrorTaskProgress(state, camera, workspace, transferHidden) { transferHidden = it }
+            Box(Modifier.weight(1f).fillMaxWidth()) {
             ProgressiveBackdrop(Modifier.fillMaxSize(), enabled = navigation && !reduced, source = backdrop) {
                 AnimatedContent(targetState = pane, label = "workspace-card-entry", transitionSpec = {
                     (fadeIn(tween(if (reduced) 0 else 300)) + scaleIn(tween(if (reduced) 0 else 420, easing = MirrorEase), initialScale = .97f)) togetherWith
@@ -217,7 +221,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
                         onImport = { importPhotos(state.treatment) }, onChooseLut = { second -> editingLutSecond = second; tab = 2; pane = null },
                         onChooseFilm = { tab = 1; pane = null }, onNext = {
                             val id = state.processingBatchId
-                            if (state.treatment == PhotoTreatment.FILM && id != null && id !in personal.revealedBatches) pane = "reveal"
+                            if (state.treatment == PhotoTreatment.FILM && personal.revealAnimation && !reduced && id != null && id !in personal.revealedBatches) pane = "reveal"
                             else pane = "export"
                         })
                     "reveal" -> FilmReveal(state, workspace) {
@@ -225,46 +229,35 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
                         pane = "export"
                     }
                     "export" -> MirrorFrames(state, workspace, { importPhotos(state.treatment) }, onBack = { pane = "editor" })
+                    "settings" -> MirrorSettings(personal, state, workspace, onBack = { pane = null }, onTools = { pane = "tools" })
                     "tools" -> Column {
                         TextButton(onClick = { pane = null }) { Text("← 返回连接页") }
                         Box(Modifier.weight(1f)) { WorkspaceScreen(workspace) }
                     }
-                    else -> savedPages.SaveableStateProvider(tab) {
-                        when (tab) {
+                    else -> AnimatedContent(targetState = tab, label = "main-tab-slide", transitionSpec = {
+                        val direction = if (targetState > initialState) 1 else -1
+                        (slideInHorizontally(tween(if (reduced) 0 else 420, easing = MirrorEase)) { it * direction / 8 } +
+                            fadeIn(tween(if (reduced) 0 else 260))) togetherWith
+                            (slideOutHorizontally(tween(if (reduced) 0 else 420, easing = MirrorEase)) { -it * direction / 8 } +
+                                fadeOut(tween(if (reduced) 0 else 220)))
+                    }) { shownTab -> savedPages.SaveableStateProvider(shownTab) {
+                        when (shownTab) {
                             0 -> MirrorHome(state, camera, personal, transfers, workspace,
                                 onCamera = { id -> requestedCameraId = id; cameraEntry = "bluetooth"; pane = "camera" },
-                                onAlbum = { requestedCameraId = null; cameraEntry = "wifi"; pane = "camera" }, onTools = { pane = "tools" })
-                            1 -> MirrorFilm(state, { importPhotos(PhotoTreatment.FILM) }, chooseFilm) { fullscreen = it }
+                                onAlbum = { requestedCameraId = null; cameraEntry = "wifi"; pane = "camera" }, onSettings = { pane = "settings" })
+                            1 -> MirrorFilm(state, { importPhotos(PhotoTreatment.FILM) }, chooseFilm) { if (shownTab == tab) fullscreen = it }
                             2 -> MirrorLuts(state, workspace, personal, { importPhotos(PhotoTreatment.LUT) },
-                                { luts.launch(arrayOf("*/*")) }, chooseLut, initialSecond = editingLutSecond) { fullscreen = it }
+                                { luts.launch(arrayOf("*/*")) }, chooseLut, initialSecond = editingLutSecond) { if (shownTab == tab) fullscreen = it }
                             else -> Box(Modifier.padding(bottom = 100.dp)) {
                                 MirrorFrames(state, workspace, { importPhotos(PhotoTreatment.ORIGINAL) })
                             }
                         }
-                    }
+                    } }
                 } }
             }
             if (navigation) MirrorNavigation(tab, Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 16.dp), backdrop) {
                 tab = it; fullscreen = false
             }
-            val active = camera.activeTransferBatch != null || state.exporting
-            AnimatedVisibility(active && !transferHidden, modifier = Modifier.align(Alignment.TopCenter).padding(horizontal = 20.dp, vertical = 8.dp)) {
-                Surface(shape = RoundedCornerShape(20.dp), color = tones.paperHighlight, tonalElevation = 4.dp, shadowElevation = 8.dp) {
-                    Column(Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (state.exporting) "正在保存 ${state.completed} / ${state.total}" else
-                                "正在传入 ${camera.transferred} / ${camera.transferTotal}", Modifier.weight(1f))
-                            TextButton(onClick = { transferHidden = true }) { Text("隐藏") }
-                        }
-                        if (state.exporting && state.total > 0) LinearProgressIndicator(
-                            progress = { state.completed.toFloat() / state.total }, modifier = Modifier.fillMaxWidth())
-                        else LinearProgressIndicator(Modifier.fillMaxWidth())
-                        TextButton(onClick = if (state.exporting) workspace::pauseExport else workspace::pauseTransfer) { Text("暂停") }
-                    }
-                }
-            }
-            if (active && transferHidden) TextButton(onClick = { transferHidden = false },
-                modifier = Modifier.align(Alignment.TopEnd).background(tones.paperHighlight, RoundedCornerShape(24.dp))) { Text("显示进度") }
             if (state.recovering) Surface(Modifier.align(Alignment.TopCenter), shape = RoundedCornerShape(20.dp)) {
                 Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CircularProgressIndicator(Modifier.size(20.dp)); Text("正在打开素材库…")
@@ -278,6 +271,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
                 TextButton(onClick = { workspace.clearNotice() }) { Text("知道了") }
             }) { Text(state.notice.orEmpty(), maxLines = 3) }
             if (pane != "tools") camera.wifiSelection?.let { CameraWifiSelectionDialog(it, workspace) }
+            }
         }
     }
     transferChoice?.let { target -> AlertDialog(onDismissRequest = { transferChoice = null }, title = { Text("传入后做什么？") },
@@ -302,7 +296,7 @@ private fun MirrorNavigation(selected: Int, modifier: Modifier,
     backdrop: androidx.compose.ui.graphics.layer.GraphicsLayer, onSelect: (Int) -> Unit) {
     val tones = LocalFilmMaterials.current
     val shape = RoundedCornerShape(38.dp)
-    val dark = isSystemInDarkTheme()
+    val dark = com.lumixfilmmirror.design.LocalFilmDark.current
     val position by animateFloatAsState(selected.toFloat(), tween(if (LocalMirrorReducedMotion.current) 0 else 380, easing = MirrorEase), label = "nav-position")
     BoxWithConstraints(modifier.fillMaxWidth().height(76.dp).clip(shape)
         .frostedBackdrop(backdrop, !LocalMirrorReducedMotion.current)

@@ -108,7 +108,8 @@ internal fun MirrorTextAction(label: String, onClick: () -> Unit, modifier: Modi
 @Composable
 internal fun MirrorToggle(value: Boolean, label: String, enabled: Boolean = true, onValueChange: (Boolean) -> Unit) {
     val tones = LocalFilmMaterials.current
-    val thumb by androidx.compose.animation.core.animateDpAsState(if (value) 28.dp else 4.dp, tween(180), label = "toggle-thumb")
+    val thumb by androidx.compose.animation.core.animateDpAsState(if (value) 28.dp else 4.dp,
+        tween(if (LocalMirrorReducedMotion.current) 0 else 180), label = "toggle-thumb")
     Box(Modifier.size(64.dp, 48.dp).toggleable(value, enabled = enabled, role = Role.Switch, onValueChange = onValueChange)
         .then(Modifier.semantics { contentDescription = label }), contentAlignment = Alignment.Center) {
         Box(Modifier.size(60.dp, 36.dp).clip(RoundedCornerShape(18.dp)).background(if (value) tones.ink else tones.rim)) {

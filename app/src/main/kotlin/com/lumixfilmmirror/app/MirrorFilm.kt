@@ -8,7 +8,6 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -185,6 +184,8 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
     val pager = rememberPagerState(initialPage = if (films.isEmpty()) 0 else films.size * 100 + initial.coerceIn(0, films.lastIndex),
         pageCount = { films.size * 201 })
     val haptics = LocalHapticFeedback.current
+    val hapticsEnabled = LocalMirrorHaptics.current
+    val automaticDetails = LocalMirrorAutomaticFilmDetails.current
     val scope = rememberCoroutineScope()
     val sceneRotation = filmObjectRotation(visibility, -66f, arrivalAngle, departureAngle)
     val displayDensity = LocalDensity.current.density
@@ -203,11 +204,12 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
     var previousPage by remember { mutableIntStateOf(pager.currentPage) }
     LaunchedEffect(pager.currentPage) {
         if (previousPage != pager.currentPage) {
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove); previousPage = pager.currentPage
+            if (hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            previousPage = pager.currentPage
         }
     }
-    LaunchedEffect(pager.settledPage, pager.isScrollInProgress, armed, entered, films.size) {
-        if (entered && armed && !pager.isScrollInProgress && !reduced && films.isNotEmpty()) {
+    LaunchedEffect(pager.settledPage, pager.isScrollInProgress, armed, entered, films.size, automaticDetails, reduced) {
+        if (entered && armed && !pager.isScrollInProgress && !reduced && automaticDetails && films.isNotEmpty()) {
             delay(500)
             if (!pager.isScrollInProgress && abs(pager.currentPageOffsetFraction) < .01f)
                 onDetail(films[pager.settledPage % films.size])
@@ -273,7 +275,7 @@ private fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initia
         Column(Modifier.align(Alignment.TopStart).padding(start = 24.dp, top = 78.dp)) {
             val headingMorph = with(shared) { Modifier.sharedBounds(rememberSharedContentState("category-${category.name}"), visibility,
                 boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
-            Text(category.editorialTitle(), headingMorph, fontFamily = MirrorFonts.Editorial,
+            Text(category.editorialTitle(), headingMorph, fontFamily = MirrorFonts.NarrowItalic,
                 fontStyle=FontStyle.Italic, fontSize = 44.sp, lineHeight = 48.sp)
         }
         Column(Modifier.align(Alignment.BottomStart).padding(24.dp)) {
@@ -295,9 +297,9 @@ private fun FilmDetail(film: FilmPreset, shared: SharedTransitionScope, visibili
     val tones = LocalFilmMaterials.current
     val reduced = LocalMirrorReducedMotion.current
     val rotation = filmObjectRotation(visibility, 0f, arrivalAngle, departureAngle)
-    val shortName = film.shortTitle()
-    val number = Regex("(?:^| )([0-9]{2,4}[A-Za-z]*)$").find(shortName)?.groupValues?.get(1)
-    val title = if (number == null) shortName else shortName.removeSuffix(number).trim()
+    val editorial = film.editorialName()
+    val number = editorial.speed
+    val title = editorial.title
     val story = when {
         film.id.contains("gold") -> "温暖的金色、柔和的层次与日常的光。把街道、旅行和身边的人，留在一卷熟悉的色彩里。"
         film.id.contains("velvia") -> "饱满的色彩与鲜明的反差。适合用山林、天空与季节的变化，探索反转片的表现。"
@@ -313,11 +315,15 @@ private fun FilmDetail(film: FilmPreset, shared: SharedTransitionScope, visibili
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
-                Row(Modifier.fillMaxWidth().height(300.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().heightIn(min = 300.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(film.name.substringBefore(' '), style = MaterialTheme.typography.labelSmall, color = tones.secondaryInk)
+                        Text(if (film.id.startsWith("lfm_")) "项目自有风格" else film.name.substringBefore(' '),
+                            style = MaterialTheme.typography.labelSmall, color = tones.secondaryInk)
                         Text(title, fontFamily = MirrorFonts.Editorial, fontSize = 60.sp, lineHeight = 62.sp)
                         number?.let { Text(it, fontFamily = MirrorFonts.Editorial, fontSize = 74.sp, lineHeight = 76.sp, color = tones.amber) }
+                        editorial.variant?.let { Text(it, fontFamily = if (it.any { char -> char.code > 0x2fff })
+                            MirrorFonts.ChineseEditorial else MirrorFonts.Editorial,
+                            fontSize = 23.sp, lineHeight = 28.sp, color = tones.secondaryInk) }
                     }
                     val morph = with(shared) { Modifier.sharedElement(rememberSharedContentState("film-${film.id}"), visibility,
                         boundsTransform = { _, _ -> tween(if (reduced) 0 else 420, easing = MirrorEase) }) }
@@ -353,6 +359,8 @@ internal fun FilmCartridge(film: FilmPreset, modifier: Modifier = Modifier) {
         "fujifilm_c200" -> R.drawable.cartridge_c200_v1
         "fujifilm_velvia_100" -> R.drawable.cartridge_velvia_100_v2
         "kodak_vision3_500t" -> R.drawable.cartridge_vision3_500t_v2
+        "lfm_silver_neutral" -> R.drawable.cartridge_silver_neutral_v1
+        "lfm_silver_contrast" -> R.drawable.cartridge_silver_contrast_v1
         else -> null
     }
     if (artwork != null) {
@@ -372,7 +380,7 @@ internal fun FilmCartridge(film: FilmPreset, modifier: Modifier = Modifier) {
 
 @Composable
 private fun FilmStage(category: FilmCategory) {
-    val dark = isSystemInDarkTheme()
+    val dark = com.lumixfilmmirror.design.LocalFilmDark.current
     Canvas(Modifier.fillMaxSize()) {
         drawRect(if(dark) Color(0xFF10120F) else Color(0xFFF0EADD))
         drawRect(Brush.radialGradient(listOf(category.colour().copy(if(dark) .28f else .25f),Color.Transparent),

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lumix Film Mirror · 字体对照</title>
+<style>
+@font-face{font-family:Editorial;src:url('../../core/design/src/main/res/font/cormorant_garamond.ttf');font-weight:300 700;font-style:normal}
+@font-face{font-family:Editorial;src:url('../../core/design/src/main/res/font/cormorant_garamond_italic.ttf');font-weight:300 700;font-style:italic}
+@font-face{font-family:Script;src:url('../../core/design/src/main/res/font/great_vibes.ttf')}
+@font-face{font-family:Body;src:url('../../core/design/src/main/res/font/oppo_sans_regular.ttf')}
+:root{--paper:#f2efe6;--ink:#24251f;--muted:#77766b;--line:#d3cec1;--weight:500}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.7 Body,sans-serif}
+body.dark{--paper:#191e20;--ink:#f4efe3;--muted:#b6b9ad;--line:#424a4c}
+main{max-width:1100px;margin:auto;padding:42px 32px 64px}.eyebrow{letter-spacing:.2em;font-size:11px;color:var(--muted)}
+h1{font:500 clamp(48px,7vw,88px)/1 Editorial;margin:20px 0 12px}p{color:var(--muted);margin:0 0 26px;max-width:650px}
+.controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+button{font:inherit;color:var(--ink);border:1px solid var(--line);border-radius:24px;background:transparent;padding:8px 18px;cursor:pointer}
+button:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}input{accent-color:var(--ink);width:180px}output{font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:1fr 1fr;margin-top:32px;border:1px solid var(--line)}
+.study{min-height:275px;padding:30px 32px 26px;position:relative;border-bottom:1px solid var(--line)}.study:nth-child(odd){border-right:1px solid var(--line)}
+.index{font-size:10px;letter-spacing:.14em;color:var(--muted)}.serif{font-family:Editorial;font-weight:var(--weight);font-size:clamp(50px,6vw,74px);line-height:1.05;margin-top:16px}
+.italic{font-style:italic}.script{font:clamp(53px,7vw,80px)/.95 Script;position:relative;margin:-8px 0 0 48px;color:var(--muted)}
+.caption{font-size:12px;color:var(--muted);margin-top:26px}.speed{font:var(--weight) 82px/.9 Editorial;color:#a87724;margin-top:-4px}
+.weights{display:flex;flex-wrap:wrap;gap:22px;margin-top:28px}.weights span{font-family:Editorial;font-size:32px}
+footer{margin-top:32px;color:var(--muted);font-size:12px}a{color:inherit;text-underline-offset:3px}
+@media(max-width:620px){main{padding:28px 20px}.grid{grid-template-columns:1fr}.study:nth-child(odd){border-right:none}.study{min-height:240px}.serif{font-size:62px}}
+</style></head><body><main>
+<div class="eyebrow">LUMIX / TYPE STUDY</div><h1>字体与交织</h1>
+<p>Cormorant Garamond 的真实正体与斜体，搭配 Great Vibes。这里仅展示字形组合，不是 Android 界面的运行截图。</p>
+<div class="controls"><label for="weight">衬线字重</label><input id="weight" type="range" min="300" max="700" step="100" value="500"><output id="readout">500</output><button id="theme">切换深浅</button></div>
+<div class="grid">
+<article class="study"><div class="index">01 / SERIF + ITALIC</div><div class="serif">Negative</div><div class="serif italic" style="margin:0 0 0 46px">Color</div><div class="caption">同一家族，正体与斜体形成层次。</div></article>
+<article class="study"><div class="index">02 / SERIF + SCRIPT</div><div class="serif">Heritage</div><div class="script">Tee</div><div class="caption">手写体错位交叠，正文与按钮保留清晰字形。</div></article>
+<article class="study"><div class="index">03 / COLLECTION</div><div class="serif">Colour</div><div class="script">Collection</div><div class="caption">收藏页标题使用这种组合；中央大符号已从源码移除。</div></article>
+<article class="study"><div class="index">04 / FILM DETAIL</div><div class="serif">Gold</div><div class="speed">200</div><div class="caption">名称、感光度和处理备注分层，保持完整信息。</div></article>
+</div>
+<div class="weights"><span style="font-weight:300">Light 300</span><span style="font-weight:500">Medium 500</span><span style="font-weight:700">Bold 700</span><span style="font-weight:500;font-style:italic">Italic 500</span></div>
+<footer>字体与许可：<a href="https://github.com/google/fonts/tree/main/ofl/cormorantgaramond">Cormorant Garamond / OFL</a> · <a href="https://github.com/google/fonts/tree/main/ofl/greatvibes">Great Vibes / OFL</a>。原字体文件及许可一并保留在工程。</footer>
+</main><script>
+const weight=document.querySelector('#weight'),output=document.querySelector('#readout');weight.addEventListener('input',()=>{document.documentElement.style.setProperty('--weight',weight.value);output.value=weight.value});document.querySelector('#theme').addEventListener('click',()=>document.body.classList.toggle('dark'));
+</script></body></html>

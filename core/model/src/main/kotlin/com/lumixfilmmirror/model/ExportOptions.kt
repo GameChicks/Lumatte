@@ -56,6 +56,13 @@ data class FrameOptions(
     val subtitleFontKey: String? = null,
     val footerFontKey: String? = null,
     val signatureFontKey: String? = null,
+    val showCamera: Boolean = true,
+    val showLens: Boolean = true,
+    val showFocalLength: Boolean = true,
+    val showAperture: Boolean = true,
+    val showShutter: Boolean = true,
+    val showIso: Boolean = true,
+    val showCapturedAt: Boolean = false,
 ) {
     init {
         require(borderFraction.isFinite() && borderFraction in 0.02f..0.12f)

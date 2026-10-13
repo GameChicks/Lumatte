@@ -26,7 +26,9 @@ internal data class BatchEditRecipeRow(@PrimaryKey val batchId: String, val trea
     entity = ProcessingBatchRow::class, parentColumns = ["id"], childColumns = ["batchId"],
 )])
 internal data class BatchLutRecipeRow(@PrimaryKey val batchId: String, val firstId: String?, val firstStrength: Float,
-    val secondId: String?, val secondStrength: Float, val grain: Float)
+    val secondId: String?, val secondStrength: Float, val grain: Float,
+    @ColumnInfo(defaultValue = "1") val grainEnabled: Boolean = true,
+    @ColumnInfo(defaultValue = "0") val ditheringEnabled: Boolean = false)
 
 @Entity(tableName = "processing_batches")
 internal data class ProcessingBatchRow(@PrimaryKey val id: String, val title: String, val createdAt: Long)

@@ -50,7 +50,9 @@ struct Table {
         table.one_size = one_size; table.three_size = three_size; table.strength = strength;
         table.one = copy(env, one, size_t(one_size) * 3);
         table.three = copy(env, three, size_t(three_size) * three_size * three_size * 3);
-        table.bounds = copy(env, bounds, 12);
+        table.bounds = copy(env, bounds, 13);
+        if (table.bounds[12] != 0.0f && (one_size != 0 || three_size != 17))
+            throw std::invalid_argument("Invalid VLT grid");
         for (int c = 0; c < 3; ++c)
             if (!(table.bounds[3 + c] > table.bounds[c]) || !(table.bounds[9 + c] > table.bounds[6 + c]))
                 throw std::invalid_argument("Invalid LUT input range");
@@ -71,9 +73,12 @@ struct Table {
             output[c] = one[size_t(lower) * 3 + c] * (1.0f - fraction) + one[size_t(upper) * 3 + c] * fraction;
         }
         if (three_size != 0) {
-            const float r = coordinate(output[0], bounds[6], bounds[9], three_size);
-            const float g = coordinate(output[1], bounds[7], bounds[10], three_size);
-            const float b = coordinate(output[2], bounds[8], bounds[11], three_size);
+            auto position = [&](int c) {
+                if (bounds[12] == 0.0f) return coordinate(output[c], bounds[6+c], bounds[9+c], three_size);
+                const float v = std::clamp(output[c], 0.0f, 1.0f) * 4095.0f;
+                return v <= 3840.0f ? v / 256.0f : 15.0f + (v - 3840.0f) / 255.0f;
+            };
+            const float r = position(0), g = position(1), b = position(2);
             const int r0 = int(std::floor(r)), g0 = int(std::floor(g)), b0 = int(std::floor(b));
             const int r1 = std::min(r0 + 1, three_size - 1), g1 = std::min(g0 + 1, three_size - 1), b1 = std::min(b0 + 1, three_size - 1);
             const float fr = r - float(r0), fg = g - float(g0), fb = b - float(b0);
@@ -121,7 +126,7 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_lumixfilmmirror_media_NativeLutBridge_render(JNIEnv* env, jobject, jlong handle, jobject bitmap,
     jint first_one_size, jint first_three_size, jfloatArray first_one, jfloatArray first_three, jfloatArray first_bounds, jfloat first_strength,
     jint second_one_size, jint second_three_size, jfloatArray second_one, jfloatArray second_three, jfloatArray second_bounds, jfloat second_strength,
-    jfloat grain, jint source_width, jint source_height, jint seed) {
+    jfloat grain, jint source_width, jint source_height, jint seed, jboolean dithering) {
     try {
         const auto* task = reinterpret_cast<Task*>(handle);
         if (!task || source_width <= 0 || source_height <= 0 || !std::isfinite(grain) || grain < 0 || grain > 1)
@@ -153,6 +158,11 @@ Java_com_lumixfilmmirror_media_NativeLutBridge_render(JNIEnv* env, jobject, jlon
                     hash ^= hash >> 16;
                     const float light = std::clamp(.2126f * rgb[0] + .7152f * rgb[1] + .0722f * rgb[2], 0.0f, 1.0f);
                     const float noise = (float((hash >> 8) & 65535u) / 65535.0f - .5f) * grain * .12f * (.35f + .65f * (1.0f - light));
+                    for (float& channel : rgb) channel += noise;
+                }
+                if (dithering) {
+                    static constexpr int bayer[16] = {0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5};
+                    const float noise = ((float(bayer[(y & 3u) * 4u + (x & 3u)]) + .5f) / 16.0f - .5f) / 255.0f;
                     for (float& channel : rgb) channel += noise;
                 }
                 for (int c = 0; c < 3; ++c) {

@@ -22,3 +22,5 @@ Playfair / Dancing Script 许可副本放入 `core/design/src/main/assets/licens
 ## 2026-10-13 新增
 
 中文艺术标题使用 C:/Windows/Fonts/Source Han Serif SC Heavy (TrueType).ttf 的完整副本 editorial_chinese.ttf（2,525,144 字节），原文件未修改。OFL 从 Adobe Source Han Serif 官方 release/LICENSE.txt 保存到 core/design/src/main/assets/licenses/source-han-serif-OFL.txt。正文仍为 OPPO Sans。三份 imagegen 暗盒及完整提示词见 [生成资产记录](generated-cartridges-2026-10-13.md)。
+
+继续前端与设置时新增 [Instrument Serif](https://github.com/google/fonts/tree/main/ofl/instrumentserif) 的真实窄衬线斜体副本 `instrument_serif_italic.ttf`，OFL 保存到 design assets/licenses；原 Cormorant 与 Great Vibes 保留。设置内的支付宝 / 微信捐赠图由用户直接提供，从 Downloads 原字节复制，未更改原图；不作为界面风格参考混用。应用图标与原件记录见 [ImageGen 图标记录](generated-icon-2026-10-13.md)。

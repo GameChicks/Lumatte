@@ -38,6 +38,7 @@ private val DarkMaterials = FilmMaterials(
 )
 
 val LocalFilmMaterials = staticCompositionLocalOf { LightMaterials }
+val LocalFilmDark = staticCompositionLocalOf { false }
 
 object FilmSpacing {
     val screen = 20.dp
@@ -67,7 +68,7 @@ fun FilmMirrorTheme(
         surfaceVariant = tones.paperHighlight, onSurfaceVariant = tones.secondaryInk,
         outline = tones.rim,
     )
-    CompositionLocalProvider(LocalFilmMaterials provides tones, LocalContentColor provides tones.ink) {
+    CompositionLocalProvider(LocalFilmMaterials provides tones, LocalFilmDark provides dark, LocalContentColor provides tones.ink) {
         MaterialTheme(colorScheme = scheme, typography = MirrorTypography, content = content)
     }
 }

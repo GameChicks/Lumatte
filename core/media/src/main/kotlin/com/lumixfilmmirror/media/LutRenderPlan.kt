@@ -5,13 +5,13 @@ import kotlin.math.roundToInt
 
 /** Shared CPU path for preview and export; bounded scanline tiles, encoded sRGB input/output. */
 class LutRenderPlan internal constructor(private val first: CubeLut?, private val firstStrength: Float,
-    private val second: CubeLut?, private val secondStrength: Float, private val grain: Float) {
+    private val second: CubeLut?, private val secondStrength: Float, private val grain: Float, private val dithering: Boolean) {
     internal suspend fun render(bitmap: Bitmap, source: SourceImage, checkActive: () -> Unit) {
-        if ((first == null || firstStrength == 0f) && (second == null || secondStrength == 0f) && grain == 0f) return
+        if ((first == null || firstStrength == 0f) && (second == null || secondStrength == 0f) && grain == 0f && !dithering) return
         checkActive()
         if (NativeLutBridge.available) {
             NativeLutRenderer.render(bitmap, source, first.takeIf { firstStrength > 0f }, firstStrength,
-                second.takeIf { secondStrength > 0f }, secondStrength, grain)
+                second.takeIf { secondStrength > 0f }, secondStrength, grain, dithering)
             checkActive()
             return
         }
@@ -23,6 +23,7 @@ class LutRenderPlan internal constructor(private val first: CubeLut?, private va
         val pixels = IntArray(bitmap.width * tileHeight)
         val input = FloatArray(3); val output = FloatArray(3)
         val seed = source.id.value.hashCode()
+        val bayer = intArrayOf(0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)
         fun apply(table: CubeLut?, strength: Float) {
             if (table == null || strength == 0f) return
             table.apply(input, output)
@@ -50,6 +51,11 @@ class LutRenderPlan internal constructor(private val first: CubeLut?, private va
                         hash = hash xor (hash ushr 16)
                         val light = (.2126f * input[0] + .7152f * input[1] + .0722f * input[2]).coerceIn(0f, 1f)
                         val noise = (((hash ushr 8) and 65535) / 65535f - .5f) * grain * .12f * (.35f + .65f * (1 - light))
+                        for (channel in 0..2) input[channel] += noise
+                    }
+                    if (dithering) {
+                        // Centred thresholds have zero mean; grain and dithering stay independent.
+                        val noise = ((bayer[((top + row) and 3) * 4 + (x and 3)] + .5f) / 16f - .5f) / 255f
                         for (channel in 0..2) input[channel] += noise
                     }
                     fun channel(i: Int) = (input[i].coerceIn(0f, 1f) * 255).roundToInt()

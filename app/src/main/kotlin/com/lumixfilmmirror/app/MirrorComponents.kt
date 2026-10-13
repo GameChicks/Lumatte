@@ -41,6 +41,8 @@ import com.lumixfilmmirror.design.MirrorFonts
 internal val MirrorEase = CubicBezierEasing(.22f, .8f, .22f, 1f)
 internal val LocalMirrorReducedMotion = compositionLocalOf { false }
 internal val LocalMirrorDotArt = compositionLocalOf { false }
+internal val LocalMirrorHaptics = compositionLocalOf { true }
+internal val LocalMirrorAutomaticFilmDetails = compositionLocalOf { true }
 
 @Composable
 internal fun MirrorChoice(selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier,
@@ -48,7 +50,7 @@ internal fun MirrorChoice(selected: Boolean, onClick: () -> Unit, modifier: Modi
     val tones = LocalFilmMaterials.current
     val shape = RoundedCornerShape(20.dp)
     val colour by androidx.compose.animation.animateColorAsState(
-        if (selected) tones.ink else tones.paperHighlight, label = "choice-fill")
+        if (selected) tones.ink else tones.paperHighlight, tween(if (LocalMirrorReducedMotion.current) 0 else 300), label = "choice-fill")
     Box(modifier.heightIn(min = 44.dp).clip(shape).background(colour)
         .border(1.dp, if (selected) tones.ink else tones.rim.copy(.55f), shape)
         .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
@@ -68,7 +70,7 @@ internal fun MirrorButton(onClick: () -> Unit, modifier: Modifier = Modifier, en
     val pressed by interactions.collectIsPressedAsState()
     val buttonInk = if (destructive) Color(0xFF845960) else tones.ink
     val scale by androidx.compose.animation.core.animateFloatAsState(if (pressed) .975f else 1f,
-        tween(120), label = "button-pressure")
+        tween(if (LocalMirrorReducedMotion.current) 0 else 120), label = "button-pressure")
     Row(modifier.heightIn(min = 52.dp).graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else .4f }
         .clip(shape).background(Brush.verticalGradient(listOf(buttonInk, buttonInk.copy(.90f))))
         .clickable(enabled = enabled, interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick)
@@ -170,12 +172,12 @@ internal fun DotIcon(glyph: DotGlyph, modifier: Modifier = Modifier, tint: Color
 
 @Composable
 internal fun RoundAction(label: String, glyph: DotGlyph, modifier: Modifier = Modifier,
-    active: Boolean = false, glass: Boolean = false, onClick: () -> Unit) {
+    active: Boolean = false, glass: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
     val tones = LocalFilmMaterials.current
     Box(modifier.size(52.dp).clip(CircleShape).background(if (active) tones.ink else tones.paperHighlight.copy(if (glass) .4f else 1f))
-        .border(1.dp, tones.rim, CircleShape).clickable(role = Role.Button, onClick = onClick)
-        .semantics { contentDescription = label; if (glyph == DotGlyph.STAR) selected = active }, contentAlignment = Alignment.Center) {
-        DotIcon(glyph, tint = if (active) tones.paper else tones.ink, filled = active)
+        .border(1.dp, tones.rim, CircleShape).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+        .semantics { contentDescription = label; if (glyph == DotGlyph.STAR) selected = active; if (!enabled) disabled() }, contentAlignment = Alignment.Center) {
+        DotIcon(glyph, tint = (if (active) tones.paper else tones.ink).copy(alpha = if (enabled) 1f else .4f), filled = active)
     }
 }
 

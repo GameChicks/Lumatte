@@ -32,11 +32,11 @@ internal class FrameRenderer(context: Context) {
             val colors = if (options.fixedColorArgb == null && options.preset in setOf(FramePreset.PALETTE, FramePreset.FILM))
                 FramePalette.extract(photo) else emptyMap()
             val accent = (options.fixedColorArgb ?: colors[options.mood] ?: Color.rgb(99, 103, 96)) or (-0x1000000)
-            val identity = FrameIdentity(source.metadata.frameCameraName.ifBlank { source.name.substringBeforeLast('.') },
+            val identity = FrameIdentity(source.metadata.frameCameraName.takeIf { options.showCamera }.orEmpty(),
                 options.filmBrand.ifBlank { stock?.name?.substringBefore(' ') ?: "LUMIX" },
                 options.filmName.ifBlank { stock?.name?.substringAfter(' ') ?: "FILM MIRROR" }, stock?.id,
                 options.filmBlackWhite ?: (stock?.category == FilmCategory.MONOCHROME), options.filmNotes, accent, options.roll120,
-                source.metadata.detail)
+                source.metadata.frameDetail(options))
             val background = when (options.preset) {
                 FramePreset.BLACK, FramePreset.FILM -> Color.BLACK
                 FramePreset.DUSK -> 0xFF3C3E40.toInt()
@@ -142,7 +142,7 @@ internal class FrameRenderer(context: Context) {
             lines += Line(options.title ?: if (ticket) "Where the light lingers" else identity.camera,
                 textUnit * if (ticket) 35f else 24f, font, if (font == FrameFont.SPACED) textUnit * 1.2f else 0f, options.titleFontKey)
             val subtitleFont = options.subtitleFont ?: if (ticket) FrameFont.SPACED else font
-            lines += Line(options.subtitle ?: if (ticket) identity.camera + "  /  " + identity.brand + " " + identity.film
+            lines += Line(options.subtitle ?: if (ticket) listOf(identity.camera, identity.brand + " " + identity.film).filter { it.isNotBlank() }.joinToString("  /  ")
                 else identity.brand + " " + identity.film, textUnit * 18, subtitleFont, textUnit * .6f, options.subtitleFontKey)
             lines += Line(options.footer ?: if (ticket) "A moment, kept in light." else identity.exposureMetadata, textUnit * 14,
                 options.footerFont ?: if (ticket) FrameFont.TYPEWRITER else FrameFont.SANS, custom = options.footerFontKey)

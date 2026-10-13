@@ -9,6 +9,7 @@ import com.lumixfilmmirror.media.frame.FrameCameraNames
 import com.lumixfilmmirror.model.InputOrigin
 import com.lumixfilmmirror.model.PhotoId
 import com.lumixfilmmirror.model.PixelSize
+import com.lumixfilmmirror.model.FrameOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -23,6 +24,11 @@ data class PhotoMetadata(
 ) {
     val frameCameraName: String get() = FrameCameraNames.format(camera)
     val detail: String get() = listOf(lens, focalLength, aperture, shutter, iso).filter { it.isNotBlank() }.joinToString("  ·  ")
+    fun frameDetail(options: FrameOptions): String = listOf(
+        lens.takeIf { options.showLens }, focalLength.takeIf { options.showFocalLength },
+        aperture.takeIf { options.showAperture }, shutter.takeIf { options.showShutter },
+        iso.takeIf { options.showIso }, capturedAt.takeIf { options.showCapturedAt }
+    ).filterNotNull().filter { it.isNotBlank() }.joinToString("  ·  ")
 }
 
 data class SourceImage(

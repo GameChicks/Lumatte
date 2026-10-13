@@ -36,7 +36,7 @@ class WorkspaceStore(context: Context) {
             group.entries.sortedWith(compareBy({ it.entry.ordinal }, { it.entry.photoId }))
                 .mapNotNull { it.photos.singleOrNull()?.let(::source) },
             group.lutRecipes.singleOrNull()?.let { LutRecipe(LutSlot(it.firstId, it.firstStrength),
-                LutSlot(it.secondId, it.secondStrength), it.grain) } ?: LutRecipe(),
+                LutSlot(it.secondId, it.secondStrength), it.grain, it.grainEnabled, it.ditheringEnabled) } ?: LutRecipe(),
             group.editRecipes.singleOrNull()?.let { PhotoTreatment.valueOf(it.treatment) } ?: PhotoTreatment.LUT,
             group.editRecipes.singleOrNull()?.filmJson?.let(FilmBatchCodec::read),
             group.frameRecipes.singleOrNull()?.frameJson?.let(FrameOptionsCodec::read) ?: FrameOptions())
@@ -64,7 +64,8 @@ class WorkspaceStore(context: Context) {
     }
     suspend fun reserveLocalPhoto(batchId: String, id: PhotoId) = dao.reserveProcessingPhoto(batchId, id.value)
     suspend fun saveLutRecipe(batchId: String, recipe: LutRecipe) = dao.saveLutRecipe(BatchLutRecipeRow(batchId,
-        recipe.first.id, recipe.first.strength, recipe.second.id, recipe.second.strength, recipe.grain))
+        recipe.first.id, recipe.first.strength, recipe.second.id, recipe.second.strength, recipe.grain,
+        recipe.grainEnabled, recipe.ditheringEnabled))
     suspend fun saveEditRecipe(batchId: String, treatment: PhotoTreatment, film: FilmBatch?) =
         dao.saveEditRecipe(BatchEditRecipeRow(batchId, treatment.name, film?.let(FilmBatchCodec::write)))
     suspend fun saveFrameRecipe(batchId: String, frame: FrameOptions) =

@@ -89,7 +89,11 @@ class LutLibrary(context: Context) {
         val text = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString()
         val parsingContext = coroutineContext
-        val table = CubeLut.parse(text, name) { parsingContext.ensureActive() }.named(name.removeSuffix(".cube").removeSuffix(".CUBE"))
+        val isVlt = name.endsWith(".vlt", ignoreCase = true) || text.trimStart('\uFEFF', ' ', '\r', '\n', '\t')
+            .startsWith("# panasonic vlt file version", ignoreCase = true)
+        val table = (if (isVlt) CubeLut.parseVlt(text, name) { parsingContext.ensureActive() }
+            else CubeLut.parse(text, name) { parsingContext.ensureActive() })
+            .named(name.replace(Regex("(?i)\\.(cube|vlt)$"), ""))
         coroutineContext.ensureActive()
         val id = "local-" + MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
         check(root.isDirectory || root.mkdirs())
@@ -108,6 +112,7 @@ class LutLibrary(context: Context) {
         fun table(id: String?): CubeLut? = id?.let { value ->
             requireNotNull(assets.firstOrNull { it.id == value }) { "所选 LUT 不可用，请重新选择；没有改用其他 LUT" }.table
         }
-        return LutRenderPlan(table(recipe.first.id), recipe.first.strength, table(recipe.second.id), recipe.second.strength, recipe.grain)
+        return LutRenderPlan(table(recipe.first.id), recipe.first.strength, table(recipe.second.id), recipe.second.strength,
+            if (recipe.grainEnabled) recipe.grain else 0f, recipe.ditheringEnabled)
     }
 }

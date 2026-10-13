@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,21 +49,27 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
     onImport: () -> Unit, onChooseLut: (Boolean) -> Unit, onChooseFilm: () -> Unit, onNext: () -> Unit) {
     val tones = LocalFilmMaterials.current
     var original by rememberSaveable { mutableStateOf(false) }
+    var largePreview by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundAction("返回选型", DotGlyph.LEFT, onClick = onBack)
-            Text(if (state.treatment == PhotoTreatment.FILM) "Film / 预览" else "LUT / 预览", Modifier.weight(1f).padding(start = 12.dp),
-                style = MaterialTheme.typography.titleLarge)
-            TextButton(enabled = !state.busy, onClick = onImport) { Text("导入") }
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(if (state.treatment == PhotoTreatment.FILM) "Film" else "LUT", fontFamily = MirrorFonts.Editorial, fontSize = 30.sp)
+                Text("预览与调整", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 14.sp, color = tones.secondaryInk)
+            }
+            RoundAction("导入照片", DotGlyph.PLUS, enabled = !state.busy, onClick = onImport)
         }
         if (state.current == null) EmptyImport("一张照片，一种新的可能。", "支持多选 JPEG 与 RAW 内嵌 JPEG。", onImport)
         else LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item { EditedPreview(state, workspace, original = original) }
+            item { Column {
+                SwipePhotoPreview(state, workspace, original = original)
+                MirrorTextAction("放大阅览 ↗", { largePreview = true }, Modifier.fillMaxWidth())
+            } }
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(if (original) "原图" else "处理效果", Modifier.weight(1f), color = tones.secondaryInk)
-                    Switch(original, { original = it })
+                    MirrorToggle(original, "查看原图") { original = it }
                 }
                 PhotoStrip(state, workspace)
                 state.current?.rawNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk) }
@@ -78,6 +87,58 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
         MirrorButton(enabled = state.current != null && !state.busy, onClick = onNext,
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp), shape = RoundedCornerShape(28.dp)) {
             Text(if (state.treatment == PhotoTreatment.FILM) "显影与反转 →" else "选择画框与导出 →")
+        }
+    }
+    if (largePreview && state.current != null) MirrorDialog("照片阅览", onDismiss = { largePreview = false }) {
+        SwipePhotoPreview(state, workspace, original = original,
+            compactHeight = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * .56f).dp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("查看原图", Modifier.weight(1f))
+            MirrorToggle(original, "查看原图") { original = it }
+        }
+    }
+}
+
+/** Each page renders its own recipe; only a completed user swipe changes selection. */
+@Composable
+internal fun SwipePhotoPreview(state: WorkspaceState, workspace: WorkspaceViewModel, frame: Boolean = false,
+    original: Boolean = false, compactHeight: Dp? = null) {
+    if (state.photos.isEmpty()) return
+    val selected = state.photos.indexOfFirst { it.id == state.selected }.coerceAtLeast(0)
+    val pager = rememberPagerState(initialPage = selected, pageCount = { state.photos.size })
+    val currentState by rememberUpdatedState(state)
+    var userDrag by remember { mutableStateOf(false) }
+    LaunchedEffect(state.selected, state.photos.map { it.id }) {
+        if (!pager.isScrollInProgress) pager.scrollToPage(selected.coerceAtMost(state.photos.lastIndex))
+    }
+    LaunchedEffect(pager) {
+        pager.interactionSource.interactions.collect { if (it is DragInteraction.Start) userDrag = true }
+    }
+    LaunchedEffect(pager) {
+        snapshotFlow { pager.settledPage to pager.isScrollInProgress }.collect { (page, scrolling) ->
+            if (!scrolling && userDrag) {
+                userDrag = false
+                currentState.photos.getOrNull(page)?.let { if (!currentState.busy) workspace.select(it.id) }
+            }
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        HorizontalPager(pager, userScrollEnabled = !state.busy && state.photos.size > 1,
+            key = { state.photos.getOrNull(it)?.id?.value ?: "removed:$it" }, beyondViewportPageCount = 0) { page ->
+            state.photos.getOrNull(page)?.let { photo ->
+                EditedPreview(state.copy(selected = photo.id), workspace, frame, original, compactHeight = compactHeight)
+            }
+        }
+        if (state.photos.size > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            RoundAction("上一张照片", DotGlyph.LEFT, enabled = !state.busy && selected > 0,
+                onClick = { state.photos.getOrNull(selected - 1)?.let { workspace.select(it.id) } })
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("${selected + 1} / ${state.photos.size} · 左右滑动", style = MaterialTheme.typography.labelMedium)
+                Text(state.current?.name.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall, color = LocalFilmMaterials.current.secondaryInk)
+            }
+            RoundAction("下一张照片", DotGlyph.RIGHT, enabled = !state.busy && selected < state.photos.lastIndex,
+                onClick = { state.photos.getOrNull(selected + 1)?.let { workspace.select(it.id) } })
         }
     }
 }
@@ -121,14 +182,20 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
         if (loading) CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
         if (problem != null) Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(problem.orEmpty(), color = MaterialTheme.colorScheme.error)
-            TextButton(onClick = { retry++ }) { Text("重新加载预览") }
+            MirrorTextAction("重新加载预览", { retry++ })
         }
     }
 }
 
 @Composable
 internal fun PhotoStrip(state: WorkspaceState, workspace: WorkspaceViewModel) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val list = androidx.compose.foundation.lazy.rememberLazyListState()
+    val reduced = LocalMirrorReducedMotion.current
+    LaunchedEffect(state.selected, state.photos.map { it.id }) {
+        val index = state.photos.indexOfFirst { it.id == state.selected }
+        if (index >= 0) { if (reduced) list.scrollToItem(index) else list.animateScrollToItem(index) }
+    }
+    LazyRow(state = list, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(state.photos, key = { it.id.value }) { photo ->
             MirrorChoice(state.selected == photo.id, { workspace.select(photo.id) }, enabled = !state.busy,
                 label = { Text(photo.name, maxLines = 1) })
@@ -141,11 +208,15 @@ private fun FilmControls(state: WorkspaceState, workspace: WorkspaceViewModel, o
     val batch = state.filmBatch ?: return
     val parameters = state.selected?.let { id -> runCatching { batch.effectiveParameters(id) }.getOrNull() } ?: return
     val film = state.filmPresets.firstOrNull { it.id == parameters.presetId }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        TextButton(enabled = !state.busy, onClick = onChooseFilm) { Text("${film?.name ?: "选择胶卷"} · 更换") }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MirrorChoice(batch.mode == FilmBatchMode.INDIVIDUAL, { workspace.filmMode(FilmBatchMode.INDIVIDUAL) }, label = { Text("逐张独立") })
-            MirrorChoice(batch.mode == FilmBatchMode.FIRST_PHOTO, { workspace.filmMode(FilmBatchMode.FIRST_PHOTO) }, label = { Text("继承首张") })
+    MirrorControlSection("胶片配方") {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            film?.let { FilmCartridge(it, Modifier.size(width = 42.dp, height = 64.dp)) }
+            Text(film?.name ?: "选择胶卷", Modifier.weight(1f), fontFamily = MirrorFonts.Editorial, fontSize = 23.sp, lineHeight = 28.sp)
+        }
+        MirrorTextAction("更换胶卷 →", onChooseFilm, enabled = !state.busy)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            MirrorChoice(batch.mode == FilmBatchMode.INDIVIDUAL, { workspace.filmMode(FilmBatchMode.INDIVIDUAL) }, enabled = !state.busy, label = { Text("逐张独立") })
+            MirrorChoice(batch.mode == FilmBatchMode.FIRST_PHOTO, { workspace.filmMode(FilmBatchMode.FIRST_PHOTO) }, enabled = !state.busy, label = { Text("继承首张") })
         }
         if (batch.mode == FilmBatchMode.FIRST_PHOTO) Text("整批继承基准照片：${state.photos.firstOrNull { it.id == batch.referenceId }?.name ?: "照片缺失"}",
             style = MaterialTheme.typography.bodySmall, color = LocalFilmMaterials.current.secondaryInk)
@@ -153,11 +224,11 @@ private fun FilmControls(state: WorkspaceState, workspace: WorkspaceViewModel, o
             !state.busy) { workspace.updateFilm(parameters.copy(exposureEv = it)) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Halation 光晕", Modifier.weight(1f))
-            Switch(parameters.halationEnabled, { workspace.updateFilm(parameters.copy(halationEnabled = it)) }, enabled = !state.busy)
+            MirrorToggle(parameters.halationEnabled, "Halation 光晕", !state.busy) { workspace.updateFilm(parameters.copy(halationEnabled = it)) }
         }
         Text("黑柔")
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(DiffusionGrade.entries) { grade -> MirrorChoice(parameters.diffusion == grade,
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            DiffusionGrade.entries.forEach { grade -> MirrorChoice(parameters.diffusion == grade,
                 { workspace.updateFilm(parameters.copy(diffusion = grade)) }, enabled = !state.busy,
                 label = { Text(when (grade) { DiffusionGrade.OFF -> "关闭"; DiffusionGrade.EIGHTH -> "1/8";
                     DiffusionGrade.QUARTER -> "1/4"; DiffusionGrade.HALF -> "1/2" }) }) }
@@ -168,27 +239,43 @@ private fun FilmControls(state: WorkspaceState, workspace: WorkspaceViewModel, o
 @Composable
 private fun LutControls(state: WorkspaceState, workspace: WorkspaceViewModel, onChooseLut: (Boolean) -> Unit) {
     val recipe = state.lutRecipe
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         for (second in listOf(false, true)) {
             val slot = if (second) recipe.second else recipe.first
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("LUT ${if (second) 2 else 1}", Modifier.weight(1f))
-                TextButton(onClick = { onChooseLut(second) }, enabled = !state.busy) {
-                    Text(state.luts.firstOrNull { it.id == slot.id }?.name ?: "添加 LUT")
-                }
-                if (slot.id != null) IconButton(enabled = !state.busy, onClick = {
+            MirrorControlSection("LUT ${if (second) 2 else 1}", if (second) "在第一款效果之后叠加" else "先应用这一款效果") {
+                val name = state.luts.firstOrNull { it.id == slot.id }?.name
+                if (name != null) Text(name, fontFamily = MirrorFonts.Handwriting, fontSize = 26.sp, lineHeight = 32.sp)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                MirrorChoice(false, { onChooseLut(second) }, enabled = !state.busy, label = { Text(if (slot.id == null) "添加 LUT →" else "更换 LUT →") })
+                if (slot.id != null) MirrorChoice(false, enabled = !state.busy, onClick = {
                     workspace.updateLut(if (second) recipe.copy(second = LutSlot()) else recipe.copy(first = LutSlot()))
-                }) { DotIcon(DotGlyph.CLOSE) }
+                }, label = { Text("移除") })
+                }
+                if (slot.id == null) Text("选择后可独立调整强度。", color = LocalFilmMaterials.current.secondaryInk,
+                    style = MaterialTheme.typography.bodySmall)
+                else ParameterSlider("强度", "${(slot.strength * 100).roundToInt()}%", slot.strength, 0f..1f,
+                    !state.busy) { strength -> workspace.updateLut(if (second)
+                        recipe.copy(second = slot.copy(strength = strength)) else recipe.copy(first = slot.copy(strength = strength))) }
             }
-            ParameterSlider("强度", "${(slot.strength * 100).roundToInt()}%", slot.strength, 0f..1f,
-                !state.busy && slot.id != null) { strength -> workspace.updateLut(if (second)
-                    recipe.copy(second = slot.copy(strength = strength)) else recipe.copy(first = slot.copy(strength = strength))) }
         }
-        TextButton(enabled = !state.busy, onClick = { workspace.updateLut(recipe.copy(first = recipe.second, second = recipe.first)) }) {
-            Text("交换 LUT 1 → LUT 2 的顺序")
+        MirrorControlSection("合成", "LUT 1 → LUT 2，再添加颗粒与抖动。") {
+        MirrorTextAction("交换两槽顺序 ↔", { workspace.updateLut(recipe.copy(first = recipe.second, second = recipe.first)) },
+            enabled = !state.busy && (recipe.first.id != null || recipe.second.id != null))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("颗粒效果", Modifier.weight(1f))
+            MirrorToggle(recipe.grainEnabled, "颗粒效果", !state.busy) { workspace.updateLut(recipe.copy(grainEnabled = it)) }
         }
-        ParameterSlider("颗粒", "${(recipe.grain * 100).roundToInt()}%", recipe.grain, 0f..1f, !state.busy) {
+        ParameterSlider("颗粒强度", "${(recipe.grain * 100).roundToInt()}%", recipe.grain, 0f..1f, !state.busy && recipe.grainEnabled) {
             workspace.updateLut(recipe.copy(grain = it))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("减少色彩断层")
+                Text("Bayer 4×4 抖动 · 在 8 位量化前加入细微扰动", style = MaterialTheme.typography.bodySmall,
+                    color = LocalFilmMaterials.current.secondaryInk)
+            }
+            MirrorToggle(recipe.ditheringEnabled, "减少色彩断层", !state.busy) { workspace.updateLut(recipe.copy(ditheringEnabled = it)) }
+        }
         }
     }
 }
@@ -254,7 +341,6 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
     onBack: (() -> Unit)? = null) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var showAdvanced by rememberSaveable { mutableStateOf(false) }
     var frameTab by rememberSaveable { mutableStateOf("frame") }
     var largeFramePreview by rememberSaveable { mutableStateOf(false) }
     val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
@@ -297,13 +383,12 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
             EmptyImport("给照片一个归属。", "导入照片后选择画框与签名。", onImport)
         }
         else {
-        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(152.dp)
+        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp)
             .clip(RoundedCornerShape(22.dp)).background(LocalFilmMaterials.current.paperHighlight)
             .clickable { largeFramePreview = true }, contentAlignment = Alignment.Center) {
-            EditedPreview(state, workspace, frame = true, compactHeight = 136.dp)
-            Text("放大 ↗", Modifier.align(Alignment.BottomEnd).padding(12.dp),
-                style = MaterialTheme.typography.labelSmall, color = LocalFilmMaterials.current.secondaryInk)
+            SwipePhotoPreview(state, workspace, frame = true, compactHeight = 136.dp)
         }
+        MirrorTextAction("放大构图 ↗", { largeFramePreview = true }, Modifier.fillMaxWidth())
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for ((key, title) in listOf("frame" to "画框", "details" to "文字与细节", "output" to "输出"))
                 MirrorChoice(frameTab == key, { frameTab = key }, Modifier.weight(1f), label = { Text(title, maxLines = 1, fontSize = 13.sp) })
@@ -360,7 +445,7 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
     }
     if (largeFramePreview && state.current != null) MirrorDialog("构图预览", onDismiss = { largeFramePreview = false }) { close ->
         if (state.photos.size > 1) PhotoStrip(state, workspace)
-        EditedPreview(state, workspace, frame = true,
+        SwipePhotoPreview(state, workspace, frame = true,
             compactHeight = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * .56f).dp)
         Text("${state.frame.preset.title} · 本批 ${state.photos.size} 张", color = LocalFilmMaterials.current.secondaryInk)
         MirrorTextAction("继续选择", close, Modifier.fillMaxWidth())

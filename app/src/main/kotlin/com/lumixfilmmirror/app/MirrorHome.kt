@@ -1,9 +1,11 @@
 package com.lumixfilmmirror.app
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,13 +59,12 @@ import androidx.compose.ui.unit.Constraints
 
 @Composable
 internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, personal: MirrorPersonalState,
-    transfers: List<TransferTask>, workspace: WorkspaceViewModel, onCamera: (String?) -> Unit, onAlbum: () -> Unit, onTools: () -> Unit) {
+    transfers: List<TransferTask>, workspace: WorkspaceViewModel, onCamera: (String?) -> Unit, onAlbum: () -> Unit, onSettings: () -> Unit) {
     val tones = LocalFilmMaterials.current
     var noteEditing by rememberSaveable { mutableStateOf(false) }
     var note by rememberSaveable { mutableStateOf("") }
-    var settings by rememberSaveable { mutableStateOf(false) }
     CompositionLocalProvider(LocalMirrorDotArt provides true) {
-    BoxWithConstraints(Modifier.fillMaxSize().background(if (isSystemInDarkTheme()) Color(0xFF070A0B) else Color(0xFFF1F0EB))) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(if (com.lumixfilmmirror.design.LocalFilmDark.current) Color(0xFF070A0B) else Color(0xFFF1F0EB))) {
     val displayScale = LocalDensity.current.fontScale
     val viewportWidth = maxWidth
     val cardHeight = ((maxWidth - 40.dp) * .654f + 120.dp * (displayScale - 1f).coerceAtLeast(0f)).coerceIn(218.dp, 340.dp)
@@ -71,7 +72,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("LUMIX / FILM MIRROR", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
                     color = tones.secondaryInk)
-                TextButton(onClick = { settings = true }) { Text("偏好") }
+                TextButton(onClick = onSettings) { Text("设置") }
             }
     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 170.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -94,14 +95,16 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
             Atmosphere(Modifier.fillMaxWidth().height(cardHeight).clickable(role = Role.Button) {
                 note = personal.journal; noteEditing = true
             }, listOf(Color(0xFFAEA891), Color(0xFF777967), Color(0xFF414D43))) {
-                Text("“", Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 54.dp),
-                    fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.18f))
-                Text("”", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 12.dp),
-                    fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.18f))
-                Column(Modifier.fillMaxSize().padding(24.dp)) {
-                    Text("创作记录", fontFamily = MirrorFonts.Dots, fontSize = 30.sp, lineHeight = 38.sp, color = Color.White)
-                    Spacer(Modifier.height(24.dp))
-                    Text(personal.journal.ifBlank { "写下今天的光线、地点与故事。" }, Modifier.weight(1f).padding(horizontal = 12.dp),
+                Text("“", Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = if (personal.journal.isBlank()) 20.dp else 54.dp),
+                    fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
+                Text("”", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 20.dp),
+                    fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
+                if (personal.journal.isBlank()) Text("创作记录", Modifier.align(Alignment.Center).padding(horizontal = 24.dp),
+                    fontFamily = MirrorFonts.Dots, fontSize = 38.sp, lineHeight = 46.sp, color = Color.White)
+                else Column(Modifier.fillMaxSize().padding(24.dp)) {
+                    Text("创作记录", fontFamily = MirrorFonts.Dots, fontSize = 32.sp, lineHeight = 40.sp, color = Color.White)
+                    Spacer(Modifier.height(20.dp))
+                    Text(personal.journal, Modifier.weight(1f).padding(horizontal = 12.dp),
                         maxLines = 4, lineHeight = 24.sp, overflow = TextOverflow.Ellipsis, color = Color.White, fontSize = 16.sp)
                 }
             }
@@ -118,22 +121,13 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
             MirrorButton(onClick = { workspace.updatePersonal { it.copy(journal = note) }; close() }, Modifier.weight(1f)) { Text("保存") }
         }
     }
-    if (settings) MirrorDialog("显示与动态效果", onDismiss = { settings = false }) { close ->
-            Text("外观跟随系统浅色 / 深色模式。")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("减少动态效果", Modifier.weight(1f))
-                MirrorToggle(personal.reducedMotion, "减少动态效果") { value -> workspace.updatePersonal { it.copy(reducedMotion = value) } }
-            }
-            Text("关闭自动展开、持续涟漪和模糊，保留点击操作。", style = MaterialTheme.typography.bodySmall)
-            MirrorChoice(false, { close(); onTools() }, Modifier.fillMaxWidth(), label = { Text("批次、任务与缓存管理") })
-            MirrorTextAction("完成", close, Modifier.fillMaxWidth())
-    }
 }
 
 @Composable
 private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalState,
     workspace: WorkspaceViewModel, onConnect: (String?) -> Unit, modifier: Modifier, cardHeight: Dp) {
     val scope = rememberCoroutineScope()
+    val reduced = LocalMirrorReducedMotion.current
     val count = maxOf(1, personal.cameras.size)
     val pager = rememberPagerState(pageCount = { count })
     var mode by rememberSaveable { mutableStateOf("normal") }
@@ -141,9 +135,8 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
     LaunchedEffect(count) { if (pager.currentPage >= count) pager.scrollToPage(count - 1) }
     LaunchedEffect(camera.device?.udn, camera.connected, personal.cameras) {
         if (camera.connected) personal.cameras.indexOfFirst { it.id == camera.device?.rememberedIdentity() }
-            .takeIf { it >= 0 }?.let { pager.animateScrollToPage(it) }
+            .takeIf { it >= 0 }?.let { if (reduced) pager.scrollToPage(it) else pager.animateScrollToPage(it) }
     }
-    val reduced = LocalMirrorReducedMotion.current
     val currentId = personal.cameras.getOrNull(pager.currentPage)?.id
     val gesture = Modifier.pointerInput(mode, currentId) {
         // Claim vertical movement only; horizontal pager and parent list keep their own gestures.
@@ -172,7 +165,9 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
     Atmosphere(modifier.fillMaxWidth().height(cardHeight).then(gesture)
         .clickable(enabled = mode == "add" || personal.cameras.isEmpty(), role = Role.Button, onClick = { onConnect(null) }), colours,
         flowing = !reduced && (mode == "add" || personal.cameras.isEmpty())) {
-        AnimatedContent(targetState = mode, label = "camera-card-state") { target ->
+        AnimatedContent(targetState = mode, label = "camera-card-state", transitionSpec = {
+            fadeIn(tween(if (reduced) 0 else 220)) togetherWith fadeOut(tween(if (reduced) 0 else 160))
+        }) { target ->
             if (target == "add" || personal.cameras.isEmpty()) {
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally) {
@@ -219,11 +214,13 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
             }
         }
         if (personal.cameras.size > 1 && mode == "normal") Row(Modifier.align(Alignment.TopEnd).padding(14.dp)) {
-            IconButton(onClick = { scope.launch { pager.animateScrollToPage((pager.currentPage - 1 + count) % count) } },
+            IconButton(onClick = { scope.launch { val page = (pager.currentPage - 1 + count) % count
+                if (reduced) pager.scrollToPage(page) else pager.animateScrollToPage(page) } },
                 modifier = Modifier.semantics { contentDescription = "上一台相机" }) {
                 DotIcon(DotGlyph.LEFT, tint = Color.White)
             }
-            IconButton(onClick = { scope.launch { pager.animateScrollToPage((pager.currentPage + 1) % count) } },
+            IconButton(onClick = { scope.launch { val page = (pager.currentPage + 1) % count
+                if (reduced) pager.scrollToPage(page) else pager.animateScrollToPage(page) } },
                 modifier = Modifier.semantics { contentDescription = "下一台相机" }) {
                 DotIcon(DotGlyph.RIGHT, tint = Color.White)
             }
@@ -248,7 +245,7 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
 @Composable
 private fun WelcomePerspective(modifier: Modifier) {
     val context = LocalContext.current
-    val dark = isSystemInDarkTheme()
+    val dark = com.lumixfilmmirror.design.LocalFilmDark.current
     val font = remember { ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.nhl_minnesota) }
     val paint = remember { android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG) }
     Canvas(modifier.semantics { contentDescription = "Welcome" }) {

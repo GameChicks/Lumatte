@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.*
@@ -35,6 +36,8 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -236,6 +239,10 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                     Column(Modifier.fillMaxSize().onGloballyPositioned { galleryOrigin.value = it.positionInRoot() }
                         .drawWithContent { galleryPixels.record { this@drawWithContent.drawContent() }; drawLayer(galleryPixels) }) {
                     PageHeading("COLOUR / COLLECT", "LUT") { searchEditing = false; focusManager.clearFocus(); onImportPhoto() }
+                    val bandColours = categories.associate { category ->
+                        category.key to key(category.key) { animateColorAsState(category.colour.copy(alpha = if (expanded == category.key) .92f else .82f),
+                            tween(duration, easing = MirrorEase), label = "category-paper:${category.key}") }
+                    }
                     LazyColumn(Modifier.weight(1f), state = scroll, contentPadding = PaddingValues(bottom = 250.dp)) {
                         item {
                             Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -268,15 +275,19 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                             val focus = expanded == category.key
                             val showCards = expanded == null || focus
                             val cards = cardsFor(category.key)
+                            val bandColour = bandColours.getValue(category.key)
                             item(key = "heading:${category.key}") {
-                            Column(Modifier.fillMaxWidth().animateContentSize(tween(duration, easing = MirrorEase))
-                                .background(category.colour.copy(alpha = if (focus) .92f else .82f))) {
+                            val arrowRotation = animateFloatAsState(if (focus) 180f else 0f,
+                                tween(duration, easing = MirrorEase), label = "category-arrow:${category.key}")
+                            Column(Modifier.fillMaxWidth().animateItem(fadeInSpec = tween(duration),
+                                placementSpec = tween(duration, easing = MirrorEase))
+                                .animateContentSize(tween(duration, easing = MirrorEase)).drawBehind { drawRect(bandColour.value) }) {
                                 Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button) {
                                     expanded = if (focus) null else category.key
                                 }.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(category.title, Modifier.weight(1f), fontFamily = MirrorFonts.ChineseEditorial,
                                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 26.sp, color = Color(0xFF202321))
-                                    Text(if (focus) "▴" else "▾", fontSize = 21.sp, color = Color(0xFF202321))
+                                    Text("▾", Modifier.graphicsLayer { rotationZ = arrowRotation.value }, fontSize = 21.sp, color = Color(0xFF202321))
                                 }
                                 if (focus && cards.isEmpty()) Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
                                         Text(if (official) browser.categoryPreviewErrors[category.key]?.let { "例图暂不可用 · 点击分类重试" }
@@ -289,7 +300,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                                 val rows = cards.take(if (focus || query.isNotBlank()) cards.size else columns).chunked(columns)
                                 items(rows, key = { row -> "grid:${category.key}:${row.first().key}" }) { row ->
                                         Row(Modifier.fillMaxWidth().animateItem(fadeInSpec = tween(duration), placementSpec = tween(duration, easing = MirrorEase))
-                                            .background(category.colour.copy(alpha = if (focus) .92f else .82f))
+                                            .drawBehind { drawRect(bandColour.value) }
                                             .padding(start = 20.dp, end = 20.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             row.forEach { card ->
                                                 val location = "${category.key}:${card.key}"
@@ -349,7 +360,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     }
     if (importMenu) MirrorDialog("添加 LUT", onDismiss = { importMenu = false }) { close ->
         Text("选择本地配方，或发现创作者分享的色彩。", color = tones.secondaryInk)
-        MirrorButton(onClick = { close(); onImportLut() }, Modifier.fillMaxWidth()) { Text("导入本地 .cube") }
+        MirrorButton(onClick = { close(); onImportLut() }, Modifier.fillMaxWidth()) { Text("导入本地 .cube / .vlt") }
         MirrorChoice(false, { official = true; expanded = null; close() }, Modifier.fillMaxWidth(),
             label = { Text("从 Lumix Lab 浏览与下载") })
     }
@@ -434,15 +445,18 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
             }
         }
     }
-    val favouriteContent: @Composable () -> Unit = {
-        FavouriteAction(card.key in personal.favourites, card.title, ink, onFavourite, compact = !large && !recommendation)
+    val favouriteContent: @Composable RowScope.() -> Unit = {
+        FavouriteAction(card.key in personal.favourites, card.title, ink, onFavourite,
+            modifier = Modifier.alignBy { it.measuredHeight / 2 }, compact = !large && !recommendation)
     }
+    val opticalOffset = with(LocalDensity.current) { ((if (large || recommendation) 28.sp else 14.sp) * .30f).roundToPx() }
     if (recommendation) {
         Row(modifier.then(morph).clip(RoundedCornerShape(18.dp)).background(background)
             .clickable(role = Role.Button, onClick = onClick).padding(10.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             photoContent(Modifier.size(86.dp))
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f).alignBy { val baseline = it[FirstBaseline]
+                if (baseline == AlignmentLine.Unspecified) it.measuredHeight / 2 else baseline - opticalOffset }) {
                 Text(card.title, fontFamily = MirrorFonts.Handwriting, fontSize = 28.sp, color = ink,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(card.creator ?: "发现新的色彩", fontSize = 11.sp, color = ink)
@@ -455,7 +469,8 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
         .clickable(role = Role.Button, onClick = onClick).padding(if (large) 12.dp else 5.dp)) {
         photoContent(Modifier.fillMaxWidth().aspectRatio(1f))
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(card.title, Modifier.weight(1f).padding(start = 4.dp), fontFamily = MirrorFonts.Handwriting,
+            Text(card.title, Modifier.weight(1f).alignBy { val baseline = it[FirstBaseline]
+                if (baseline == AlignmentLine.Unspecified) it.measuredHeight / 2 else baseline - opticalOffset }.padding(start = 4.dp), fontFamily = MirrorFonts.Handwriting,
                 fontSize = if (large) 28.sp else 14.sp, lineHeight = if (large) 32.sp else 17.sp,
                 maxLines = if (large) 1 else 2, overflow = TextOverflow.Ellipsis, color = ink)
             favouriteContent()
@@ -466,14 +481,17 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
 }
 
 @Composable
-private fun FavouriteAction(selected: Boolean, title: String, ink: Color, onClick: () -> Unit, compact: Boolean = false) {
+private fun FavouriteAction(selected: Boolean, title: String, ink: Color, onClick: () -> Unit,
+    modifier: Modifier = Modifier, compact: Boolean = false) {
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalMirrorHaptics.current
+    val reduced = LocalMirrorReducedMotion.current
     val scale = remember { Animatable(1f) }
-    val colour by animateColorAsState(if (selected) Color(0xFFF5CC70) else ink.copy(.07f), tween(180), label = "favourite-colour")
-    Box(modifier = Modifier.size(48.dp).clickable(role = Role.Button, onClick = {
-        onClick(); haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        scope.launch { scale.snapTo(.82f); scale.animateTo(1.12f, spring(dampingRatio = .48f)); scale.animateTo(1f, tween(160)) }
+    val colour by animateColorAsState(if (selected) Color(0xFFF5CC70) else ink.copy(.07f), tween(if (reduced) 0 else 180), label = "favourite-colour")
+    Box(modifier = modifier.size(48.dp).clickable(role = Role.Button, onClick = {
+        onClick(); if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        if (!reduced) scope.launch { scale.snapTo(.82f); scale.animateTo(1.12f, spring(dampingRatio = .48f)); scale.animateTo(1f, tween(160)) }
     }).semantics {
             contentDescription = if (selected) "已收藏 $title，点击取消" else "收藏 $title"
             this.selected = selected
@@ -579,7 +597,7 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
         tween(if (LocalMirrorReducedMotion.current) 0 else 480, easing = MirrorEase), label = "favourites-circle")
     val originPadding = with(LocalDensity.current) { 46.dp.toPx() }
     val originBottom = with(LocalDensity.current) { 162.dp.toPx() }
-    val dark = isSystemInDarkTheme()
+    val dark = com.lumixfilmmirror.design.LocalFilmDark.current
     val scenePixels = rememberGraphicsLayer()
     val sceneOrigin = remember { mutableStateOf(Offset.Zero) }
     Box(Modifier.fillMaxSize().graphicsLayer {
@@ -596,9 +614,12 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
         CollectionBackdrop(Modifier.fillMaxSize(), dark)
         Column(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp)) {
-                Text("Colour", fontFamily = MirrorFonts.Editorial, fontSize = 46.sp, lineHeight = 49.sp)
-                Text("收藏", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 42.sp, lineHeight = 46.sp,
-                    color = if (dark) Color(0xFF9BB1D0) else Color(0xFF56758D))
+                Column(Modifier.fillMaxWidth().semantics { heading() }) {
+                    MirrorLayeredTitle("Colour", "Collection", tones.ink,
+                        if (dark) Color(0xFFB7C9E0) else Color(0xFF56758D))
+                    Text("收藏", Modifier.padding(top = 10.dp), fontFamily = MirrorFonts.ChineseEditorial,
+                        fontSize = 15.sp, color = if (dark) Color(0xFFB7C9E0) else Color(0xFF56758D))
+                }
             }
             if (cards.isEmpty()) Column(Modifier.weight(1f).fillMaxWidth().padding(32.dp),
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -609,7 +630,6 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
             else {
                 val compact = LocalConfiguration.current.screenHeightDp < 620 || LocalDensity.current.fontScale > 1.3f
                 val collectionScroll = rememberScrollState()
-                val lensDiameter = (LocalConfiguration.current.screenWidthDp.dp * .36f).coerceIn(112.dp, 154.dp)
                 Column(Modifier.weight(1f).fillMaxWidth().then(
                     if (compact) Modifier.verticalScroll(collectionScroll) else Modifier)) {
                 val pager = rememberPagerState(initialPage = if (initialPage < 0) minOf(2, cards.size / 2)
@@ -618,14 +638,15 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
                     if (pager.currentPage > cards.lastIndex) pager.scrollToPage(cards.lastIndex)
                 }
                 val haptics = LocalHapticFeedback.current
+                val hapticsEnabled = LocalMirrorHaptics.current
                 var last by remember { mutableIntStateOf(pager.currentPage) }
                 LaunchedEffect(pager.currentPage) {
-                    if (last != pager.currentPage) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (last != pager.currentPage && hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     last = pager.currentPage
                     onPage(pager.currentPage)
                 }
-                BoxWithConstraints((if (compact) Modifier.height(280.dp) else Modifier.weight(1f)).fillMaxWidth()) {
-                val cardWidth = (maxWidth * .30f).coerceIn(112.dp, 154.dp)
+                BoxWithConstraints((if (compact) Modifier.height(390.dp) else Modifier.weight(1f)).fillMaxWidth()) {
+                val cardWidth = (maxWidth * .50f).coerceIn(160.dp, 240.dp)
                 HorizontalPager(pager, Modifier.fillMaxWidth().height(cardWidth + 128.dp).align(Alignment.Center),
                     pageSize = PageSize.Fixed(cardWidth), contentPadding = PaddingValues(horizontal = (maxWidth - cardWidth) / 2),
                     pageSpacing = -cardWidth * .16f, beyondViewportPageCount = 2,
@@ -648,10 +669,6 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
                         collection = true)
                 }
                 }
-                val selected = cards.getOrNull(pager.settledPage)
-                FavouriteColourLens(Modifier.align(Alignment.CenterHorizontally).padding(top = 12.dp),
-                    lensDiameter, selected?.title.orEmpty(), enabled = !closing && selected != null) {
-                    if (selected != null) onOpen(selected, "favourite:${selected.key}") }
                 Text("${pager.currentPage + 1} / ${cards.size} · 左右滑动，点按查看",
                     Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp)
                         .background(if (dark) Color(0xFF102C46).copy(.76f) else Color.White.copy(.38f), RoundedCornerShape(16.dp))

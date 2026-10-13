@@ -64,10 +64,15 @@ internal fun LutEditorPanel(state: WorkspaceState, workspace: WorkspaceViewModel
             }
             Row(Modifier.fillMaxWidth()) {
                 Text("颗粒", Modifier.weight(1f))
+                Switch(recipe.grainEnabled, { workspace.updateLut(recipe.copy(grainEnabled = it)) }, enabled = !state.busy)
                 Text("${(recipe.grain * 100).roundToInt()}%", fontFamily = FontFamily.Monospace)
             }
-            Slider(value = recipe.grain, valueRange = 0f..1f, enabled = !state.busy,
+            Slider(value = recipe.grain, valueRange = 0f..1f, enabled = !state.busy && recipe.grainEnabled,
                 onValueChange = { workspace.updateLut(recipe.copy(grain = it)) })
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Bayer 抖动 · 减少色彩断层", Modifier.weight(1f))
+                Switch(recipe.ditheringEnabled, { workspace.updateLut(recipe.copy(ditheringEnabled = it)) }, enabled = !state.busy)
+            }
             Text("使用 JPEG 色彩直接调色；导入的 LUT 需与源照片的输入色彩匹配。",
                 color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall)
         }

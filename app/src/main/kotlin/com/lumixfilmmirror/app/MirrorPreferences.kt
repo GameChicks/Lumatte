@@ -11,9 +11,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 data class RememberedCamera(val id: String, val model: String, val name: String)
+enum class MirrorAppearance(val title: String) { SYSTEM("跟随系统"), LIGHT("浅色"), DARK("深色") }
 data class MirrorPersonalState(val cameras: List<RememberedCamera> = emptyList(), val favourites: Set<String> = emptySet(),
     val journal: String = "", val reducedMotion: Boolean = false, val savedLuts: List<LumixLabLut> = emptyList(),
-    val revealedBatches: Set<String> = emptySet())
+    val revealedBatches: Set<String> = emptySet(), val appearance: MirrorAppearance = MirrorAppearance.SYSTEM,
+    val haptics: Boolean = true, val automaticFilmDetails: Boolean = true, val revealAnimation: Boolean = true)
 
 /** App-owned UI preferences only. No camera passwords, addresses or recovered app data. */
 class MirrorPreferences(context: Context) {
@@ -30,13 +32,19 @@ class MirrorPreferences(context: Context) {
                 LumixLabLut(item.getString("code"), item.getString("title"),
                     LumixLabCreator(item.optString("creator-code").takeIf { it.isNotBlank() },
                         item.optString("creator").takeIf { it.isNotBlank() }, image("avatar")), image("thumbnail"), null)
-            } }, preferences.getStringSet("revealed-batches", emptySet()).orEmpty().toSet())
+            } }, preferences.getStringSet("revealed-batches", emptySet()).orEmpty().toSet(),
+            appearance = runCatching { MirrorAppearance.valueOf(preferences.getString("appearance", "SYSTEM").orEmpty()) }.getOrDefault(MirrorAppearance.SYSTEM),
+            haptics = preferences.getBoolean("haptics", true),
+            automaticFilmDetails = preferences.getBoolean("automatic-film-details", true),
+            revealAnimation = preferences.getBoolean("reveal-animation", true))
     }
     suspend fun save(value: MirrorPersonalState) = withContext(Dispatchers.IO) {
         val cameras = JSONArray(value.cameras.map { JSONObject().put("id", it.id).put("model", it.model).put("name", it.name) })
         check(preferences.edit().putString("cameras", cameras.toString()).putStringSet("favourites", value.favourites)
             .putString("journal", value.journal).putBoolean("reduced-motion", value.reducedMotion)
             .putStringSet("revealed-batches", value.revealedBatches)
+            .putString("appearance", value.appearance.name).putBoolean("haptics", value.haptics)
+            .putBoolean("automatic-film-details", value.automaticFilmDetails).putBoolean("reveal-animation", value.revealAnimation)
             .putString("saved-luts", JSONArray(value.savedLuts.map { item -> JSONObject().put("code", item.code)
                 .put("title", item.title).put("creator", item.creator?.name.orEmpty())
                 .put("creator-code", item.creator?.code.orEmpty()).put("avatar", item.creator?.icon?.path.orEmpty())

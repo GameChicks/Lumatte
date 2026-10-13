@@ -10,12 +10,12 @@ import kotlin.math.floor
 internal class CubeLut(val title: String, private val oneSize: Int, private val threeSize: Int,
     private val one: FloatArray, private val three: FloatArray,
     private val oneMin: FloatArray, private val oneMax: FloatArray,
-    private val threeMin: FloatArray, private val threeMax: FloatArray) {
+    private val threeMin: FloatArray, private val threeMax: FloatArray, private val vltGrid: Boolean = false) {
     internal val nativeData by lazy {
         NativeCubeData(oneSize, threeSize, one, three,
-            oneMin + oneMax + threeMin + threeMax)
+            oneMin + oneMax + threeMin + threeMax + floatArrayOf(if (vltGrid) 1f else 0f))
     }
-    fun named(name: String) = CubeLut(name.take(200), oneSize, threeSize, one, three, oneMin, oneMax, threeMin, threeMax)
+    fun named(name: String) = CubeLut(name.take(200), oneSize, threeSize, one, three, oneMin, oneMax, threeMin, threeMax, vltGrid)
     fun apply(input: FloatArray, result: FloatArray) {
         for (channel in 0..2) {
             val value = input[channel]
@@ -28,9 +28,9 @@ internal class CubeLut(val title: String, private val oneSize: Int, private val 
             }
         }
         if (threeSize == 0) return
-        val r = coordinate(result[0], threeMin[0], threeMax[0], threeSize)
-        val g = coordinate(result[1], threeMin[1], threeMax[1], threeSize)
-        val b = coordinate(result[2], threeMin[2], threeMax[2], threeSize)
+        fun position(channel: Int) = if (vltGrid) vltCoordinate(result[channel])
+            else coordinate(result[channel], threeMin[channel], threeMax[channel], threeSize)
+        val r = position(0); val g = position(1); val b = position(2)
         val r0 = floor(r).toInt(); val g0 = floor(g).toInt(); val b0 = floor(b).toInt()
         val r1 = minOf(r0 + 1, threeSize - 1); val g1 = minOf(g0 + 1, threeSize - 1); val b1 = minOf(b0 + 1, threeSize - 1)
         val fr = r - r0; val fg = g - g0; val fb = b - b0
@@ -49,19 +49,27 @@ internal class CubeLut(val title: String, private val oneSize: Int, private val 
     }
 
     fun write(output: DataOutputStream) {
-        output.writeInt(1); output.writeUTF(title.take(200)); output.writeInt(oneSize); output.writeInt(threeSize)
+        output.writeInt(2); output.writeUTF(title.take(200)); output.writeInt(oneSize); output.writeInt(threeSize)
+        output.writeBoolean(vltGrid)
         for (array in listOf(oneMin, oneMax, threeMin, threeMax, one, three)) array.forEach(output::writeFloat)
     }
 
     companion object {
         private val whitespace = Regex("\\s+")
+        private fun vltCoordinate(value: Float): Float {
+            val input = value.coerceIn(0f, 1f) * 4095f
+            return if (input <= 3840f) input / 256f else 15f + (input - 3840f) / 255f
+        }
         private fun coordinate(value: Float, minimum: Float, maximum: Float, size: Int): Float =
             ((value - minimum) / (maximum - minimum)).coerceIn(0f, 1f) * (size - 1)
 
         fun read(input: DataInputStream): CubeLut {
-            require(input.readInt() == 1) { "LUT 缓存版本不支持" }
+            val version = input.readInt()
+            require(version in 1..2) { "LUT 缓存版本不支持" }
             val title = input.readUTF()
             val oneSize = input.readInt(); val threeSize = input.readInt()
+            val vltGrid = version >= 2 && input.readBoolean()
+            require(!vltGrid || (oneSize == 0 && threeSize == 17))
             require(oneSize == 0 || oneSize in 2..65536)
             require(threeSize == 0 || threeSize in 2..65)
             require(oneSize > 0 || threeSize > 0)
@@ -69,7 +77,7 @@ internal class CubeLut(val title: String, private val oneSize: Int, private val 
             val oneMin = array(3); val oneMax = array(3); val threeMin = array(3); val threeMax = array(3)
             for (channel in 0..2) require(oneMax[channel] > oneMin[channel] && threeMax[channel] > threeMin[channel])
             val result = CubeLut(title, oneSize, threeSize, array(oneSize * 3),
-                array(threeSize * threeSize * threeSize * 3), oneMin, oneMax, threeMin, threeMax)
+                array(threeSize * threeSize * threeSize * 3), oneMin, oneMax, threeMin, threeMax, vltGrid)
             require(input.read() == -1) { "LUT 缓存包含多余数据" }
             return result
         }
@@ -135,6 +143,46 @@ internal class CubeLut(val title: String, private val oneSize: Int, private val 
             checkCancellation()
             return CubeLut(title, oneSize, threeSize, values.copyOfRange(0, oneSize * 3),
                 values.copyOfRange(oneSize * 3, values.size), minimum(oneRange), maximum(oneRange), minimum(threeRange), maximum(threeRange))
+        }
+
+        /** Panasonic VARICAM rev 1.0: R-fastest 17-grid, integer output 0..4095. */
+        fun parseVlt(text: String, fallbackName: String, checkCancellation: () -> Unit = {}): CubeLut {
+            checkCancellation()
+            val data = FloatArray(17 * 17 * 17 * 3)
+            var written = 0
+            var sizeSeen = false
+            var versionSeen = false
+            BufferedReader(StringReader(text.removePrefix("\uFEFF"))).use { reader ->
+                var lineNumber = 0
+                while (true) {
+                    val raw = reader.readLine() ?: break
+                    if (++lineNumber % 128 == 0) checkCancellation()
+                    require(raw.length <= 4096) { "VLT 行过长" }
+                    val line = raw.trim()
+                    if (line.startsWith("# panasonic vlt file version", ignoreCase = true)) {
+                        require(!versionSeen && written == 0 && line.equals("# panasonic vlt file version 1.0", ignoreCase = true)) { "VLT 版本不支持" }
+                        versionSeen = true
+                    }
+                    val content = line.substringBefore('#').trim()
+                    if (content.isEmpty()) continue
+                    val fields = content.split(whitespace)
+                    if (fields.first() == "LUT_3D_SIZE") {
+                        require(!sizeSeen && written == 0 && fields == listOf("LUT_3D_SIZE", "17")) { "VLT 必须使用 17 点色表" }
+                        sizeSeen = true
+                    } else {
+                        require(sizeSeen && fields.size == 3 && written + 3 <= data.size) { "VLT 数据数量或格式错误" }
+                        for (field in fields) {
+                            val value = field.toIntOrNull()
+                            require(value != null && value in 0..4095) { "VLT 输出必须是 0 至 4095 的整数" }
+                            data[written++] = value / 4095f
+                        }
+                    }
+                }
+            }
+            require(sizeSeen && written == data.size) { "VLT 色表不完整，需要 4913 行" }
+            checkCancellation()
+            val zero = floatArrayOf(0f, 0f, 0f); val one = floatArrayOf(1f, 1f, 1f)
+            return CubeLut(fallbackName.take(200), 0, 17, FloatArray(0), data, zero, one, zero, one, true)
         }
 
     }

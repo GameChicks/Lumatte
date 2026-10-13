@@ -45,9 +45,33 @@ internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewM
             MirrorControlSection("签名与拍摄信息") {
                 MirrorTextField(frame.signature, { workspace.updateFrame(frame.copy(signature = it.take(240))) }, "签名 / 水印文字", enabled = enabled)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("显示标题与拍摄信息", Modifier.weight(1f))
+                    Text("显示文字与拍摄信息", Modifier.weight(1f))
                     MirrorToggle(frame.showPhotoMetadata, "显示标题与拍摄信息", enabled) { workspace.updateFrame(frame.copy(showPhotoMetadata = it)) }
                 }
+                val metadata = state.current?.metadata
+                data class MetadataChoice(val label: String, val value: String, val checked: Boolean,
+                    val change: (Boolean) -> FrameOptions)
+                listOf(
+                    MetadataChoice("相机机型", metadata?.frameCameraName.orEmpty(), frame.showCamera) { frame.copy(showCamera = it) },
+                    MetadataChoice("镜头", metadata?.lens.orEmpty(), frame.showLens) { frame.copy(showLens = it) },
+                    MetadataChoice("焦距", metadata?.focalLength.orEmpty(), frame.showFocalLength) { frame.copy(showFocalLength = it) },
+                    MetadataChoice("光圈", metadata?.aperture.orEmpty(), frame.showAperture) { frame.copy(showAperture = it) },
+                    MetadataChoice("快门", metadata?.shutter.orEmpty(), frame.showShutter) { frame.copy(showShutter = it) },
+                    MetadataChoice("ISO", metadata?.iso.orEmpty(), frame.showIso) { frame.copy(showIso = it) },
+                    MetadataChoice("拍摄时间", metadata?.capturedAt.orEmpty(), frame.showCapturedAt) { frame.copy(showCapturedAt = it) }
+                ).forEach { choice ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text(choice.label)
+                            Text(choice.value.ifBlank { "当前照片未检测到，成片自动隐藏" },
+                                style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
+                        }
+                        MirrorToggle(choice.checked, "显示${choice.label}", enabled && frame.showPhotoMetadata) {
+                            workspace.updateFrame(choice.change(it))
+                        }
+                    }
+                }
+                Text("开关应用于整批；每张照片只显示实际检测到的数据。", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
                 Text("签名字体", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     FrameFont.entries.forEach { font ->

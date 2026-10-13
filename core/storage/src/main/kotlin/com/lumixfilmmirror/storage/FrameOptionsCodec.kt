@@ -9,6 +9,9 @@ internal object FrameOptionsCodec {
         put("version", 1); put("preset", frame.preset.name)
         put("border", frame.borderFraction.toDouble()); put("signature", frame.signature)
         put("metadata", frame.showPhotoMetadata); put("ratio", frame.ratio.name)
+        put("showCamera", frame.showCamera); put("showLens", frame.showLens)
+        put("showFocalLength", frame.showFocalLength); put("showAperture", frame.showAperture)
+        put("showShutter", frame.showShutter); put("showIso", frame.showIso); put("showCapturedAt", frame.showCapturedAt)
         put("mood", frame.mood.name); put("roll120", frame.roll120)
         put("brand", frame.filmBrand); put("film", frame.filmName); put("notes", frame.filmNotes)
         fun optional(key: String, value: Any?) { put(key, value ?: JSONObject.NULL) }
@@ -42,6 +45,10 @@ internal object FrameOptionsCodec {
             portrait = if (j.isNull("portrait")) null else j.getBoolean("portrait"),
             imageKey = optional("imageKey"), titleFontKey = optional("titleFontKey"),
             subtitleFontKey = optional("subtitleFontKey"), footerFontKey = optional("footerFontKey"),
-            signatureFontKey = optional("signatureFontKey"))
+            signatureFontKey = optional("signatureFontKey"),
+            showCamera = j.optBoolean("showCamera", true), showLens = j.optBoolean("showLens", true),
+            showFocalLength = j.optBoolean("showFocalLength", true), showAperture = j.optBoolean("showAperture", true),
+            showShutter = j.optBoolean("showShutter", true), showIso = j.optBoolean("showIso", true),
+            showCapturedAt = j.optBoolean("showCapturedAt", false))
     }
 }

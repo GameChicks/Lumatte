@@ -6,6 +6,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lumixfilmmirror.design.FilmMirrorTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.DisposableEffect
+import androidx.core.view.WindowCompat
 
 class MainActivity : ComponentActivity() {
     private val camera get() = (application as FilmMirrorApplication).camera
@@ -23,8 +28,21 @@ class MainActivity : ComponentActivity() {
         app.uiSessionStarted = true
         enableEdgeToEdge()
         setContent {
-            FilmMirrorTheme {
-                val workspace: WorkspaceViewModel = viewModel()
+            val workspace: WorkspaceViewModel = viewModel()
+            val personal by workspace.personal.collectAsStateWithLifecycle()
+            val dark = when (personal.appearance) {
+                MirrorAppearance.SYSTEM -> isSystemInDarkTheme()
+                MirrorAppearance.LIGHT -> false
+                MirrorAppearance.DARK -> true
+            }
+            FilmMirrorTheme(dark = dark) {
+                DisposableEffect(dark) {
+                    WindowCompat.getInsetsController(window, window.decorView).apply {
+                        isAppearanceLightStatusBars = !dark
+                        isAppearanceLightNavigationBars = !dark
+                    }
+                    onDispose { }
+                }
                 MirrorScreen(workspace)
             }
         }

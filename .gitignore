@@ -24,3 +24,4 @@ research/third-party-sync/raw/
 **/.cxx/
 /dist/*
 !/dist/README.md
+research/lut2photo/upstream/
