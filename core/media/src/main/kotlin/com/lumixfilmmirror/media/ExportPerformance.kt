@@ -11,6 +11,7 @@ data class ExportPerformanceReport(
     val stages: List<ExportStageTiming>,
     val filmBackend: FilmExecutionBackend?,
     val gpuFallbackReason: String?,
+    val spatialAlgorithmVersion: String = FilmSpatialEffectsInfo.VERSION,
 )
 
 data class ExportStageTiming(val stage: String, val elapsedMillis: Long)

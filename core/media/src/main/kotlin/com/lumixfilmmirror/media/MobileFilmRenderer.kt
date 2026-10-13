@@ -51,11 +51,17 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
             if (index % 6 < 3) stage.minimum[index % 6] else stage.maximum[index % 6 - 3]
         }
         val effect = model.effects
+        // Artistic red-record look from the user's candle/night references, not an imported 800T stock.
+        // Monochrome/reversal keep their supplied balance; zero source return remains zero.
+        val redLayer = plan.spatialOptions.halationAppearance == FilmHalationAppearance.RED_LAYER_RETURN &&
+            plan.preset.category in setOf(FilmCategory.NEGATIVE, FilmCategory.CINEMA)
+        val halationReturns = if (redLayer) floatArrayOf(effect.halationStrength[0], effect.halationStrength[0] * .04f, 0f)
+            else effect.halationStrength
         val controls = floatArrayOf(plan.parameters.diffusion.strength,
             if (plan.parameters.halationEnabled) 1f else 0f, plan.parameters.exposureEv,
             if (effect.grainActive) 1f else 0f, effect.particleAreaUm2,
             *effect.particleScale, *effect.densityFloor, *effect.grainUniformity,
-            *effect.densityMaximum, *effect.halationStrength, *effect.halationSigmaUm, effect.filmFormatMm)
+            *effect.densityMaximum, *halationReturns, *effect.halationSigmaUm, effect.filmFormatMm)
         val modelKey = "${model.info.modelVersion}:${model.info.sourceCommit}:${model.info.stockId}:${model.info.printId}"
         val task = NativeMobileFilmBridge.createTask()
         check(task != 0L) { "无法建立移动胶片任务" }

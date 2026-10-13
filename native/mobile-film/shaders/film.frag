@@ -14,6 +14,7 @@ uniform ivec2 uOrigin, uImageSize, uSourceSize;
 uniform float uSoftness, uExposureGain, uPixelArea, uParticleArea;
 uniform bool uHalation, uGrain;
 uniform vec3 uParticleScale, uFloor, uUniformity, uDensityMaximum;
+uniform vec3 uHalationMix;
 uniform uint uSeed;
 layout(location = 0) out vec4 outColour;
 
@@ -78,19 +79,19 @@ void main() {
         encoded = vec3(encode(linear.r), encode(linear.g), encode(linear.b));
     }
     vec3 raw = cube(uResponse, encoded, uResponseLow, uResponseHigh);
-    if (uHalation) raw += field(uHalo, globalPixel);
+    if (uHalation) raw = raw * (1.0 - uHalationMix) + field(uHalo, globalPixel);
     vec3 logExposure = log(max(raw, 0.0) * uExposureGain + 1e-10) * .4342944819032518;
     if (invalid(logExposure)) { failure(inputPixel.a); return; }
     vec3 density = cube(uDevelopment, logExposure, uDevelopmentLow, uDevelopmentHigh);
     if (uGrain) {
         vec2 position = (vec2(globalPixel) + .5) * vec2(uSourceSize) / vec2(uImageSize) - .5;
-        float shared = noiseAt(position, 0x7f4a7c15u);
+        float sharedNoise = noiseAt(position, 0x7f4a7c15u);
         vec3 maximum = uDensityMaximum + uFloor;
         vec3 probability = clamp((density + uFloor) / maximum, 0.0, 1.0);
         vec3 variance = probability * (1.0-probability*uUniformity) * uParticleArea * uParticleScale / uPixelArea;
         vec3 deviation = maximum * sqrt(max(variance, 0.0));
         for (int c = 0; c < 3; ++c)
-            density[c] += deviation[c] * (.35*shared + .9367497*noiseAt(position, 0x9e3779b9u * uint(c+1)));
+            density[c] += deviation[c] * (.35*sharedNoise + .9367497*noiseAt(position, 0x9e3779b9u * uint(c+1)));
     }
     if (invalid(density)) { failure(inputPixel.a); return; }
     vec3 rgb = cube(uScan, density, uScanLow, uScanHigh);

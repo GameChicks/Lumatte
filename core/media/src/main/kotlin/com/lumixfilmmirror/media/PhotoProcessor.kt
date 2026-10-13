@@ -83,6 +83,7 @@ class PhotoProcessor(context: Context) {
         FrameLayouts.plan(options.jpeg.contentSize(source.size), options.frame)
     fun lutBackend(): LutBackend = NativeLutRenderer.backend()
     fun filmBackend(): FilmBackend = FilmBackend.MOBILE_GLES3_WITH_CPU_FALLBACK
+    fun filmSpatialEffectsInfo(): FilmSpatialEffectsInfo = FilmSpatialEffectsInfo()
     /** Packaged model data and its cache only; this does not switch or initialize the film backend. */
     suspend fun mobileFilmModelsInfo(): MobileFilmModelsInfo = mobileFilmModels.info()
     suspend fun previewCacheInfo(): PreviewCacheInfo = previewGate.withPermit { previewCache.info() }
@@ -100,7 +101,8 @@ class PhotoProcessor(context: Context) {
     }
 
     fun lutPlan(recipe: com.lumixfilmmirror.model.LutRecipe, assets: List<LutAsset>) = luts.plan(recipe, assets)
-    fun filmPlan(recipe: PhotoRecipe.Film, presets: List<FilmPreset>) = films.plan(recipe.parameters, presets, recipe.grainSeed)
+    fun filmPlan(recipe: PhotoRecipe.Film, presets: List<FilmPreset>, spatialOptions: FilmSpatialOptions = FilmSpatialOptions()) =
+        films.plan(recipe.parameters, presets, recipe.grainSeed, spatialOptions)
 
     /** Current-photo card, full single-LUT strength and no grain/frame. Never a creator's example. */
     suspend fun previewLutCard(source: SourceImage, asset: LutAsset, longEdge: Int = 320): LutCardPreview {

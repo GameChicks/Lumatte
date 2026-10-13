@@ -185,6 +185,7 @@ public:
         triple("uResponseLow", model.response.minimum); triple("uResponseHigh", model.response.maximum);
         triple("uDevelopmentLow", model.development.minimum); triple("uDevelopmentHigh", model.development.maximum);
         triple("uScanLow", model.scan.minimum); triple("uScanHigh", model.scan.maximum);
+        triple("uHalationMix", spatial.halation_mix);
         triple("uParticleScale", effects.particle_scale); triple("uFloor", effects.floor);
         triple("uUniformity", effects.uniformity); triple("uDensityMaximum", effects.density_max);
         glUniform2i(uniform("uImageSize"), GLint(image.width), GLint(image.height));
@@ -192,7 +193,7 @@ public:
         glUniform1f(uniform("uSoftness"), spatial.softness); glUniform1f(uniform("uExposureGain"), effects.exposure_gain);
         const float pixel_um = effects.format_mm * 1000 / std::max(image.width, image.height);
         glUniform1f(uniform("uPixelArea"), pixel_um * pixel_um); glUniform1f(uniform("uParticleArea"), effects.particle_area);
-        glUniform1i(uniform("uHalation"), effects.halation); glUniform1i(uniform("uGrain"), effects.grain);
+        glUniform1i(uniform("uHalation"), !spatial.halation.values.empty()); glUniform1i(uniform("uGrain"), effects.grain);
         glUniform1ui(uniform("uSeed"), uint32_t(seed) ^ hash(uint32_t(seed >> 32)));
         gl_check("Configure film GPU");
         std::vector<uint8_t> readback(size_t(tile_edge) * tile_edge * 4);

@@ -9,7 +9,8 @@ import org.json.JSONObject
 enum class FilmCategory(val label: String) { NEGATIVE("负片"), CINEMA("电影卷"), REVERSAL("反转片"), MONOCHROME("黑白卷") }
 data class FilmPreset(val id: String, val name: String, val category: FilmCategory, val printId: String,
     val positive: Boolean, val description: String? = null)
-data class FilmRenderPlan(val parameters: FilmParameters, val preset: FilmPreset, val grainSeed: Long)
+data class FilmRenderPlan(val parameters: FilmParameters, val preset: FilmPreset, val grainSeed: Long,
+    val spatialOptions: FilmSpatialOptions = FilmSpatialOptions())
 
 class FilmCatalogue(context: Context) {
     private val assets = context.applicationContext.assets
@@ -29,6 +30,7 @@ class FilmCatalogue(context: Context) {
         presets.sortedWith(compareBy({ it.id != "kodak_gold_200" }, { it.category.ordinal }, { it.name }))
     }
 
-    fun plan(parameters: FilmParameters, presets: List<FilmPreset>, grainSeed: Long): FilmRenderPlan = FilmRenderPlan(parameters,
-        requireNotNull(presets.firstOrNull { it.id == parameters.presetId }) { "所选胶卷模型不可用，请重新选卷" }, grainSeed)
+    fun plan(parameters: FilmParameters, presets: List<FilmPreset>, grainSeed: Long,
+        spatialOptions: FilmSpatialOptions = FilmSpatialOptions()): FilmRenderPlan = FilmRenderPlan(parameters,
+        requireNotNull(presets.firstOrNull { it.id == parameters.presetId }) { "所选胶卷模型不可用，请重新选卷" }, grainSeed, spatialOptions)
 }

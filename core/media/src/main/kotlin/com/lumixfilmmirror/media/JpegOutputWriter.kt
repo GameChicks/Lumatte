@@ -144,7 +144,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                 Log.i("LFMExport", "completed=${report.completed} totalMs=${report.totalMillis} " +
                     "input=${source.size.width}x${source.size.height} dimensions=${settings.dimensionPercent}% " +
                     "quality=${settings.compressionQuality} frame=${frame.preset} " +
-                    "backend=${report.filmBackend} halation=${film?.parameters?.halationEnabled} " +
+                    "backend=${report.filmBackend} spatial=${report.spatialAlgorithmVersion} halation=${film?.parameters?.halationEnabled} " +
                     "diffusion=${film?.parameters?.diffusion} stages=${report.stages} " +
                     "gpuFallback=${report.gpuFallbackReason.orEmpty()}")
             }
