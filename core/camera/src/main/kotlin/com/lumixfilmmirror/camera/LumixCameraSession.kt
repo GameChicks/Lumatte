@@ -2,7 +2,6 @@ package com.lumixfilmmirror.camera
 
 import android.net.Network
 import android.os.SystemClock
-import android.util.Log
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -25,10 +24,12 @@ class LumixCameraSession private constructor(
     private var incomingDirectory: CameraIncomingDirectory? = null
 
     suspend fun prepareBrowsing(includeRaw: Boolean = true) = commands.withLock {
+        CameraConnectionLog.info("LFMCamera", "mediaSetup=playmode-request")
         check(accessMode == CameraAccessMode.BROWSING) { "相机当前处于待发送模式，请结束该模式后重新连接以浏览" }
         val playback = commandStatus("camcmd", "value" to "playmode")
         if (playback != "ok") throw CameraProtocolException(playback)
         prepareRawResources(includeRaw)
+        CameraConnectionLog.info("LFMCamera", "mediaSetup=playmode-ready")
     }
 
     /** Read-only incoming setup, apart from enabling advertised RAW transfer resources. No playmode. */
@@ -111,7 +112,9 @@ class LumixCameraSession private constructor(
         val response = http.text(device.contentDirectory, body, mapOf(
             "Content-Type" to "text/xml; charset=\"utf-8\"",
             "SOAPAction" to "urn:schemas-upnp-org:service:ContentDirectory:1#Browse"))
-        return withContext(Dispatchers.Default) { CameraXml.browse(response, offset, device.contentDirectory) }
+        return withContext(Dispatchers.Default) { CameraXml.browse(response, offset, device.contentDirectory) }.also {
+            CameraConnectionLog.info("LFMCamera", "directory=received offset=$offset count=${it.entries.size}")
+        }
     }
 
     suspend fun thumbnail(resource: CameraResource): ByteArray = commands.withLock {
@@ -167,6 +170,9 @@ class LumixCameraSession private constructor(
                 onStep(ConnectionStep.READING_DEVICE)
                 val description = descriptionUri
                 val device = CameraXml.device(http.text(description), description)
+                val modelLabel = device.model.takeIf { it.matches(Regex("(?:DC|DMC)-[A-Za-z0-9-]{1,24}")) } ?: "other"
+                val firmwareLabel = device.firmware.takeIf { it.matches(Regex("[Vv]?[0-9]{1,3}(?:\\.[0-9]{1,3}){0,3}")) } ?: "unknown"
+                CameraConnectionLog.info("LFMCamera", "deviceModel=$modelLabel firmware=$firmwareLabel requiresChallenge=${device.requiresChallenge}")
                 http.validate(device.contentDirectory)
                 onStep(ConnectionStep.REQUESTING_ACCESS)
                 var identity = clientId
@@ -197,7 +203,7 @@ class LumixCameraSession private constructor(
                     val status = fields.firstOrNull()
                     val loggedStatus = status?.takeIf { it in setOf("ok_under_research", "ok_under_research_no_msg",
                         "err_busy", "ok", "upload_bt", "transfer") } ?: "other"
-                    Log.i("LFMCamera", "accessProtocol=${if (device.requiresChallenge) "challenge" else "legacy"} " +
+                    CameraConnectionLog.info("LFMCamera", "accessProtocol=${if (device.requiresChallenge) "challenge" else "legacy"} " +
                         "identityFormat=${if (compactLegacyIdentity && !device.requiresChallenge) "compact-uuid" else "uuid"} " +
                         "attempt=$approvalAttempt status=$loggedStatus")
                     when (fields.firstOrNull()) {

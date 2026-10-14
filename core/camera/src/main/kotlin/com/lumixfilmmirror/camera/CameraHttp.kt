@@ -136,8 +136,10 @@ internal class CameraHttp(private val network: Network, val host: String, privat
                         connection.outputStream.use { it.write(bytes) }
                     }
                     currentCoroutineContext().ensureActive()
-                    if (connection.responseCode !in 200..299) {
-                        throw CameraProtocolException("HTTP ${connection.responseCode}")
+                    val status = connection.responseCode
+                    CameraConnectionLog.info("LFMHttp", "response method=${if (body == null) "GET" else "POST"} status=$status")
+                    if (status !in 200..299) {
+                        throw CameraProtocolException("HTTP $status")
                     }
                     val output = ByteArrayOutputStream()
                     connection.inputStream.use { input ->

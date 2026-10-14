@@ -28,6 +28,8 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
     }
     PaperPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            CameraConnectionLogControls()
+            HorizontalDivider()
             if (differentCamera) {
                 Text("切换相机", style = MaterialTheme.typography.headlineSmall)
                 Text("当前连接：${camera.device?.model.orEmpty()}")

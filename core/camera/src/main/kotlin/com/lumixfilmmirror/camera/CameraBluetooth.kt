@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
-import android.util.Log
 import java.io.Closeable
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -39,14 +38,21 @@ class CameraBluetooth(private val context: Context) {
             if (scanning) listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT,
                 Manifest.permission.ACCESS_FINE_LOCATION) else listOf(Manifest.permission.BLUETOOTH_CONNECT)
         } else if (scanning) listOf(Manifest.permission.ACCESS_FINE_LOCATION) else emptyList()
+        CameraConnectionLog.info("LFMBle", "permissionCheck scanning=$scanning requiredGranted=" +
+            permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED } +
+            " missing=" + permissions.filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+                .map { it.substringAfterLast('.') })
         check(permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
             if (scanning) "查找蓝牙相机需要附近设备和精确定位权限；定位权限用于兼容扫描，不读取手机位置"
             else "连接蓝牙相机需要附近设备权限"
         }
-        if (scanning) check(context.getSystemService(LocationManager::class.java)?.isLocationEnabled == true) {
+        val locationEnabled = context.getSystemService(LocationManager::class.java)?.isLocationEnabled == true
+        CameraConnectionLog.info("LFMBle", "systemLocationEnabled=$locationEnabled")
+        if (scanning) check(locationEnabled) {
             "蓝牙兼容扫描需要开启系统定位后再查找相机；应用不会读取手机位置"
         }
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter ?: error("此设备没有蓝牙功能")
+        CameraConnectionLog.info("LFMBle", "adapterEnabled=${adapter.isEnabled}")
         check(adapter.isEnabled) { "请先在系统设置中开启蓝牙" }
         return adapter
     }
@@ -86,10 +92,14 @@ class CameraBluetooth(private val context: Context) {
                     events.close(IllegalStateException("蓝牙权限已被撤回，请重新授权后查找相机"))
                 }
             }
-            override fun onScanFailed(errorCode: Int) { events.close(IllegalStateException("蓝牙扫描未能开始（$errorCode），请稍后重试")) }
+            override fun onScanFailed(errorCode: Int) {
+                CameraConnectionLog.warn("LFMBle", "scan=failed code=$errorCode")
+                events.close(IllegalStateException("蓝牙扫描未能开始（$errorCode），请稍后重试"))
+            }
         }
         val cameras = linkedMapOf<String, BluetoothCamera>()
         try {
+            CameraConnectionLog.info("LFMBle", "scan=started timeoutMs=20000")
             // Match the reference's unfiltered foreground discovery; filter Panasonic in software.
             // Do not depend on chipset offload support for a zero-length manufacturer filter.
             scanner.startScan(null,
@@ -111,6 +121,9 @@ class CameraBluetooth(private val context: Context) {
             runCatching { scanner.stopScan(callback) }
             events.close()
             onReport(report())
+            val summary = report()
+            CameraConnectionLog.info("LFMBle", "scan=finished found=${cameras.size} advertisements=${summary.advertisements} " +
+                "panasonic=${summary.panasonicAdvertisements} empty=${summary.emptyPanasonicPayloads} states=${summary.observedStates.sorted()}")
         }
     }
 
@@ -233,7 +246,7 @@ class CameraBluetooth(private val context: Context) {
         onStep(BluetoothConnectionStep.REGISTERING_NOTIFICATIONS)
         session.prepareConnectionNotifications()
         val aps = session.has(protocol.apsClientId)
-        Log.i("LFMBle", "connectionFlow=s5-pair-v2 identityProtocol=${if (aps) "aps" else "legacy"}")
+        CameraConnectionLog.info("LFMBle", "connectionFlow=s5-pair-v2 identityProtocol=${if (aps) "aps" else "legacy"}")
         onStep(BluetoothConnectionStep.IDENTIFYING)
         val identity = protocol.identity(clientId)
         var legacyChallenge = false
@@ -287,6 +300,7 @@ private class ConnectionGatt(private val context: Context, private val device: B
     private val subscriptions = mutableSetOf<Pair<UUID, UUID>>()
     private val callback = object : BluetoothGattCallback() {
         private fun fail(message: String) {
+            CameraConnectionLog.warn("LFMBle", message)
             val problem = IllegalStateException(message)
             failure.compareAndSet(null, problem)
             if (routerStartup.get()) startupRejected.complete(problem)
@@ -328,6 +342,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
         private fun connectionReply(uuid: UUID, value: ByteArray) {
             if (closed.get()) return
             val protocol = LumixBleProtocol
+            if (uuid in setOf(protocol.connectionStatus, protocol.wifiChoiceReply, protocol.imageTransferEvent, protocol.sendingModeEvent))
+                CameraConnectionLog.info("LFMBle", "notification uuid=$uuid state=${value.firstOrNull()?.toInt()?.and(255)}")
             if (sendingStartupActive.get() && (uuid == protocol.imageTransferEvent || uuid == protocol.sendingModeEvent)) {
                 if (value.isEmpty()) { incomingEvents.stop(IllegalStateException("相机发送事件不完整，请重新连接")); return }
                 val state = value[0].toInt() and 255
@@ -407,6 +423,7 @@ private class ConnectionGatt(private val context: Context, private val device: B
         .getService(service)?.getCharacteristic(uuid)
         ?: error("此相机缺少已识别的蓝牙连接资料，请使用 Wi-Fi 入口")
     suspend fun read(uuid: UUID, service: UUID = LumixBleProtocol.service): ByteArray = mutex.withLock {
+        CameraConnectionLog.info("LFMBle", "operation=READ uuid=$uuid state=requested")
         check(requireGatt().readCharacteristic(characteristic(uuid, service))) { "蓝牙读取未被系统接受，请重试" }
         await(Kind.READ, uuid).bytes
     }
@@ -418,8 +435,12 @@ private class ConnectionGatt(private val context: Context, private val device: B
             characteristic.properties and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0 -> BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             else -> error("相机连接特征不可写，请重新读取连接资料")
         }
+        CameraConnectionLog.info("LFMBle", "operation=WRITE uuid=$uuid state=requested writeType=$writeType")
         val accepted = if (Build.VERSION.SDK_INT >= 33)
-            requireGatt().writeCharacteristic(characteristic, bytes, writeType) == BluetoothStatusCodes.SUCCESS
+            requireGatt().writeCharacteristic(characteristic, bytes, writeType).let { status ->
+                CameraConnectionLog.info("LFMBle", "operation=WRITE uuid=$uuid androidStatus=$status")
+                status == BluetoothStatusCodes.SUCCESS
+            }
         else {
             characteristic.writeType = writeType
             characteristic.value = bytes.copyOf()
@@ -464,8 +485,12 @@ private class ConnectionGatt(private val context: Context, private val device: B
         val descriptor = descriptor(characteristic) ?: error("相机连接通知暂不支持，请在相机上开启 Wi-Fi 后连接")
         check(requireGatt().setCharacteristicNotification(characteristic, true)) { "无法启用相机连接通知" }
         val value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+        CameraConnectionLog.info("LFMBle", "operation=DESCRIPTOR uuid=$uuid state=requested")
         val accepted = if (Build.VERSION.SDK_INT >= 33)
-            requireGatt().writeDescriptor(descriptor, value) == BluetoothStatusCodes.SUCCESS
+            requireGatt().writeDescriptor(descriptor, value).let { status ->
+                CameraConnectionLog.info("LFMBle", "operation=DESCRIPTOR uuid=$uuid androidStatus=$status")
+                status == BluetoothStatusCodes.SUCCESS
+            }
         else { descriptor.value = value.copyOf(); requireGatt().writeDescriptor(descriptor) }
         check(accepted) { "连接通知未被系统接受，请使用 Wi-Fi 入口" }
         await(Kind.DESCRIPTOR, uuid)
@@ -480,7 +505,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
         // The pairing advertisement selects registration mode 5; ordinary reconnect uses 3.
         // Official C0393g/C0272a and the user's successful S5 trace agree on this distinction.
         // Both start a photo-transfer network, not shutter/live-view or remote power commands.
-        Log.i("LFMBle", "wifiStartup=${if (initialPairing) "first-pairing" else "reconnect"} transport=softap")
+        CameraConnectionLog.info("LFMBle", "wifiStartup=${if (initialPairing) "first-pairing" else "reconnect"} " +
+            "transport=softap wifiType=1 mode=${if (initialPairing) 5 else 3}")
         write(protocol.wifiConnectionType, byteArrayOf(1), protocol.wifiService)
         write(protocol.connectionMode, byteArrayOf(if (initialPairing) 5 else 3))
     }
@@ -655,18 +681,18 @@ private class ConnectionGatt(private val context: Context, private val device: B
                     if (event.kind != kind || event.uuid != uuid) { event.bytes.fill(0); continue }
                     if (event.status != BluetoothGatt.GATT_SUCCESS) {
                         event.bytes.fill(0)
-                        Log.w("LFMBle", "operation=$kind uuid=$uuid status=${event.status}")
+                        CameraConnectionLog.warn("LFMBle", "operation=$kind uuid=$uuid status=${event.status}")
                         error("$operation 失败（状态 ${event.status}），请重新进入相机配对页面后重试")
                     }
                     // Protocol UUIDs only: never log characteristic values, device IDs or addresses.
-                    Log.i("LFMBle", "operation=$kind uuid=$uuid status=success")
+                    CameraConnectionLog.info("LFMBle", "operation=$kind uuid=$uuid status=success")
                     return@withTimeout event
                 }
                 @Suppress("UNREACHABLE_CODE") error("蓝牙响应未到达")
             }
         } catch (_: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
-            Log.w("LFMBle", "operation=$kind uuid=$uuid timeoutMs=$timeout")
+            CameraConnectionLog.warn("LFMBle", "operation=$kind uuid=$uuid timeoutMs=$timeout")
             error("$operation 超时，请重新进入相机配对页面后重试")
         }
     }

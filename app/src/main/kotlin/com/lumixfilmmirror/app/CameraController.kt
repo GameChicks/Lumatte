@@ -4,7 +4,6 @@ import android.app.Application
 import android.net.Network
 import android.location.LocationManager
 import android.os.Build
-import android.util.Log
 import com.lumixfilmmirror.camera.*
 import com.lumixfilmmirror.media.ImageImporter
 import com.lumixfilmmirror.media.VideoPublisher
@@ -70,14 +69,31 @@ class CameraController(private val application: Application) {
         var options: List<CameraWifiNetwork>, val reply: CompletableDeferred<Network?>)
     private var pendingWifiSelection: PendingWifiSelection? = null
 
+    init {
+        CameraConnectionLog.initialize(application)
+        scope.launch {
+            cameraState.map { listOf(it.bluetoothStep, it.step, it.connected, it.bluetoothPairingCompleted) }
+                .distinctUntilChanged().collect { state ->
+                    if (state[0] != null || state[1] != null || state[2] == true || state[3] == true)
+                        CameraConnectionLog.info("LFMCamera", "phase bt=${state[0]} wifiHttp=${state[1]} " +
+                            "mediaReady=${state[2]} pairingApproved=${state[3]}")
+                }
+        }
+    }
+
     fun updateTransferCounts(batchId: String, total: Int, imported: Int) {
         cameraMutable.update { if (it.activeTransferBatch == batchId)
             it.copy(transferTotal = total, transferred = imported) else it }
     }
 
-    fun attachUi() { idleRelease?.cancel(); visibleClients++ }
+    fun attachUi() {
+        idleRelease?.cancel(); visibleClients++
+        CameraConnectionLog.info("LFMActivity", "ui=visible")
+    }
     fun detachUi() {
         visibleClients = (visibleClients - 1).coerceAtLeast(0)
+        CameraConnectionLog.info("LFMActivity", "ui=${if (visibleClients == 0) "background" else "visible"} " +
+            "connectionInProgress=$bluetoothConnectionInProgress")
         if (visibleClients == 0) thumbnails.cancelRequests()
         releaseIfIdle()
     }
@@ -197,7 +213,7 @@ class CameraController(private val application: Application) {
     }
 
     private suspend fun connectBluetoothTransfer(candidate: BluetoothCamera, expectedSsid: String? = null) {
-        Log.i("LFMCamera", "connectionFlow=sync-trace-v3 phase=${if (candidate.pairing) "registration" else "media-connect"}")
+        CameraConnectionLog.info("LFMCamera", "connectionFlow=sync-trace-v3 phase=${if (candidate.pairing) "registration" else "media-connect"}")
         var target = candidate
         var pairedDevice: CameraDevice? = null
         if (candidate.pairing) {
@@ -212,7 +228,7 @@ class CameraController(private val application: Application) {
             target = candidate.copy(pairing = false)
             cameraMutable.update { it.copy(bluetoothSelectedCamera = target,
                 bluetoothPairingCompleted = true, notice = "首次配对已完成，正在建立照片浏览连接。") }
-            Log.i("LFMCamera", "connectionFlow=sync-trace-v3 registration=approved phase=media-connect")
+            CameraConnectionLog.info("LFMCamera", "connectionFlow=sync-trace-v3 registration=approved phase=media-connect")
             delay(500L)
         }
         bluetooth.withTransferWifi(target, ownClientId(), expectedSsid,
@@ -472,6 +488,7 @@ class CameraController(private val application: Application) {
     }
 
     fun bluetoothPermissionDenied() {
+        CameraConnectionLog.warn("LFMBle", "permissionResult=denied")
         cameraMutable.update { it.copy(problem = "所需权限未完整授予。请允许附近设备权限；查找相机还需精确定位权限。也可以使用 Wi-Fi 入口。") }
     }
 
@@ -546,7 +563,10 @@ class CameraController(private val application: Application) {
             expectedDevice = expected)
     }
 
-    fun cameraPermissionDenied() { cameraMutable.update { it.copy(problem = "未获得 Wi-Fi 连接权限，可在系统设置连接后查找相机") } }
+    fun cameraPermissionDenied() {
+        CameraConnectionLog.warn("LFMWifi", "permissionResult=denied")
+        cameraMutable.update { it.copy(problem = "未获得 Wi-Fi 连接权限，可在系统设置连接后查找相机") }
+    }
 
     private fun matchesExpected(device: CameraDevice, expected: CameraDevice): Boolean =
         if (expected.udn.isNotBlank()) device.udn == expected.udn
@@ -655,6 +675,7 @@ class CameraController(private val application: Application) {
 
     private fun cameraNetworkLost(network: Network) {
         if (network != watchedNetwork && network != wifiConnection?.network) return
+        CameraConnectionLog.warn("LFMCamera", "selectedNetwork=lost")
         cameraMutable.update { it.copy(connected = false, disconnected = true,
             problem = "相机连接已断开，已传入的照片保留。重新连接后可继续传输。") }
         cameraJob?.cancel(TransferStop(false, "相机断开，操作已暂停"))
@@ -898,15 +919,22 @@ class CameraController(private val application: Application) {
 
     private fun cameraOperation(cache: Boolean = false, block: suspend () -> Unit) {
         if (cameraMutable.value.busy) return
+        CameraConnectionLog.info("LFMCamera", "operation=started cache=$cache")
         thumbnails.cancelRequests()
         cameraMutable.update { it.copy(operationRunning = true, cacheBusy = cache, bluetoothStep = null) }
         cameraMutable.update { it.copy(problem = null, notice = null, transferTotal = 0, transferred = 0, progress = null, transferPhase = null) }
         cameraJob = scope.launch {
-            try { block() }
+            try {
+                block()
+                CameraConnectionLog.info("LFMCamera", "operation=completed mediaReady=${cameraMutable.value.connected} " +
+                    "pairingApproved=${cameraMutable.value.bluetoothPairingCompleted}")
+            }
             catch (error: CancellationException) {
+                logOperationFailure("cancelled", error)
                 cameraMutable.update { if (it.disconnected) it else it.copy(problem = error.message ?: "操作已取消，已传入的照片保留") }
                 if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
             } catch (error: Exception) {
+                logOperationFailure("failed", error)
                 cameraMutable.update { it.copy(problem = error.message ?: "相机连接或传输失败") }
                 if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
             } finally {
@@ -917,13 +945,25 @@ class CameraController(private val application: Application) {
         }
     }
 
+    private fun logOperationFailure(result: String, error: Exception) {
+        val state = cameraMutable.value
+        val status = (error as? CameraProtocolException)?.status?.takeIf {
+            it.matches(Regex("(?:err_[a-z0-9_]{1,48}|HTTP [0-9]{3})"))
+        }.orEmpty()
+        // Exception text can contain URLs, query tokens, local file paths or camera names.
+        CameraConnectionLog.warn("LFMCamera", "operation=$result type=${error.javaClass.simpleName} " +
+            "status=$status bt=${state.bluetoothStep} wifiHttp=${state.step} pairingApproved=${state.bluetoothPairingCompleted}")
+    }
+
     fun cancelCameraOperation() {
+        CameraConnectionLog.info("LFMCamera", "userAction=cancel")
         if (cameraMutable.value.activeTransferBatch != null)
             stopTransfer(true, "已取消后续传输，已导入照片保留")
         else { cameraJob?.cancel(); cameraSession?.interrupt() }
     }
     fun disconnectCamera() {
         if (cameraMutable.value.busy) return
+        CameraConnectionLog.info("LFMCamera", "userAction=disconnect")
         clearSendingReconnect()
         clearBluetoothCredentials()
         bluetoothWifiBinding = null

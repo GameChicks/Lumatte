@@ -57,6 +57,7 @@ class CameraDiscovery(context: Context) {
     }
 
     suspend fun discover(networks: List<Network> = wifiNetworks()): List<DiscoveredCamera> = coroutineScope {
+        CameraConnectionLog.info("LFMCamera", "discovery=start selectedNetworks=${networks.size}")
         require(networks.isNotEmpty()) { "请先连接相机 Wi-Fi，或使用下方的连接入口" }
         val attempts = networks.map { network -> async(Dispatchers.IO) {
             try { Result.success(search(network)) }
@@ -64,6 +65,7 @@ class CameraDiscovery(context: Context) {
             catch (error: Exception) { Result.failure(error) }
         } }.awaitAll()
         val found = attempts.flatMap { it.getOrNull().orEmpty() }.distinctBy { it.key }
+        CameraConnectionLog.info("LFMCamera", "discovery=finished found=${found.size} failedNetworks=${attempts.count { it.isFailure }}")
         if (found.isEmpty() && attempts.all { it.isFailure }) throw requireNotNull(attempts.first().exceptionOrNull())
         found
     }
