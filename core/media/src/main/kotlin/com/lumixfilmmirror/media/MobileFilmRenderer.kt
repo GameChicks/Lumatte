@@ -51,11 +51,12 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
             if (index % 6 < 3) stage.minimum[index % 6] else stage.maximum[index % 6 - 3]
         }
         val effect = model.effects
-        // Artistic red-record look from the user's candle/night references, not an imported 800T stock.
-        // Monochrome/reversal keep their supplied balance; zero source return remains zero.
+        // Explicit artistic red-record option, not the ordinary stock baseline or an imported 800T.
+        // Default stock mode retains channel balance at unit gain; no global saturation adjustment.
         val redLayer = plan.spatialOptions.halationAppearance == FilmHalationAppearance.RED_LAYER_RETURN &&
             plan.preset.category in setOf(FilmCategory.NEGATIVE, FilmCategory.CINEMA)
-        val halationReturns = if (redLayer) floatArrayOf(effect.halationStrength[0], effect.halationStrength[0] * .04f, 0f)
+        val redReturn = effect.halationStrength[0] * 2f
+        val halationReturns = if (redLayer) floatArrayOf(redReturn, redReturn * .04f, 0f)
             else effect.halationStrength
         val controls = floatArrayOf(plan.parameters.diffusion.strength,
             if (plan.parameters.halationEnabled) 1f else 0f, plan.parameters.exposureEv,

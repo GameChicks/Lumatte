@@ -145,6 +145,8 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                     "input=${source.size.width}x${source.size.height} dimensions=${settings.dimensionPercent}% " +
                     "quality=${settings.compressionQuality} frame=${frame.preset} " +
                     "backend=${report.filmBackend} spatial=${report.spatialAlgorithmVersion} halation=${film?.parameters?.halationEnabled} " +
+                    "stock=${film?.preset?.id} print=${film?.preset?.printId} exposureEv=${film?.parameters?.exposureEv} " +
+                    "halationAppearance=${film?.spatialOptions?.halationAppearance} " +
                     "diffusion=${film?.parameters?.diffusion} stages=${report.stages} " +
                     "gpuFallback=${report.gpuFallbackReason.orEmpty()}")
             }

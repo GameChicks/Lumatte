@@ -1,5 +1,7 @@
 # 移动空间效果 v2：红暖返光与吸收式黑柔
 
+> 当前默认已调整为 `lfm-optical-spatial-v2.1-stock-defaults`：普通胶卷采用原通道比例和单位返光增益；本文的全负片默认红暖方案与固定 2 倍增益是 v2 历史行为。显式后端艺术选项保留。原因与修改见 [Gold / Ultramax 默认参数核对](film-stock-defaults-audit.md)。未因此修改基础色彩表或打包。
+
 2026-10-14。算法标识 `lfm-optical-spatial-v2`。修改前 Git 基线为 `d9d955cacbebba6fa3fdb5cc7745390a3ff59437`，回退标签 `lfm-before-halation-v2-20261014`。这次修改默认运行源码，未生成新 APK。
 
 ## 用户参考与观感目标

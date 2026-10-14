@@ -271,11 +271,11 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
             for (int c = 0; c < 3; ++c) response.values[offset + c] = std::max(0.f, raw[c]);
         }
     });
-    // Preserve the supplied stock's returned/direct ratios, including zero-return channels.
-    // A single creative gain increases visibility without inventing blue/green return floors.
+    // The caller resolves stock versus explicit creative look. Do not add another gain here:
+    // ordinary stocks keep their supplied returned/direct ratios, including zero channels.
     Colour sigma{};
     for (int c = 0; c < 3; ++c) {
-        const float returned = effects.halation_strength[c] * 2.f;
+        const float returned = effects.halation_strength[c];
         spatial.halation_mix[c] = returned / (1.f + returned);
         sigma[c] = std::max(.35f, effects.halation_sigma_um[c] * std::max(w, h) / (effects.format_mm * 1000));
     }
