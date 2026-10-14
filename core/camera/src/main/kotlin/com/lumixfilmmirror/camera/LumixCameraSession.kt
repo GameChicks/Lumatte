@@ -154,6 +154,7 @@ class LumixCameraSession private constructor(
             clientName: String = "Lumix Film Mirror",
             descriptionUri: URI = CameraAddress.description(host),
             networkInterfaceName: String? = null,
+            compactLegacyIdentity: Boolean = false,
             onStep: (ConnectionStep) -> Unit = {},
         ): LumixCameraSession {
             CameraAddress.requireDescription(descriptionUri)
@@ -170,6 +171,11 @@ class LumixCameraSession private constructor(
                 onStep(ConnectionStep.REQUESTING_ACCESS)
                 var identity = clientId
                 var name = clientName
+                if (compactLegacyIdentity && !device.requiresChallenge) {
+                    // Same locally owned UUID as BLE, formatted like the successful S5 Sync trace.
+                    // Do not substitute the reference app's identity or rewrite stored preferences.
+                    identity = UUID.fromString(clientId).toString().replace("-", "").uppercase(java.util.Locale.ROOT)
+                }
                 if (device.requiresChallenge) {
                     val challengeReply = http.command("accctrl", "type" to "req_acc_g").trim().split(',')
                     if (challengeReply.firstOrNull() != "ok") throw CameraProtocolException(challengeReply.firstOrNull().orEmpty())
@@ -192,6 +198,7 @@ class LumixCameraSession private constructor(
                     val loggedStatus = status?.takeIf { it in setOf("ok_under_research", "ok_under_research_no_msg",
                         "err_busy", "ok", "upload_bt", "transfer") } ?: "other"
                     Log.i("LFMCamera", "accessProtocol=${if (device.requiresChallenge) "challenge" else "legacy"} " +
+                        "identityFormat=${if (compactLegacyIdentity && !device.requiresChallenge) "compact-uuid" else "uuid"} " +
                         "attempt=$approvalAttempt status=$loggedStatus")
                     when (fields.firstOrNull()) {
                         "ok_under_research", "ok_under_research_no_msg" -> {

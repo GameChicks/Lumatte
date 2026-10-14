@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Network
 import android.location.LocationManager
 import android.os.Build
+import android.util.Log
 import com.lumixfilmmirror.camera.*
 import com.lumixfilmmirror.media.ImageImporter
 import com.lumixfilmmirror.media.VideoPublisher
@@ -174,7 +175,8 @@ class CameraController(private val application: Application) {
     private suspend fun readBluetoothCandidate(candidate: BluetoothCamera, startTransfer: Boolean) = withBluetoothConnectionLifetime {
         clearSendingReconnect()
         clearBluetoothCredentials()
-        cameraMutable.update { it.copy(bluetoothStep = BluetoothConnectionStep.CONNECTING, bluetoothSelectedCamera = candidate) }
+        cameraMutable.update { it.copy(bluetoothStep = BluetoothConnectionStep.CONNECTING, bluetoothSelectedCamera = candidate,
+            bluetoothPairingCompleted = false) }
         // The reference stops scanning before connecting and leaves a 500 ms handoff interval.
         delay(500L)
         if (!startTransfer) {
@@ -191,12 +193,33 @@ class CameraController(private val application: Application) {
                 notice = "已读取网络资料，请选择传输或路由器连接方式；这不代表新配对已完成。") }
             return@withBluetoothConnectionLifetime
         }
-        bluetooth.withTransferWifi(candidate, ownClientId(), expectedSsid = null,
+        connectBluetoothTransfer(candidate)
+    }
+
+    private suspend fun connectBluetoothTransfer(candidate: BluetoothCamera, expectedSsid: String? = null) {
+        Log.i("LFMCamera", "connectionFlow=sync-trace-v3 phase=${if (candidate.pairing) "registration" else "media-connect"}")
+        var target = candidate
+        var pairedDevice: CameraDevice? = null
+        if (candidate.pairing) {
+            bluetooth.withTransferWifi(candidate, ownClientId(), expectedSsid,
+                onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { credentials ->
+                // First-pairing mode 5 ends at HTTP approval, before playmode or directory setup.
+                connectWifi(credentials.ssid, credentials.password(), expectedMode = CameraAccessMode.BROWSING,
+                    registrationOnly = true)
+                pairedDevice = requireNotNull(cameraMutable.value.device) { "配对确认缺少相机身份，请重新查找" }
+            }
+            // Registration has released its transport. Re-read credentials in a fresh mode-3 session.
+            target = candidate.copy(pairing = false)
+            cameraMutable.update { it.copy(bluetoothSelectedCamera = target,
+                bluetoothPairingCompleted = true, notice = "首次配对已完成，正在建立照片浏览连接。") }
+            Log.i("LFMCamera", "connectionFlow=sync-trace-v3 registration=approved phase=media-connect")
+            delay(500L)
+        }
+        bluetooth.withTransferWifi(target, ownClientId(), expectedSsid,
             onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { credentials ->
-            // Do not disconnect immediately after credentials: finish Wi-Fi and camera approval
-            // while the original pairing GATT is alive, instead of reconnecting in a second action.
-            connectWifi(credentials.ssid, credentials.password())
-            bindBluetoothWifi(candidate, credentials)
+            connectWifi(credentials.ssid, credentials.password(), expectedMode = CameraAccessMode.BROWSING,
+                expectedDevice = pairedDevice)
+            bindBluetoothWifi(target, credentials, expectedDevice = pairedDevice)
         }
     }
 
@@ -430,11 +453,7 @@ class CameraController(private val application: Application) {
                     bindBluetoothWifi(target, fresh, expectedMode = mode)
                 }
             } else if (startOnCamera) {
-                bluetooth.withTransferWifi(target, ownClientId(), credentials.ssid,
-                    onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { fresh ->
-                    connectWifi(fresh.ssid, fresh.password())
-                    bindBluetoothWifi(target, fresh)
-                }
+                connectBluetoothTransfer(target, credentials.ssid)
             } else {
                 connectWifi(credentials.ssid, credentials.password())
                 bindBluetoothWifi(target, credentials)
@@ -474,22 +493,25 @@ class CameraController(private val application: Application) {
 
     private suspend fun connectWifi(ssid: String, password: String, expectedMode: CameraAccessMode? = null,
         expectedDevice: CameraDevice? = null, address: CameraConnectionAddress? = null,
-        security: CameraWifiSecurity = CameraWifiSecurity.legacy(password)) {
+        security: CameraWifiSecurity = CameraWifiSecurity.legacy(password), registrationOnly: Boolean = false) {
         CameraWifiConnector.validateRequest(application, ssid, password, security)
         bluetoothWifiBinding = null
         clearCameraSession()
         wifiConnection?.close()
         wifiConnection = null
+        val pairingCompleted = bluetoothConnectionInProgress && cameraMutable.value.bluetoothPairingCompleted
         cameraMutable.value = CameraWorkspaceState(step = ConnectionStep.REQUESTING_WIFI, operationRunning = true,
             bluetoothSelectedCamera = cameraMutable.value.bluetoothSelectedCamera,
-            bluetoothStep = cameraMutable.value.bluetoothStep)
+            bluetoothStep = cameraMutable.value.bluetoothStep,
+            bluetoothPairingCompleted = pairingCompleted,
+            notice = cameraMutable.value.notice.takeIf { pairingCompleted })
         if (Build.VERSION.SDK_INT < 33 &&
             application.getSystemService(LocationManager::class.java)?.isLocationEnabled != true) {
             error("当前 Android 版本需要开启系统定位后才能发起 Wi-Fi 连接；也可以先在系统设置中连接")
         }
         wifiConnection = CameraWifiConnector.connect(application, ssid, password, security, ::cameraNetworkLost)
         cameraMutable.update { it.copy(step = ConnectionStep.DISCOVERING) }
-        findCamera(expectedMode, expectedDevice, address)
+        findCamera(expectedMode, expectedDevice, address, registrationOnly)
     }
 
     private fun bindBluetoothWifi(target: BluetoothCamera, credentials: CameraWifiCredentials,
@@ -531,7 +553,7 @@ class CameraController(private val application: Application) {
         else device.model == expected.model && device.descriptionUri == expected.descriptionUri
 
     private suspend fun findCamera(expectedMode: CameraAccessMode? = null, expectedDevice: CameraDevice? = null,
-        address: CameraConnectionAddress? = null) {
+        address: CameraConnectionAddress? = null, registrationOnly: Boolean = false) {
         val network = requireNotNull(wifiConnection?.network) { "请先选择并连接相机网络" }
         check(network in discovery.wifiNetworks()) { "相机网络已断开，请重新连接" }
         val candidates = if (address != null) discoverCameraAddress(network, address, expectedDevice)
@@ -539,7 +561,9 @@ class CameraController(private val application: Application) {
         cameraMutable.update { it.copy(discovered = candidates) }
         if (candidates.isEmpty()) error(if (expectedDevice == null) "未发现相机，请开启相机的 Wi-Fi 传输功能并确认连接"
             else "新网络未发现原相机，未将旧队列绑定到其他相机")
-        if (candidates.size == 1) connectTarget(candidates.single(), expectedMode = expectedMode, expectedDevice = expectedDevice)
+        check(!registrationOnly || candidates.size == 1) { "首次配对网络发现多个相机，未自动登记，请确认相机直连网络后重试" }
+        if (candidates.size == 1) connectTarget(candidates.single(), expectedMode = expectedMode, expectedDevice = expectedDevice,
+            registrationOnly = registrationOnly)
     }
 
     private suspend fun discoverReadyCamera(network: Network, expectedDevice: CameraDevice?): List<DiscoveredCamera> {
@@ -563,7 +587,8 @@ class CameraController(private val application: Application) {
 
     private suspend fun connectTarget(candidate: DiscoveredCamera, restoreSelection: Boolean = false,
         expectedMode: CameraAccessMode? = bluetoothWifiBinding?.takeIf { it.network == candidate.network }?.expectedMode,
-        expectedDevice: CameraDevice? = bluetoothWifiBinding?.takeIf { it.network == candidate.network }?.expectedDevice) {
+        expectedDevice: CameraDevice? = bluetoothWifiBinding?.takeIf { it.network == candidate.network }?.expectedDevice,
+        registrationOnly: Boolean = false) {
         check(wifiConnection?.network == candidate.network && candidate.network in discovery.wifiNetworks()) {
             "原查找网络已断开或变化，请重新查找后选择相机"
         }
@@ -576,13 +601,24 @@ class CameraController(private val application: Application) {
             watchedNetwork = candidate.network
             networkWatch = CameraWifiConnector.watch(application, candidate.network) { cameraNetworkLost(candidate.network) }
             val session = LumixCameraSession.connect(candidate.network, candidate.device.descriptionUri.host, clientId,
-                descriptionUri = candidate.device.descriptionUri, networkInterfaceName = candidate.networkInterfaceName) { step ->
+                descriptionUri = candidate.device.descriptionUri, networkInterfaceName = candidate.networkInterfaceName,
+                compactLegacyIdentity = candidate.device.model.equals("DC-S5", ignoreCase = true)) { step ->
                 cameraMutable.update { it.copy(step = step) }
             }
             cameraSession = session
             check(expectedDevice == null || matchesExpected(session.device, expectedDevice)) { "相机身份已变化，未继续旧接收队列" }
             check(expectedMode == null || session.accessMode == expectedMode) {
                 "相机 HTTP 发送模式与蓝牙请求不一致，请重新发起发送连接"
+            }
+            if (registrationOnly) {
+                check(session.accessMode == CameraAccessMode.BROWSING) { "相机当前不是首次配对授权模式，请结束发送后重试" }
+                cameraMutable.update { it.copy(device = session.device, bluetoothPairingCompleted = true,
+                    connected = false, notice = "首次配对已完成，正在建立照片浏览连接。") }
+                clearCameraSession() // No playmode, RAW setting, browse, thumbnails or file download in registration.
+                val registrationNetwork = wifiConnection
+                wifiConnection = null // Ignore loss callbacks from our intentionally released request.
+                registrationNetwork?.close()
+                return
             }
             val incoming = if (session.accessMode.incoming) session.prepareIncoming()
                 else { session.prepareBrowsing(); null }
@@ -607,7 +643,8 @@ class CameraController(private val application: Application) {
                     problem = if (!available.containsAll(previous.selectedIds)) "部分待传文件缺失或信息已变化，请重新选择" else null) }
             }
             cameraMutable.update { it.copy(connected = true, bluetoothCanFollowIncoming = session.accessMode.incoming &&
-                bluetoothWifiBinding?.let { binding -> binding.network == candidate.network && binding.canObserve } == true) }
+                bluetoothWifiBinding?.let { binding -> binding.network == candidate.network && binding.canObserve } == true,
+                notice = if (it.bluetoothPairingCompleted) "首次配对完成，照片相册已就绪。" else it.notice) }
             connected = true
         } finally {
             if (restoreSelection && !connected) cameraMutable.update { it.copy(device = previous.device,

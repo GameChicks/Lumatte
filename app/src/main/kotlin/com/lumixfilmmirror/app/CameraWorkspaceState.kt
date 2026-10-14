@@ -28,6 +28,8 @@ data class CameraWorkspaceState(
     val discovered: List<DiscoveredCamera> = emptyList(),
     val bluetoothCameras: List<BluetoothCamera> = emptyList(),
     val bluetoothSelectedCamera: BluetoothCamera? = null,
+    // HTTP approval completed in the registration phase; media availability is separate.
+    val bluetoothPairingCompleted: Boolean = false,
     val bluetoothScanReport: BluetoothScanReport? = null,
     val bluetoothStep: BluetoothConnectionStep? = null,
     val bluetoothWifiSsid: String? = null,

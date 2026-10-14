@@ -1,5 +1,7 @@
 # 第三方 Sync 参考分析
 
+> 2026-10-15 用户确认以这个可连接的第三方作为主要技术参考；已根据成功日志分离首次配对和普通媒体连接，并对齐 S5 旧 HTTP 身份文本格式。当前实现、保留的差异与验证边界见 [连接路线](../../docs/engineering/third-party-sync-connection-route.md)。APK 静态恢复仍不等于完整 Dart 源码或本应用设备验证。
+
 来源：用户提供的 `C:/Users/lenovo/Downloads/base(3).apk`，原文件只读。
 
 - 包名：`com.dakiniwind.lumix_sync_pro`
