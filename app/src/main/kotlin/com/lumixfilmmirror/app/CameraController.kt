@@ -62,6 +62,9 @@ class CameraController(private val application: Application) {
     private var watchedNetwork: Network? = null
     private var visibleClients = 0
     private var idleRelease: Job? = null
+    // A user-started handshake survives Android's Bluetooth/Wi-Fi confirmation Activity.
+    // This is bounded below; it does not enable background scanning or automatic reconnect.
+    private var bluetoothConnectionInProgress = false
     private data class PendingWifiSelection(val id: String, val title: String,
         var options: List<CameraWifiNetwork>, val reply: CompletableDeferred<Network?>)
     private var pendingWifiSelection: PendingWifiSelection? = null
@@ -78,13 +81,14 @@ class CameraController(private val application: Application) {
         releaseIfIdle()
     }
     private fun releaseIfIdle() {
+        if (bluetoothConnectionInProgress) return
         if (visibleClients == 0 && (!cameraMutable.value.busy ||
             ((cameraMutable.value.bluetoothStep != null || cameraMutable.value.wifiSelection != null) &&
                 cameraMutable.value.activeTransferBatch == null))) {
             idleRelease?.cancel()
             idleRelease = scope.launch {
                 delay(500) // Allow an Activity recreation to attach before releasing an idle connection.
-                if (visibleClients == 0) {
+                if (visibleClients == 0 && !bluetoothConnectionInProgress) {
                     if (cameraMutable.value.bluetoothStep != null || cameraMutable.value.wifiSelection != null)
                         cameraJob?.cancel(CancellationException("已离开连接界面，连接操作已取消"))
                     if (!cameraMutable.value.busy) {
@@ -152,7 +156,22 @@ class CameraController(private val application: Application) {
         }
     }
 
-    private suspend fun readBluetoothCandidate(candidate: BluetoothCamera, startTransfer: Boolean) {
+    private suspend fun <T> withBluetoothConnectionLifetime(block: suspend () -> T): T {
+        check(!bluetoothConnectionInProgress)
+        idleRelease?.cancel()
+        bluetoothConnectionInProgress = true
+        try {
+            return withTimeout(300_000L) { block() }
+        } catch (_: TimeoutCancellationException) {
+            currentCoroutineContext().ensureActive()
+            error("连接相机等待超时，请确认手机系统弹窗和相机上的连接请求后重试")
+        } finally {
+            bluetoothConnectionInProgress = false
+            releaseIfIdle()
+        }
+    }
+
+    private suspend fun readBluetoothCandidate(candidate: BluetoothCamera, startTransfer: Boolean) = withBluetoothConnectionLifetime {
         clearSendingReconnect()
         clearBluetoothCredentials()
         cameraMutable.update { it.copy(bluetoothStep = BluetoothConnectionStep.CONNECTING, bluetoothSelectedCamera = candidate) }
@@ -170,7 +189,7 @@ class CameraController(private val application: Application) {
                 bluetoothCanStartRouterWifi = credentials.canStartRouterWifi,
                 bluetoothCanStartSendingWifi = credentials.canStartTransferWifi && credentials.canObserveIncoming,
                 notice = "已读取网络资料，请选择传输或路由器连接方式；这不代表新配对已完成。") }
-            return
+            return@withBluetoothConnectionLifetime
         }
         bluetooth.withTransferWifi(candidate, ownClientId(), expectedSsid = null,
             onStep = { step -> cameraMutable.update { it.copy(bluetoothStep = step) } }) { credentials ->
@@ -399,7 +418,7 @@ class CameraController(private val application: Application) {
         connection?.close()
     }
 
-    private suspend fun connectBluetoothWifiInternal(startOnCamera: Boolean, waitForSending: Boolean = false) {
+    private suspend fun connectBluetoothWifiInternal(startOnCamera: Boolean, waitForSending: Boolean = false) = withBluetoothConnectionLifetime {
         val credentials = bluetoothCredentials ?: error("连接资料已释放，请重新从蓝牙相机读取")
         val target = bluetoothTarget ?: error("请重新查找蓝牙相机")
         clearSendingReconnect()

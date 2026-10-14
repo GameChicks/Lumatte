@@ -177,7 +177,7 @@ class CameraBluetooth(private val context: Context) {
                 check(expectedSsid == null || credentials.ssid == expectedSsid) { "相机网络名称已变化，请重新读取连接资料后选择" }
                 check(credentials.canStartTransferWifi) { "此相机的蓝牙启动流程暂不支持，请在相机上开启 Wi-Fi 后连接" }
                 onStep(BluetoothConnectionStep.STARTING_WIFI)
-                session.startTransferWifi()
+                session.startTransferWifi(initialPairing = camera.pairing)
                 session.handoff { block(credentials) }
             } finally { credentials.close() }
         }
@@ -233,6 +233,7 @@ class CameraBluetooth(private val context: Context) {
         onStep(BluetoothConnectionStep.REGISTERING_NOTIFICATIONS)
         session.prepareConnectionNotifications()
         val aps = session.has(protocol.apsClientId)
+        Log.i("LFMBle", "connectionFlow=s5-pair-v2 identityProtocol=${if (aps) "aps" else "legacy"}")
         onStep(BluetoothConnectionStep.IDENTIFYING)
         val identity = protocol.identity(clientId)
         var legacyChallenge = false
@@ -471,14 +472,17 @@ private class ConnectionGatt(private val context: Context, private val device: B
         subscriptions += service to uuid
         Unit
     }
-    suspend fun startTransferWifi() {
+    suspend fun startTransferWifi(initialPairing: Boolean) {
         val protocol = LumixBleProtocol
         subscribe(protocol.wifiChoiceReply, protocol.wifiService)
         subscribe(protocol.connectionStatus, protocol.service)
         startupActive.set(true)
-        // SoftAP type 1, ordinary connection mode 3. Never expose a caller-supplied mode value.
+        // The pairing advertisement selects registration mode 5; ordinary reconnect uses 3.
+        // Official C0393g/C0272a and the user's successful S5 trace agree on this distinction.
+        // Both start a photo-transfer network, not shutter/live-view or remote power commands.
+        Log.i("LFMBle", "wifiStartup=${if (initialPairing) "first-pairing" else "reconnect"} transport=softap")
         write(protocol.wifiConnectionType, byteArrayOf(1), protocol.wifiService)
-        write(protocol.connectionMode, byteArrayOf(3))
+        write(protocol.connectionMode, byteArrayOf(if (initialPairing) 5 else 3))
     }
     suspend fun startRouterWifi(ssid: ByteArray) {
         check(canStartRouterWifi() && ssid.size in 32..64)
@@ -654,6 +658,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
                         Log.w("LFMBle", "operation=$kind uuid=$uuid status=${event.status}")
                         error("$operation 失败（状态 ${event.status}），请重新进入相机配对页面后重试")
                     }
+                    // Protocol UUIDs only: never log characteristic values, device IDs or addresses.
+                    Log.i("LFMBle", "operation=$kind uuid=$uuid status=success")
                     return@withTimeout event
                 }
                 @Suppress("UNREACHABLE_CODE") error("蓝牙响应未到达")

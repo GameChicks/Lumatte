@@ -10,6 +10,8 @@ import android.net.wifi.WifiNetworkSpecifier
 import android.net.wifi.WifiManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
@@ -62,8 +64,12 @@ object CameraWifiConnector {
             .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).setNetworkSpecifier(specifier).build()
         val manager = requireNotNull(context.applicationContext.getSystemService(ConnectivityManager::class.java))
         val handler = Handler(Looper.getMainLooper())
+        val startedAt = SystemClock.elapsedRealtime()
+        Log.i("LFMWifi", "requestStarted systemTimeoutMs=90000 addressTimeoutMs=105000")
         try {
-            return withTimeout(45_000L) {
+            // S5 confirmation in the supplied successful trace took about 63 s. Keep the
+            // system selection request alive across dialogs, but retain a bounded deadline.
+            return withTimeout(105_000L) {
                 suspendCancellableCoroutine { continuation ->
                     val released = AtomicBoolean(false)
                     val delivered = AtomicBoolean(false)
@@ -83,6 +89,7 @@ object CameraWifiConnector {
                     fun deliverReadyNetwork() {
                         val network = offeredNetwork ?: return
                         if (!released.get() && wifiReady && addressReady && delivered.compareAndSet(false, true)) {
+                            Log.i("LFMWifi", "networkReady elapsedMs=${SystemClock.elapsedRealtime() - startedAt}")
                             val connection = CameraWifiConnection(network, ::release)
                             continuation.resume(connection, onCancellation = { _, value, _ -> value.close() })
                         }
@@ -112,6 +119,7 @@ object CameraWifiConnector {
                             deliverReadyNetwork()
                         }
                         override fun onUnavailable() {
+                            Log.i("LFMWifi", "networkUnavailable elapsedMs=${SystemClock.elapsedRealtime() - startedAt}")
                             if (delivered.compareAndSet(false, true)) continuation.resumeWithException(
                                 java.io.IOException("未能连接相机 Wi-Fi，请检查名称、安全类型、密码或系统连接确认"))
                             release()
@@ -130,7 +138,7 @@ object CameraWifiConnector {
                         if (!released.get() && continuation.isActive) {
                             try {
                                 registered = true
-                                manager.requestNetwork(request, callback, handler, 30_000)
+                                manager.requestNetwork(request, callback, handler, 90_000)
                             } catch (error: Exception) {
                                 if (delivered.compareAndSet(false, true)) continuation.resumeWithException(error)
                                 release()

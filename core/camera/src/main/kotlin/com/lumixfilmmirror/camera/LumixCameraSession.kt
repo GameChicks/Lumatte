@@ -2,6 +2,7 @@ package com.lumixfilmmirror.camera
 
 import android.net.Network
 import android.os.SystemClock
+import android.util.Log
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -178,12 +179,20 @@ class LumixCameraSession private constructor(
                     name = CameraHttp.challengeEncode(name, challenge.toInt())
                 }
                 val approvalDeadline = SystemClock.elapsedRealtime() + 120_000L
+                var approvalAttempt = 0
                 while (true) {
                     currentCoroutineContext().ensureActive()
                     check(SystemClock.elapsedRealtime() < approvalDeadline) { "等待相机确认超时，请在相机屏幕确认连接后重试" }
                     val reply = http.command("accctrl", "type" to if (device.requiresChallenge) "req_acc_e" else "req_acc",
                         "value" to identity, "value2" to name)
                     val fields = accessFields(reply, device.friendlyName)
+                    approvalAttempt++
+                    // Log only recognized state tokens; no raw reply, client ID, name or session ID.
+                    val status = fields.firstOrNull()
+                    val loggedStatus = status?.takeIf { it in setOf("ok_under_research", "ok_under_research_no_msg",
+                        "err_busy", "ok", "upload_bt", "transfer") } ?: "other"
+                    Log.i("LFMCamera", "accessProtocol=${if (device.requiresChallenge) "challenge" else "legacy"} " +
+                        "attempt=$approvalAttempt status=$loggedStatus")
                     when (fields.firstOrNull()) {
                         "ok_under_research", "ok_under_research_no_msg" -> {
                             onStep(ConnectionStep.WAITING_FOR_CAMERA_APPROVAL)
