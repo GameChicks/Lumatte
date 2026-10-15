@@ -195,9 +195,17 @@ internal fun RoundAction(label: String, glyph: DotGlyph, modifier: Modifier = Mo
 internal fun PageHeading(kicker: String, title: String, onImport: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(kicker, style = MaterialTheme.typography.labelSmall, color = LocalFilmMaterials.current.secondaryInk)
-            Text(title, fontFamily = if (title.any { it.code > 0x2fff }) MirrorFonts.ChineseEditorial else MirrorFonts.Editorial,
-                style = MaterialTheme.typography.displayMedium)
+            val pair = when(title) {
+                "LUT" -> "Color" to "Library"
+                "Film" -> "Film" to "Stories"
+                "设置" -> "Personal" to "Settings"
+                "水印" -> "Frame" to "Signature"
+                else -> title to kicker.substringAfterLast(" / ").lowercase().replaceFirstChar { it.uppercase() }
+            }
+            MirrorLayeredTitle(pair.first, pair.second, LocalFilmMaterials.current.ink,
+                LocalFilmMaterials.current.amber, compact = true)
+            Text(kicker.replace("COLOUR", "COLOR").replace("Colour", "Color"),
+                style = MaterialTheme.typography.labelSmall, color = LocalFilmMaterials.current.secondaryInk)
         }
         onImport?.let { RoundAction("导入照片", DotGlyph.PLUS, onClick = it) }
     }

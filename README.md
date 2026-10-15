@@ -1,6 +1,6 @@
-# Lumix Film Mirror
+# 松映 · Pineframe
 
-面向松下相机的 Android 照片传输、胶片模拟、LUT 和画框导出应用。
+面向松下相机的独立第三方 Android 照片传输、胶片模拟、LUT 和画框导出应用。原工程名 Lumix Film Mirror；保留原应用 ID 与存储位置。
 
 2026-10-12 按本轮需求接入正式四入口 UI：连接、Film、LUT、水印。相机卡、多机手势、圆点用量与记录、胶卷惯性与停留详情、拍立得分类 / 收藏 / 双 LUT、一次显影反转及 11 项含无框的共享画框均已接到现有接口。完整规则见 [设计规范](docs/design/specification.md)，当前证据与运行边界见 [实现记录](docs/design/implementation.md)。源码接入和编译不等于原生图像、动画、性能或相机兼容已运行验证；本轮不运行测试或打包。
 

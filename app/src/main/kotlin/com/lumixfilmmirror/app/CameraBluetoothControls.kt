@@ -96,7 +96,7 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("扫描需要附近设备、精确定位权限和系统定位开关，用于兼容相机广播；应用不读取手机位置。请保持此页面前台和屏幕亮起。",
+            Text("在相机上打开蓝牙配对。",
                 style = MaterialTheme.typography.bodySmall)
             MirrorButton(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = {
                 if (bluetoothPermissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
@@ -109,10 +109,6 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             TextButton(enabled = !busy, onClick = { context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }) {
                 Text("打开系统定位设置 →")
             }
-        if (!busy) camera.bluetoothScanReport?.let { report ->
-            Text("本轮扫描：收到 ${report.advertisements} 条蓝牙广播，其中 ${report.panasonicAdvertisements} 条为松下广播。",
-                style = MaterialTheme.typography.labelSmall)
-        }
         if (camera.bluetoothCameras.isNotEmpty()) {
             Text("选择你的相机", style = MaterialTheme.typography.titleMedium)
             val selectable = !busy || camera.bluetoothStep == BluetoothConnectionStep.SCANNING

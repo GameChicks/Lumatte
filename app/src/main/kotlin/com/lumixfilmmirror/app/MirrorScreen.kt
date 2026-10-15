@@ -44,7 +44,7 @@ import com.lumixfilmmirror.model.*
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-fun MirrorScreen(workspace: WorkspaceViewModel) {
+internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLaunch?=null,onWidgetConsumed: () -> Unit={}) {
     val state by workspace.state.collectAsStateWithLifecycle()
     val camera by workspace.cameraState.collectAsStateWithLifecycle()
     val personal by workspace.personal.collectAsStateWithLifecycle()
@@ -128,6 +128,22 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
                 workspace.selectLutSlot(asset.id, second); pane = "editor"
             }
         }
+    }
+    LaunchedEffect(widgetRequest,state.busy,state.filmPresets) {
+        val request=widgetRequest ?: return@LaunchedEffect
+        if(state.busy)return@LaunchedEffect
+        if(request.style==WidgetStyle.CAMERA) {
+            tab=0;pane="camera";cameraEntry="bluetooth";fullscreen=false
+            requestedCameraId=request.cameraId?.takeIf { id -> personal.cameras.any { it.id==id } }
+        } else {
+            if(state.filmPresets.isEmpty())return@LaunchedEffect
+            tab=1;pane=null;fullscreen=false
+            if(state.filmPresets.any { it.id==request.filmId }) {
+                pendingFilm=request.filmId
+                importPhotos(PhotoTreatment.FILM)
+            } else workspace.notice("这卷胶片暂不可用，请重新选择或配置小组件。")
+        }
+        onWidgetConsumed()
     }
     LaunchedEffect(state.photoImportResult, state.processingBatchId, state.photos, state.busy, selectedImportTreatment, importAccepted) {
         val result = state.photoImportResult
@@ -245,7 +261,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
                             0 -> MirrorHome(state, camera, personal, transfers, workspace,
                                 onCamera = { id -> requestedCameraId = id; cameraEntry = "bluetooth"; pane = "camera" },
                                 onAlbum = { requestedCameraId = null; cameraEntry = "wifi"; pane = "camera" }, onSettings = { pane = "settings" })
-                            1 -> MirrorFilm(state, { importPhotos(PhotoTreatment.FILM) }, chooseFilm) { if (shownTab == tab) fullscreen = it }
+                            1 -> MirrorFilm(state, workspace, { importPhotos(PhotoTreatment.FILM) }, chooseFilm) { if (shownTab == tab) fullscreen = it }
                             2 -> MirrorLuts(state, workspace, personal, { importPhotos(PhotoTreatment.LUT) },
                                 { luts.launch(arrayOf("*/*")) }, chooseLut, initialSecond = editingLutSecond) { if (shownTab == tab) fullscreen = it }
                             else -> Box(Modifier.padding(bottom = 100.dp)) {
@@ -281,7 +297,7 @@ fun MirrorScreen(workspace: WorkspaceViewModel) {
             TextButton(onClick = { transferDestination = "lut"; transferChoice = null; startTransfer(target) }) { Text("进入 LUT 编辑") }
             Text("视频保持原文件保存到相册。", style = MaterialTheme.typography.bodySmall)
         } }, confirmButton = { TextButton(onClick = { transferChoice = null }) { Text("取消") } }) }
-    if(importSources) MirrorDialog("从哪里导入？", onDismiss = {
+    if(importSources) MirrorDialog(pendingFilm?.let { id -> state.filmPresets.firstOrNull { it.id==id }?.name } ?: "从哪里导入？", onDismiss = {
         importSources=false; importRequest=null; selectedImportTreatment=null; pendingFilm=null; pendingLut=null
     }) {
             MirrorButton(onClick={importSources=false;photos.launch(Unit)},Modifier.fillMaxWidth().height(56.dp)) { Text("系统相册 · 多选照片") }

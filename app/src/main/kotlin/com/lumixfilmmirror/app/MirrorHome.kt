@@ -71,15 +71,14 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
     val homePixels = rememberGraphicsLayer()
     val homeOrigin = remember { mutableStateOf(Offset.Zero) }
     CompositionLocalProvider(LocalMirrorDotArt provides true) {
-    BoxWithConstraints(Modifier.fillMaxSize().background(if (com.lumixfilmmirror.design.LocalFilmDark.current) Color(0xFF070A0B) else Color(0xFFF1F0EB))) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(tones.background)) {
     val displayScale = LocalDensity.current.fontScale
     val viewportWidth = maxWidth
     val cardHeight = ((maxWidth - 40.dp) * .654f + 120.dp * (displayScale - 1f).coerceAtLeast(0f)).coerceIn(218.dp, 340.dp)
     Column(Modifier.fillMaxSize().onGloballyPositioned { homeOrigin.value = it.positionInRoot() }
         .drawWithContent { homePixels.record { this@drawWithContent.drawContent() }; drawLayer(homePixels) }) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("LUMIX / FILM MIRROR", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
-                    color = tones.secondaryInk)
+                Column(Modifier.weight(1f)) { MirrorLayeredTitle("Pine","frame",tones.ink,tones.amber,compact=true) }
                 Spacer(Modifier.size(52.dp))
             }
     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 170.dp),
@@ -94,7 +93,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 ActionAtmosphere("蓝牙\n连接", "连接你的相机", listOf(Color(0xFFFFCF78), Color(0xFFED653B), Color(0xFF428FA6)),
                     Modifier.weight(1f), cardHeight, DotGlyph.BLUETOOTH, "BLUETOOTH\nCONNECT", { onCamera(null) })
-                ActionAtmosphere("进入\n相册", "导入图片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
+                ActionAtmosphere("进入\n相册", "导入图片", listOf(Color(0xFF758FB5), Color(0xFFCC9E9B), Color(0xFFF2C992)),
                     Modifier.weight(1f), cardHeight, DotGlyph.ALBUM, "IMPORT\nPHOTOS", onAlbum)
             }
         }
@@ -102,7 +101,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
         item {
             Atmosphere(Modifier.fillMaxWidth().height(cardHeight).clickable(role = Role.Button) {
                 note = personal.journal; noteEditing = true
-            }, listOf(Color(0xFFAEA891), Color(0xFF777967), Color(0xFF414D43))) {
+            }, listOf(Color(0xFFBCA28A), Color(0xFF89696E), Color(0xFF3F425D))) {
                 Text("“", Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = if (personal.journal.isBlank()) 20.dp else 54.dp),
                     fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
                 Text("”", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 20.dp),
@@ -339,77 +338,48 @@ private fun HomeDisplayText(text: String, modifier: Modifier, preferredSize: Flo
 
 @Composable
 private fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>, height: Dp) {
-    var offset by rememberSaveable { mutableIntStateOf(0) }
-    var metric by rememberSaveable { mutableStateOf("transfer") }
-    var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
-    var monthDetail by remember { mutableStateOf(false) }
-    var dayToOpen by remember { mutableStateOf<LocalDate?>(null) }
-    val month = YearMonth.now().plusMonths(offset.toLong())
-    val transferDates = remember(transfers) { transfers.filter { it.state in setOf("IMPORTED", "SAVED") && it.completedAt != null }
-        .groupingBy { Instant.ofEpochMilli(requireNotNull(it.completedAt)).atZone(ZoneId.systemDefault()).toLocalDate() }.eachCount() }
-    val captureDates = remember(state.captureDays) {
-        state.captureDays.mapKeys { LocalDate.parse(it.key) }
+    val month = YearMonth.now()
+    val captures = remember(state.captureDays) {
+        state.captureDays.mapNotNull { (day, count) -> runCatching { LocalDate.parse(day) to count }.getOrNull() }.toMap()
     }
-    val dates = if (metric == "transfer") transferDates else captureDates
-    val total = dates.filterKeys { YearMonth.from(it) == month }.values.sum()
-    val pager = rememberPagerState(initialPage = 1, pageCount = { 3 })
-    LaunchedEffect(pager.settledPage) {
-        if (pager.settledPage != 1 && !pager.isScrollInProgress) {
-            offset += pager.settledPage - 1; pager.scrollToPage(1)
-        }
-    }
-    Atmosphere(Modifier.fillMaxWidth().height(height), listOf(Color(0xFF839FAF), Color(0xFF526E85), Color(0xFF2A4258))) {
-        Column(Modifier.fillMaxSize().padding(20.dp)) {
+    val imported = remember(transfers, month) { transfers.count { task ->
+        task.state in setOf("IMPORTED", "SAVED") && task.completedAt?.let {
+            YearMonth.from(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())) == month
+        } == true
+    } }
+    val total = captures.filterKeys { YearMonth.from(it) == month }.values.sum()
+    Atmosphere(Modifier.fillMaxWidth().height(height), listOf(Color(0xFF7F9BB9), Color(0xFF536E94), Color(0xFF293B5A))) {
+        Column(Modifier.fillMaxSize().padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("相机用量", Modifier.weight(1f), fontFamily = MirrorFonts.Dots, fontSize = 27.sp, color = Color.White)
-                Text("$total ${if (metric == "capture") "张" else "项"}", color = Color.White)
+                Text("${month.year} / ${month.monthValue.toString().padStart(2, '0')}", color = Color.White.copy(.8f), fontSize = 13.sp)
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { offset-- }, modifier = Modifier.size(48.dp).semantics { contentDescription = "上一个月" }) { DotIcon(DotGlyph.LEFT, tint = Color.White) }
-                TextButton(onClick = { monthDetail = true }, modifier = Modifier.weight(1f)) {
-                    Text("${month.year} / ${month.monthValue.toString().padStart(2, '0')} · 每日", color = Color.White)
-                }
-                IconButton(onClick = { offset++ }, modifier = Modifier.size(48.dp).semantics { contentDescription = "下一个月" }) { DotIcon(DotGlyph.RIGHT, tint = Color.White) }
-            }
-            HorizontalPager(pager, Modifier.weight(1f)) { page ->
-                val shown = month.plusMonths((page - 1).toLong())
-                val first = shown.atDay(1)
+            Canvas(Modifier.fillMaxWidth().weight(1f).semantics {
+                contentDescription = "${month.monthValue} 月拍摄 $total 张，传入 $imported 项"
+            }) {
+                val first = month.atDay(1)
                 val leading = first.dayOfWeek.value - 1
-                val weeks = (leading + shown.lengthOfMonth() + 6) / 7
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    repeat(weeks) { week -> Column(verticalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxHeight()) {
-                        repeat(7) { day ->
-                            val date = first.plusDays((week * 7 + day - leading).toLong())
-                            val inside = YearMonth.from(date) == shown
-                            val count = if (inside) dates[date] ?: 0 else 0
-                            val colour = when { !inside -> Color.Transparent; count == 0 -> Color.White.copy(.16f)
-                                count < 5 -> Color(0xFF70AABF); count < 20 -> Color(0xFF8CCCE0); else -> Color(0xFFF3D49B) }
-                            Canvas(Modifier.size(10.dp).semantics { contentDescription = if (inside) "$date，$count 项" else "月外日期" }) {
-                                drawCircle(colour, 3.dp.toPx())
-                            }
-                        }
-                    } }
+                val columns = 7; val rows = 6
+                val cellWidth = size.width / columns
+                val cellHeight = size.height / rows
+                val radius = minOf(cellWidth, cellHeight) * .15f
+                repeat(month.lengthOfMonth()) { index ->
+                    val slot = leading + index
+                    val count = captures[first.plusDays(index.toLong())] ?: 0
+                    val color = when {
+                        count == 0 -> Color.White.copy(.16f)
+                        count < 5 -> Color(0xFF94BBD5)
+                        count < 20 -> Color(0xFFC8E8EE)
+                        else -> Color(0xFFFFD293)
+                    }
+                    drawCircle(color, radius.coerceAtMost(4.dp.toPx()),
+                        Offset((slot % columns + .5f)*cellWidth, (slot / columns + .5f)*cellHeight))
                 }
             }
-            Row {
-                TextButton(onClick = { metric = "transfer" }) { Text("传入", color = if (metric == "transfer") Color.White else Color.White.copy(.5f)) }
-                TextButton(onClick = { metric = "capture" }) { Text("拍摄 · 已导入", color = if (metric == "capture") Color.White else Color.White.copy(.5f)) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("本月拍摄 $total 张", fontSize = 14.sp, color = Color.White)
+                Text("传入 $imported 项", fontSize = 14.sp, color = Color.White.copy(.75f))
             }
         }
     }
-    if (monthDetail) MirrorDialog("$month · 每日用量", onDismiss = { monthDetail = false; selectedDay = dayToOpen; dayToOpen = null }) { close ->
-            Text("拍摄量为已导入照片的 EXIF 日期；传入量为实际完成日。", style = MaterialTheme.typography.bodySmall)
-            for (day in 1..month.lengthOfMonth()) {
-                val date = month.atDay(day)
-                MirrorTextAction("$day 日 · 拍摄 ${captureDates[date] ?: 0} 张 · 传入 ${transferDates[date] ?: 0} 项",
-                    { dayToOpen = date; close() }, Modifier.fillMaxWidth())
-            }
-            Text("旧记录中 ${transfers.count { it.state in setOf("IMPORTED", "SAVED") && it.completedAt == null }} 项缺少传入完成日期，不计入月份。",
-                style = MaterialTheme.typography.bodySmall)
-            MirrorTextAction("完成", close, Modifier.fillMaxWidth())
-    }
-    selectedDay?.let { date -> MirrorDialog(date.toString(), onDismiss = { selectedDay = null }) { close ->
-        Text("已导入照片中拍摄于此日：${captureDates[date] ?: 0} 张\n此日完成传入：${transferDates[date] ?: 0} 项\n\n拍摄日期来自照片 EXIF；缺失日期不推算。传入按实际完成日归组，含照片与视频。旧记录缺少完成日期时不推算。")
-        MirrorTextAction("完成", close, Modifier.fillMaxWidth())
-    } }
 }

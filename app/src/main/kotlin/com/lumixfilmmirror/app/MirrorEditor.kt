@@ -19,6 +19,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,14 +52,13 @@ import kotlin.math.roundToInt
 internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, onBack: () -> Unit,
     onImport: () -> Unit, onChooseLut: (Boolean) -> Unit, onChooseFilm: () -> Unit, onNext: () -> Unit) {
     val tones = LocalFilmMaterials.current
-    var original by rememberSaveable { mutableStateOf(false) }
     var largePreview by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.current?.id) { if(state.current==null)largePreview=false }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundAction("返回选型", DotGlyph.LEFT, onClick = onBack)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(if (state.treatment == PhotoTreatment.FILM) "Film" else "LUT", fontFamily = MirrorFonts.Editorial, fontSize = 30.sp)
-                Text("预览与调整", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 14.sp, color = tones.secondaryInk)
+                MirrorLayeredTitle(if(state.treatment==PhotoTreatment.FILM)"Film" else "Color","Preview",tones.ink,tones.amber,compact=true)
             }
             RoundAction("导入照片", DotGlyph.PLUS, enabled = !state.busy, onClick = onImport)
         }
@@ -63,14 +66,12 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
         else LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item { Column {
-                SwipePhotoPreview(state, workspace, original = original)
+                SwipePhotoPreview(state, workspace, compactHeight =
+                    (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp*.30f).coerceIn(164f,260f).dp)
+                Text("长按照片查看原图 · 松手恢复效果",fontSize=11.sp,color=tones.secondaryInk)
                 MirrorTextAction("放大阅览 ↗", { largePreview = true }, Modifier.fillMaxWidth())
             } }
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (original) "原图" else "处理效果", Modifier.weight(1f), color = tones.secondaryInk)
-                    MirrorToggle(original, "查看原图") { original = it }
-                }
                 PhotoStrip(state, workspace)
                 state.current?.rawNotice?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk) }
             }
@@ -90,12 +91,10 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
         }
     }
     if (largePreview && state.current != null) MirrorDialog("照片阅览", onDismiss = { largePreview = false }) {
-        SwipePhotoPreview(state, workspace, original = original,
+        SwipePhotoPreview(state, workspace,
             compactHeight = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * .56f).dp)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("查看原图", Modifier.weight(1f))
-            MirrorToggle(original, "查看原图") { original = it }
-        }
+        Text("长按查看原图 · 松手恢复效果",fontSize=12.sp,color=tones.secondaryInk)
+        PhotoManagementActions(state,workspace)
     }
 }
 
@@ -126,7 +125,7 @@ internal fun SwipePhotoPreview(state: WorkspaceState, workspace: WorkspaceViewMo
         HorizontalPager(pager, userScrollEnabled = !state.busy && state.photos.size > 1,
             key = { state.photos.getOrNull(it)?.id?.value ?: "removed:$it" }, beyondViewportPageCount = 0) { page ->
             state.photos.getOrNull(page)?.let { photo ->
-                EditedPreview(state.copy(selected = photo.id), workspace, frame, original, compactHeight = compactHeight)
+                EditedPreview(state.copy(selected = photo.id), workspace, frame, original, compactHeight = compactHeight,compareOnHold=true)
             }
         }
         if (state.photos.size > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -145,8 +144,20 @@ internal fun SwipePhotoPreview(state: WorkspaceState, workspace: WorkspaceViewMo
 
 @Composable
 internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel, frame: Boolean = false,
-    original: Boolean = false, colourFilter: ColorFilter? = null, onReady: ((Bitmap) -> Unit)? = null, compactHeight: Dp? = null) {
+    original: Boolean = false, colourFilter: ColorFilter? = null, onReady: ((Bitmap) -> Unit)? = null, compactHeight: Dp? = null,
+    compareOnHold: Boolean = false) {
     val source = state.current ?: return
+    var held by remember(source.id) { mutableStateOf(false) }
+    var originalBitmap by remember(source.id) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(source.id,compareOnHold) {
+        if(compareOnHold)try {
+            originalBitmap=workspace.displayPreviews.load(listOf("compare-original",source.id),keepLoading=false) {
+                MirrorPreview(workspace.processor.preview(source,PhotoRecipe.Original,
+                    ProcessingCatalogue(emptyList(),emptyList(),emptyList()),longEdge=960))
+            }.image
+        } catch(error:CancellationException) { throw error }
+        catch(_:Exception) {} catch(_:OutOfMemoryError) {}
+    }
     val recipe = if (original) PhotoRecipe.Original else runCatching { workspace.photoRecipe(state, source.id) }.getOrNull()
     // The bitmap preview has no JPEG encoding stage. Quality belongs to the export
     // snapshot, and must not invalidate identical composition pixels while editing.
@@ -176,11 +187,30 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
     val ratio = if (frame) runCatching { workspace.exportLayout(source.id).canvas.let { it.width.toFloat() / it.height } }.getOrDefault(1f)
         else source.size.width.toFloat() / source.size.height
     val previewModifier = Modifier.fillMaxWidth().let { if(compactHeight != null) it.height(compactHeight) else it.aspectRatio(ratio.coerceIn(.65f,1.8f)) }
-    Box(previewModifier.background(LocalFilmMaterials.current.paperHighlight),
+    Box(previewModifier.background(LocalFilmMaterials.current.paperHighlight).then(if(compareOnHold)Modifier.pointerInput(source.id) {
+        awaitEachGesture {
+            val down=awaitFirstDown(requireUnconsumed=false)
+            val longPress=awaitLongPressOrCancellation(down.id)
+            if(longPress!=null) {
+                held=true
+                longPress.consume()
+                try {
+                    do {
+                        val event=awaitPointerEvent()
+                        event.changes.forEach { it.consume() }
+                    } while(event.changes.any { it.pressed })
+                } finally { held=false }
+            }
+        }
+    } else Modifier),
         contentAlignment = Alignment.Center) {
-        bitmap?.let { Image(it.asImageBitmap(), source.name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit, colorFilter = colourFilter) }
-        if (loading) CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
-        if (problem != null) Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        (if(held)originalBitmap else bitmap)?.let { Image(it.asImageBitmap(), source.name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
+            colorFilter = if(held)null else colourFilter) }
+        if(held && originalBitmap==null)CircularProgressIndicator(Modifier.size(24.dp))
+        if(held)Text("原图",Modifier.align(Alignment.TopStart).padding(8.dp).background(Color.Black.copy(.55f),RoundedCornerShape(10.dp))
+            .padding(horizontal=10.dp,vertical=5.dp),color=Color.White,fontSize=11.sp)
+        if (loading && !held) CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
+        if (problem != null && !held) Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(problem.orEmpty(), color = MaterialTheme.colorScheme.error)
             MirrorTextAction("重新加载预览", { retry++ })
         }
@@ -201,6 +231,7 @@ internal fun PhotoStrip(state: WorkspaceState, workspace: WorkspaceViewModel) {
                 label = { Text(photo.name, maxLines = 1) })
         }
     }
+    PhotoManagementActions(state,workspace)
 }
 
 @Composable
@@ -244,7 +275,7 @@ private fun LutControls(state: WorkspaceState, workspace: WorkspaceViewModel, on
             val slot = if (second) recipe.second else recipe.first
             MirrorControlSection("LUT ${if (second) 2 else 1}", if (second) "在第一款效果之后叠加" else "先应用这一款效果") {
                 val name = state.luts.firstOrNull { it.id == slot.id }?.name
-                if (name != null) Text(name, fontFamily = MirrorFonts.Handwriting, fontSize = 26.sp, lineHeight = 32.sp)
+                if (name != null) Text(name, fontFamily = lutNameFont(name), fontSize = 26.sp, lineHeight = 32.sp)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 MirrorChoice(false, { onChooseLut(second) }, enabled = !state.busy, label = { Text(if (slot.id == null) "添加 LUT →" else "更换 LUT →") })
                 if (slot.id != null) MirrorChoice(false, enabled = !state.busy, onClick = {
@@ -343,6 +374,7 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
     val context = LocalContext.current
     var frameTab by rememberSaveable { mutableStateOf("frame") }
     var largeFramePreview by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.current?.id) { if(state.current==null)largeFramePreview=false }
     val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) try {
             context.contentResolver.takePersistableUriPermission(uri,
@@ -374,13 +406,16 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
         Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             onBack?.let { RoundAction("返回预览", DotGlyph.LEFT, onClick = it) }
             Column(Modifier.weight(1f).padding(start = if (onBack != null) 12.dp else 0.dp)) {
-                Text("THE FINISHING TOUCH", style = MaterialTheme.typography.labelSmall, color = LocalFilmMaterials.current.secondaryInk)
-                Text("水印", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 36.sp)
+                MirrorLayeredTitle("Frame","Signature",LocalFilmMaterials.current.ink,LocalFilmMaterials.current.amber,compact=true)
             }
             RoundAction("导入照片", DotGlyph.PLUS, onClick = { if (!state.busy) onImport() })
         }
         if (state.current == null) Box(Modifier.weight(1f).fillMaxWidth()) {
-            EmptyImport("给照片一个归属。", "导入照片后选择画框与签名。", onImport)
+            if (state.exported.isNotEmpty() && !state.exporting)
+                EmptyImport("已保存 ${state.exported.size} 张照片。", "已完成的照片已移出待处理列表，可在导出记录中查看。", onImport)
+            else if (state.exporting)
+                Text("照片已保存，正在整理导出记录…",Modifier.align(Alignment.Center).padding(24.dp))
+            else EmptyImport("给照片一个归属。", "导入照片后选择画框与签名。", onImport)
         }
         else {
         Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp)
@@ -410,7 +445,7 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
                 }
             }
             }
-            if (state.photos.size > 1) item { PhotoStrip(state, workspace) }
+            item { if(state.photos.size>1)PhotoStrip(state,workspace) else PhotoManagementActions(state,workspace) }
             if (frameTab == "details") item(key = "frame-details") {
                 MirrorFrameDetails(state, workspace,
                     onFont = { target -> fontTarget = target; fontPicker.launch(arrayOf("*/*")) },

@@ -15,7 +15,7 @@ internal abstract class ExportQueueDao {
     abstract suspend fun interrupted(): List<ExportRunRow>
     @Query("SELECT COUNT(*) FROM export_runs WHERE state = 'RUNNING' AND id != :id")
     abstract suspend fun otherActive(id: String): Int
-    @Query("SELECT COUNT(*) FROM processing_entries INNER JOIN photos ON photos.id = processing_entries.photoId WHERE processing_entries.batchId = :batchId AND processing_entries.photoId = :photoId")
+    @Query("SELECT COUNT(*) FROM processing_entries INNER JOIN photos ON photos.id = processing_entries.photoId WHERE processing_entries.batchId = :batchId AND processing_entries.photoId = :photoId AND processing_entries.removed = 0")
     abstract suspend fun belongs(batchId: String, photoId: String): Int
     @Insert abstract suspend fun insertRun(run: ExportRunRow)
     @Insert abstract suspend fun insertItems(items: List<ExportItemRow>)
@@ -28,7 +28,36 @@ internal abstract class ExportQueueDao {
     @Query("UPDATE export_items SET candidateUri = :uri WHERE runId = :id AND photoId = :photoId AND state = 'RUNNING' AND stage = 'PUBLISHING'")
     abstract suspend fun targetCreated(id: String, photoId: String, uri: String): Int
     @Query("UPDATE export_items SET state = 'SAVED', savedUri = :uri, error = NULL WHERE runId = :id AND photoId = :photoId AND state = 'RUNNING' AND stage = 'PUBLISHING'")
-    abstract suspend fun saved(id: String, photoId: String, uri: String): Int
+    protected abstract suspend fun recordSaved(id: String, photoId: String, uri: String): Int
+
+    // Keep the receipt and pending-list change atomic. A newer request for the same
+    // photo must not be cleared by an older export finishing late.
+    @Query("""
+        UPDATE processing_entries SET removed = 1
+        WHERE removed = 0 AND EXISTS (
+            SELECT 1 FROM export_runs AS completed
+            INNER JOIN export_items AS receipt ON receipt.runId = completed.id
+            WHERE completed.batchId = processing_entries.batchId
+              AND receipt.photoId = processing_entries.photoId
+              AND receipt.state = 'SAVED' AND receipt.savedUri IS NOT NULL
+              AND (:runId IS NULL OR completed.id = :runId)
+              AND (:photoId IS NULL OR receipt.photoId = :photoId)
+              AND NOT EXISTS (
+                  SELECT 1 FROM export_runs AS newer
+                  INNER JOIN export_items AS pending ON pending.runId = newer.id
+                  WHERE newer.batchId = completed.batchId AND pending.photoId = receipt.photoId
+                    AND newer.rowid > completed.rowid
+              )
+        )
+    """)
+    abstract suspend fun retireSavedPhotos(runId: String?, photoId: String?): Int
+
+    @Transaction
+    open suspend fun saved(id: String, photoId: String, uri: String): Int {
+        val changed = recordSaved(id, photoId, uri)
+        if (changed == 1) retireSavedPhotos(id, photoId)
+        return changed
+    }
     @Query("UPDATE export_items SET state = CASE WHEN stage = 'PUBLISHING' THEN 'REVIEW' ELSE 'FAILED' END, error = :error WHERE runId = :id AND photoId = :photoId AND state IN ('QUEUED', 'RUNNING')")
     abstract suspend fun failed(id: String, photoId: String, error: String): Int
     @Query("UPDATE export_items SET state = CASE WHEN state = 'RUNNING' AND stage = 'PUBLISHING' THEN 'REVIEW' ELSE :state END, error = CASE WHEN state = 'RUNNING' AND stage = 'PUBLISHING' THEN '保存阶段中断，请核对目标后再决定是否重试' ELSE :reason END WHERE runId = :id AND state IN ('QUEUED', 'RUNNING', 'PAUSED')")
@@ -81,6 +110,7 @@ internal abstract class ExportQueueDao {
         require(snapshot(id)?.run?.state != "RUNNING") { "请等待当前导出结束后核对" }
         check(resolveReview(id, photoId, if (savedUri == null) "FAILED" else "SAVED", savedUri,
             if (savedUri == null) "用户核对后允许重试" else null) == 1) { "此项目不需要核对" }
+        if (savedUri != null) retireSavedPhotos(id, photoId)
         finish(id)
     }
 

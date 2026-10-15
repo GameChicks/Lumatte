@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,7 +62,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.hypot
 
-private data class MirrorLutCard(val local: LutAsset? = null, val official: LumixLabLut? = null) {
+internal data class MirrorLutCard(val local: LutAsset? = null, val official: LumixLabLut? = null, val photoPreview:Boolean=false) {
     val key: String get() = official?.let { "official:${it.code}" }
         ?: local?.lumixLabSource?.let { "official:${it.code}" } ?: requireNotNull(local).id
     val title: String get() = official?.title ?: requireNotNull(local).name
@@ -69,7 +70,7 @@ private data class MirrorLutCard(val local: LutAsset? = null, val official: Lumi
 }
 private data class GalleryCategory(val key: String, val title: String, val colour: Color)
 
-private fun LutAsset.galleryCard(): MirrorLutCard {
+internal fun LutAsset.galleryCard(): MirrorLutCard {
     val source = lumixLabSource
     val official = source?.thumbnailPath?.let { path -> LumixLabLut(source.code, source.title,
         LumixLabCreator(source.creatorCode, source.creatorName,
@@ -93,6 +94,8 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     var choosingSecond by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(initialSecond) { choosingSecond = initialSecond }
     var favourites by rememberSaveable { mutableStateOf(false) }
+    var discovery by rememberSaveable { mutableStateOf<String?>(null) }
+    val discoveryState=rememberSaveableStateHolder()
     var favouriteClosing by rememberSaveable { mutableStateOf(false) }
     var detailKey by rememberSaveable { mutableStateOf<String?>(null) }
     var detailSnapshot by rememberSaveable { mutableStateOf<String?>(null) }
@@ -113,10 +116,13 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
         MirrorLutCard(state.luts.firstOrNull { it.lumixLabSource?.code == item.code }, item)
     }
     var lastDetailCard by remember { mutableStateOf<MirrorLutCard?>(null) }
-    val detailCard = resolvedDetailCard ?: lastDetailCard
+    val detailCard = (resolvedDetailCard ?: lastDetailCard)?.let {
+        if(origin.startsWith("recommendation:") || (origin.startsWith("explore:") && it.local!=null && state.current!=null))it.copy(photoPreview=true) else it
+    }
     val duration = if (LocalMirrorReducedMotion.current) 0 else 420
     val columns = if (LocalConfiguration.current.screenWidthDp < 340 || LocalDensity.current.fontScale > 1.3f) 2 else 3
     val scope = rememberCoroutineScope()
+    LaunchedEffect(discovery) { if(discovery!=null) { searchEditing=false;focusManager.clearFocus() } }
     LaunchedEffect(state.luts, subjectRevision) {
         try {
             localSubjects = workspace.processor.loadLutGallery(ProcessingCatalogue(state.luts, state.filmPresets, emptyList()))
@@ -182,7 +188,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
         }
     }
     fun closeDetail() { detailKey = null; requestedSelection = null; workspace.officialLuts.closeDetail() }
-    BackHandler(detailOpen || favourites) { if (detailOpen) closeDetail() else favouriteClosing = true }
+    BackHandler(detailOpen || favourites || discovery!=null) { if (detailOpen) closeDetail() else if(discovery!=null)discovery=null else favouriteClosing = true }
     BackHandler(searchEditing && !detailOpen && !favourites) { searchEditing = false; focusManager.clearFocus() }
     LaunchedEffect(favouriteClosing) {
         if (favouriteClosing) {
@@ -190,7 +196,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
             favourites = false; favouriteClosing = false
         }
     }
-    LaunchedEffect(detailOpen, favourites, searchEditing) { onFullscreen(detailOpen || favourites || searchEditing) }
+    LaunchedEffect(detailOpen, favourites, searchEditing,discovery) { onFullscreen(detailOpen || favourites || searchEditing || discovery!=null) }
     DisposableEffect(Unit) { onDispose { onFullscreen(false) } }
     val storedOfficialCards = personal.savedLuts.map { item ->
         MirrorLutCard(state.luts.firstOrNull { it.lumixLabSource?.code == item.code }, item)
@@ -198,7 +204,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     val favouriteCards = (storedOfficialCards + localCards).distinctBy { it.key }.filter { it.key in personal.favourites }
     SharedTransitionLayout {
         val shared = this
-        AnimatedContent(targetState = when { detailOpen -> "detail"; favourites && !favouriteClosing -> "favourites"; else -> "gallery" },
+        AnimatedContent(targetState = when { detailOpen -> "detail"; discovery!=null -> discovery!!; favourites && !favouriteClosing -> "favourites"; else -> "gallery" },
             transitionSpec = {
                 val circle = (initialState == "gallery" && targetState == "favourites") ||
                     (initialState == "favourites" && targetState == "gallery")
@@ -210,6 +216,18 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
             }, label = "lut-morph") { page ->
             val visibility = this
             when (page) {
+                "explore" -> discoveryState.SaveableStateProvider("explore") {
+                    val knownOfficial=(pages.values.flatten()+browser.categoryPreviews.values.flatten()+personal.savedLuts)
+                        .distinctBy { it.code }.map { item -> MirrorLutCard(state.luts.firstOrNull { it.lumixLabSource?.code==item.code },item) }
+                    MirrorColorExplorer((localCards+knownOfficial).distinctBy { it.key }.take(256)
+                        .map { if(state.current!=null && it.local!=null)it.copy(photoPreview=true) else it },state,workspace,personal,
+                        shared,visibility,onBack={discovery=null},onOpen=::open,onFavourite=::toggle)
+                }
+                "recommendations" -> discoveryState.SaveableStateProvider("recommendations") {
+                    MirrorLutRecommendations(state,workspace,personal,shared,visibility,
+                        onBack={discovery=null},onImport=onImportPhoto,onOpen=::open,onFavourite=::toggle,
+                        onChoose={asset -> discovery=null; onChoose(asset,choosingSecond)})
+                }
                 "detail" -> detailCard?.let { card ->
                     LutDetail(card, origin, state, workspace, browser, personal, choosingSecond, shared, visibility,
                         onBack = ::closeDetail, onFavourite = { toggle(card) }, onSlot = { choosingSecond = it },
@@ -238,9 +256,9 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                     }
                     Column(Modifier.fillMaxSize().onGloballyPositioned { galleryOrigin.value = it.positionInRoot() }
                         .drawWithContent { galleryPixels.record { this@drawWithContent.drawContent() }; drawLayer(galleryPixels) }) {
-                    PageHeading("COLOUR / COLLECT", "LUT") { searchEditing = false; focusManager.clearFocus(); onImportPhoto() }
+                    PageHeading("COLOR / COLLECT", "LUT") { searchEditing = false; focusManager.clearFocus(); onImportPhoto() }
                     val bandColours = categories.associate { category ->
-                        category.key to key(category.key) { animateColorAsState(category.colour.copy(alpha = if (expanded == category.key) .92f else .82f),
+                        category.key to key(category.key) { animateColorAsState(category.colour.copy(alpha = 1f),
                             tween(duration, easing = MirrorEase), label = "category-paper:${category.key}") }
                     }
                     LazyColumn(Modifier.weight(1f), state = scroll, contentPadding = PaddingValues(bottom = 250.dp)) {
@@ -250,6 +268,11 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                                 MirrorChoice(official, { official = true; expanded = null }, label = { Text("Lumix Lab") })
                             }
                             SlotStrip(state, choosingSecond) { choosingSecond = it }
+                            if(state.photos.isNotEmpty())Column(Modifier.padding(horizontal=20.dp)) { PhotoManagementActions(state,workspace) }
+                            Row(Modifier.fillMaxWidth().padding(horizontal=20.dp,vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                                MirrorChoice(false,{discovery="explore"},Modifier.weight(1f),label={Text("色彩探索 ↗")})
+                                MirrorChoice(false,{discovery="recommendations"},Modifier.weight(1f),label={Text("智能推荐 ↗")})
+                            }
                         }
                         val daily = (if (official) cardsFor("all") else localCards).let { cards ->
                             if (cards.isEmpty()) null else cards[Math.floorMod(java.time.LocalDate.now().toEpochDay(), cards.size.toLong()).toInt()]
@@ -383,14 +406,15 @@ private fun SlotStrip(state: WorkspaceState, second: Boolean, onSlot: (Boolean) 
 }
 
 @Composable
-private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState, workspace: WorkspaceViewModel,
+internal fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState, workspace: WorkspaceViewModel,
     personal: MirrorPersonalState, shared: SharedTransitionScope, visibility: AnimatedVisibilityScope,
     modifier: Modifier, large: Boolean = false, recommendation: Boolean = false, onClick: () -> Unit, onFavourite: () -> Unit,
     onColours: (LutExampleColours) -> Unit = {}, collection: Boolean = false) {
     val reportColours by rememberUpdatedState(onColours)
-    val previewKey = remember(card.key, card.official?.thumbnail, card.local, if (card.official == null) state.current?.id else null, large) {
+    val actualPhoto=card.photoPreview || card.official==null
+    val previewKey = remember(card.key, card.official?.thumbnail, card.local, if (actualPhoto) state.current?.id else null, large,actualPhoto) {
         listOf(card.key, card.official?.thumbnail?.path, if (card.official == null) card.local?.id else null,
-            if (card.official == null) state.current?.id else null, large)
+            if (actualPhoto) state.current?.id else null, large,actualPhoto)
     }
     val cached = workspace.displayPreviews.peek(previewKey)
     var bitmap by remember(previewKey) { mutableStateOf(cached?.image) }
@@ -401,7 +425,7 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
     LaunchedEffect(previewKey, retry) {
         loading = bitmap == null; error = null
         try {
-            if (card.official != null) {
+            if (card.official != null && !actualPhoto) {
                 val example = workspace.displayPreviews.load(previewKey) {
                     workspace.processor.officialLutCatalogue.example(card.official, if (large) 1280 else 320)
                         .let { MirrorPreview(it.image, it.colours) }
@@ -449,7 +473,8 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
         FavouriteAction(card.key in personal.favourites, card.title, ink, onFavourite,
             modifier = Modifier.alignBy { it.measuredHeight / 2 }, compact = !large && !recommendation)
     }
-    val opticalOffset = with(LocalDensity.current) { ((if (large || recommendation) 28.sp else 14.sp) * .30f).roundToPx() }
+    val opticalOffset = with(LocalDensity.current) { ((if (large || recommendation) 28.sp else 14.sp) *
+        if(lutNameFont(card.title)==MirrorFonts.ChineseHandwriting).08f else .30f).roundToPx() }
     if (recommendation) {
         Row(modifier.then(morph).clip(RoundedCornerShape(18.dp)).background(background)
             .clickable(role = Role.Button, onClick = onClick).padding(10.dp), verticalAlignment = Alignment.CenterVertically,
@@ -457,7 +482,7 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
             photoContent(Modifier.size(86.dp))
             Column(Modifier.weight(1f).alignBy { val baseline = it[FirstBaseline]
                 if (baseline == AlignmentLine.Unspecified) it.measuredHeight / 2 else baseline - opticalOffset }) {
-                Text(card.title, fontFamily = MirrorFonts.Handwriting, fontSize = 28.sp, color = ink,
+                Text(card.title, fontFamily = lutNameFont(card.title), fontSize = 28.sp, color = ink,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(card.creator ?: "发现新的色彩", fontSize = 11.sp, color = ink)
             }
@@ -470,12 +495,12 @@ private fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState,
         photoContent(Modifier.fillMaxWidth().aspectRatio(1f))
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(card.title, Modifier.weight(1f).alignBy { val baseline = it[FirstBaseline]
-                if (baseline == AlignmentLine.Unspecified) it.measuredHeight / 2 else baseline - opticalOffset }.padding(start = 4.dp), fontFamily = MirrorFonts.Handwriting,
+                if (baseline == AlignmentLine.Unspecified) it.measuredHeight / 2 else baseline - opticalOffset }.padding(start = 4.dp), fontFamily = lutNameFont(card.title),
                 fontSize = if (large) 28.sp else 14.sp, lineHeight = if (large) 32.sp else 17.sp,
                 maxLines = if (large) 1 else 2, overflow = TextOverflow.Ellipsis, color = ink)
             favouriteContent()
         }
-        if (large) Text(if (card.official != null) "创作者例图" else "当前照片 · 单 LUT 预览", color = ink,
+        if (large) Text(if (!actualPhoto) "创作者例图" else "当前照片 · 单 LUT 预览", color = ink,
             style = MaterialTheme.typography.labelSmall)
     }
 }
@@ -615,7 +640,7 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
         Column(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp)) {
                 Column(Modifier.fillMaxWidth().semantics { heading() }) {
-                    MirrorLayeredTitle("Colour", "Collection", tones.ink,
+                    MirrorLayeredTitle("Color", "Collection", tones.ink,
                         if (dark) Color(0xFFB7C9E0) else Color(0xFF56758D))
                     Text("收藏", Modifier.padding(top = 10.dp), fontFamily = MirrorFonts.ChineseEditorial,
                         fontSize = 15.sp, color = if (dark) Color(0xFFB7C9E0) else Color(0xFF56758D))
@@ -645,8 +670,8 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
                     last = pager.currentPage
                     onPage(pager.currentPage)
                 }
-                BoxWithConstraints((if (compact) Modifier.height(390.dp) else Modifier.weight(1f)).fillMaxWidth()) {
-                val cardWidth = (maxWidth * .50f).coerceIn(160.dp, 240.dp)
+                BoxWithConstraints((if (compact) Modifier.height(460.dp) else Modifier.weight(1f)).fillMaxWidth()) {
+                val cardWidth = minOf((maxWidth * .66f).coerceIn(210.dp, 330.dp), (maxHeight - 92.dp).coerceAtLeast(150.dp))
                 HorizontalPager(pager, Modifier.fillMaxWidth().height(cardWidth + 128.dp).align(Alignment.Center),
                     pageSize = PageSize.Fixed(cardWidth), contentPadding = PaddingValues(horizontal = (maxWidth - cardWidth) / 2),
                     pageSpacing = -cardWidth * .16f, beyondViewportPageCount = 2,

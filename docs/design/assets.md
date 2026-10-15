@@ -24,3 +24,11 @@ Playfair / Dancing Script 许可副本放入 `core/design/src/main/assets/licens
 中文艺术标题使用 C:/Windows/Fonts/Source Han Serif SC Heavy (TrueType).ttf 的完整副本 editorial_chinese.ttf（2,525,144 字节），原文件未修改。OFL 从 Adobe Source Han Serif 官方 release/LICENSE.txt 保存到 core/design/src/main/assets/licenses/source-han-serif-OFL.txt。正文仍为 OPPO Sans。三份 imagegen 暗盒及完整提示词见 [生成资产记录](generated-cartridges-2026-10-13.md)。
 
 继续前端与设置时新增 [Instrument Serif](https://github.com/google/fonts/tree/main/ofl/instrumentserif) 的真实窄衬线斜体副本 `instrument_serif_italic.ttf`，OFL 保存到 design assets/licenses；原 Cormorant 与 Great Vibes 保留。设置内的支付宝 / 微信捐赠图由用户直接提供，从 Downloads 原字节复制，未更改原图；不作为界面风格参考混用。应用图标与原件记录见 [ImageGen 图标记录](generated-icon-2026-10-13.md)。
+
+## 2026-10-14 Film 页面修订
+
+新增同系列 `instrument_serif_regular.ttf`，来源为 Google Fonts 官方目录，共用已有 Instrument Serif OFL。`film_poster.ttf` 为已有恢复字体 `core/media/src/main/assets/frames/fonts/print_display.ttf`（Abril Fatface）的原字节副本，共用 `frames/licenses/abrilfatface-OFL.txt`，用于分类与详情海报标题。新增副本的来源、大小、SHA-256 记录在 `research/film-editorial/font-provenance.json`。
+
+暗盒原图没有重新生成或覆盖：归一透明边界、临时标签曲面包裹、透视与阴影在运行时处理。剩余生图继续暂停。参考对应、视觉验证边界及资料来源见 [Film 修订记录](film-fidelity-2026-10-14.md)。
+
+用户后续提供华康翩翩体 W5-A。本轮保留原字节复制为 `chinese_handwriting.ttf`（24,010,412 字节），仅用于包含中文的 LUT 名称；纯英文仍使用 Dancing Script。原文件、元数据与哈希见 `research/film-editorial/chinese-handwriting-provenance.json`，公开分发许可文本未提供，设置许可中如实记录。海报正体后续改用已有 Cormorant Garamond Bold，Abril 的副本保留但不再用于 Film 分类标题。详情、字体和推荐入口的新修订见 [Color / Film 修订](color-atlas-and-film-refinement-2026-10-14.md)。

@@ -122,7 +122,7 @@ class CameraTransferService : Service() {
             else if (state.transferTotal > 0) "${state.transferPhase.caption()} · 已完成 ${state.transferred} / ${state.transferTotal} 项" else "正在准备传输"
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_transfer_notification)
-            .setContentTitle(if (state.receiving) "Lumix Film Mirror · 相机待发接收" else "Lumix Film Mirror · 相机传输")
+            .setContentTitle(if (state.receiving) "松映 · Pineframe · 相机待发接收" else "松映 · Pineframe · 相机传输")
             .setContentText(detail)
             .setSubText(state.device?.model)
             .setContentIntent(open)

@@ -194,35 +194,11 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
 
 @Composable
 private fun PhotoPreview(state: WorkspaceState, workspace: WorkspaceViewModel) {
-    val source = state.current ?: return
-    var bitmap by remember(source.id) { mutableStateOf<Bitmap?>(null) }
-    var problem by remember(source.id) { mutableStateOf<String?>(null) }
-    var original by remember(source.id) { mutableStateOf(false) }
-    var loading by remember(source.id) { mutableStateOf(true) }
-    val recipe = if (original) LutRecipe() else state.lutRecipe
-    LaunchedEffect(source.id, recipe, state.luts) {
-        loading = true
-        problem = null
-        try {
-            delay(180)
-            bitmap = workspace.previewPhoto(source, recipe, state.luts)
-        }
-        catch (error: kotlinx.coroutines.CancellationException) { throw error }
-        catch (error: Exception) { problem = error.message ?: "无法读取预览" }
-        catch (error: OutOfMemoryError) { problem = "预览内存不足，请关闭其他应用后重试" }
-        finally { loading = false }
-    }
-    // Compose can still be drawing a previous Image when selection changes; GC owns these small previews.
-    Box(Modifier.fillMaxWidth().aspectRatio(source.size.width.toFloat() / source.size.height), contentAlignment = Alignment.Center) {
-        bitmap?.let { Image(it.asImageBitmap(), contentDescription = source.name,
-            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
-            ?: if (problem != null) Text(problem.orEmpty()) else CircularProgressIndicator(Modifier.size(24.dp))
-        if (loading && bitmap != null) CircularProgressIndicator(Modifier.align(Alignment.BottomEnd).padding(12.dp).size(20.dp))
-    }
-    problem?.takeIf { bitmap != null }?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-    TextButton(onClick = { original = !original }) { Text(if (original) "正在查看原图 · 查看处理效果" else "查看原图") }
+    if(state.current==null)return
+    SwipePhotoPreview(state,workspace,compactHeight=220.dp)
+    Text("长按查看原图 · 松手恢复效果",style=MaterialTheme.typography.bodySmall)
+    PhotoManagementActions(state,workspace)
 }
-
 @Composable
 private fun ExportSettingsPanel(state: WorkspaceState, onChange: (JpegOutput) -> Unit, onFolder: () -> Unit, onGallery: () -> Unit) {
     val tones = LocalFilmMaterials.current

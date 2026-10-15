@@ -18,8 +18,12 @@ object MirrorFonts {
             Font(R.font.cormorant_garamond_italic, weight, FontStyle.Italic)) })
     val ChineseEditorial = FontFamily(Font(R.font.editorial_chinese, FontWeight.Black))
     val Handwriting = FontFamily(Font(R.font.handwritten))
+    val ChineseHandwriting = FontFamily(Font(R.font.chinese_handwriting))
     val ScriptAccent = FontFamily(Font(R.font.great_vibes))
     val NarrowItalic = FontFamily(Font(R.font.instrument_serif_italic, style = FontStyle.Italic))
+    val FilmDisplay = FontFamily(Font(R.font.instrument_serif_regular),
+        Font(R.font.instrument_serif_italic, style = FontStyle.Italic))
+    val FilmPoster = FontFamily(Font(R.font.cormorant_garamond, FontWeight.Bold))
 }
 
 internal val MirrorTypography = Typography().let { t ->

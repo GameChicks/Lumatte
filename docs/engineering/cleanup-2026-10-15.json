@@ -1,0 +1,75 @@
+{
+  "removed": [
+    {
+      "path": "app/build",
+      "bytes": 485114667,
+      "files": 1752
+    },
+    {
+      "path": "tools/.cache/ui-source-builds",
+      "bytes": 114776765,
+      "files": 1421
+    },
+    {
+      "path": "tools/.cache/ui-source-gradle",
+      "bytes": 1389120,
+      "files": 14
+    },
+    {
+      "path": "core/camera/build",
+      "bytes": 5698536,
+      "files": 637
+    },
+    {
+      "path": "core/design/build",
+      "bytes": 130445126,
+      "files": 154
+    },
+    {
+      "path": "core/media/build",
+      "bytes": 162157476,
+      "files": 1185
+    },
+    {
+      "path": "core/model/build",
+      "bytes": 843945,
+      "files": 151
+    },
+    {
+      "path": "core/storage/build",
+      "bytes": 5143678,
+      "files": 522
+    },
+    {
+      "path": "core/transfer/build",
+      "bytes": 2116144,
+      "files": 230
+    },
+    {
+      "path": "dist\\lumix-film-mirror-prototype-0.1.7-20261013-125621-debug.apk",
+      "bytes": 151779007,
+      "files": 1
+    },
+    {
+      "path": "dist\\lumix-film-mirror-prototype-0.1.8-20261013-233404-debug.apk",
+      "bytes": 153846565,
+      "files": 1
+    },
+    {
+      "path": "dist\\lumix-film-mirror-prototype-0.1.8-20261014-223059-debug.apk",
+      "bytes": 157912248,
+      "files": 1
+    }
+  ],
+  "removedBytes": 1371223277,
+  "retainedPackage": "dist/lumix-film-mirror-prototype-0.1.9-20261014-233812-debug.apk",
+  "retainedSHA256": "36B233D9F8D1D68534848CD5B5AFBC4FB791F200B898D65A4DB94CA5756F3EB2",
+  "preserved": [
+    "source",
+    "reference originals",
+    "recovered source APKs and assets",
+    "latest prototype",
+    "D: toolchain and emulator data",
+    "release records"
+  ]
+}

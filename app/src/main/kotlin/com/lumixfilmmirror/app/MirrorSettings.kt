@@ -33,15 +33,13 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
     onBack: () -> Unit, onTools: () -> Unit) {
     val tones = LocalFilmMaterials.current
     var licences by rememberSaveable { mutableStateOf(false) }
+    var widgets by rememberSaveable { mutableStateOf(false) }
     var donation by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundAction("返回主页", DotGlyph.LEFT, onClick = onBack)
-            Column(Modifier.padding(start = 12.dp)) {
-                Text("MAKE IT YOURS", style = MaterialTheme.typography.labelSmall, color = tones.secondaryInk)
-                Text("设置", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 32.sp)
-            }
+            Column(Modifier.padding(start = 12.dp).weight(1f)) { MirrorLayeredTitle("Personal","Settings",tones.ink,tones.amber,compact=true) }
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -85,7 +83,7 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
                 }
             }
             item {
-                MirrorControlSection("支持开发", "感谢你支持 Lumix Film Mirror 的持续开发。") {
+                MirrorControlSection("支持开发", "感谢你支持 松映 · Pineframe 的持续开发。") {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         MirrorChoice(false, { donation = "alipay" }, Modifier.weight(1f), label = { Text("支付宝") })
                         MirrorChoice(false, { donation = "wechat" }, Modifier.weight(1f), label = { Text("微信") })
@@ -96,7 +94,9 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
             item {
                 MirrorControlSection("关于") {
                     val version = remember(context) { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() }
-                    Text("Lumix Film Mirror · $version")
+                    Text("松映 · Pineframe · $version")
+                    Text("为松下相机而作的独立第三方胶片暗房。",color=tones.secondaryInk)
+                    MirrorTextAction("桌面小组件 →",{widgets=true},Modifier.fillMaxWidth())
                     MirrorTextAction("开源组件与许可 →", { licences = true }, Modifier.fillMaxWidth())
                     Text("连接、浏览与传输松下相机照片，提供胶片模拟、LUT 与画框。",
                         style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
@@ -105,6 +105,7 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
         }
     }
     if (licences) MirrorLicences { licences = false }
+    if (widgets) DesktopWidgetsDialog { widgets=false }
     donation?.let { method -> DonationCode(method, workspace) { donation = null } }
 }
 

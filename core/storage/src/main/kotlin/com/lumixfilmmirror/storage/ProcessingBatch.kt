@@ -28,7 +28,7 @@ internal data class BatchEditRecipeRow(@PrimaryKey val batchId: String, val trea
 internal data class BatchLutRecipeRow(@PrimaryKey val batchId: String, val firstId: String?, val firstStrength: Float,
     val secondId: String?, val secondStrength: Float, val grain: Float,
     @ColumnInfo(defaultValue = "1") val grainEnabled: Boolean = true,
-    @ColumnInfo(defaultValue = "0") val ditheringEnabled: Boolean = false)
+    @ColumnInfo(defaultValue = "0") val ditheringEnabled: Boolean = true)
 
 @Entity(tableName = "processing_batches")
 internal data class ProcessingBatchRow(@PrimaryKey val id: String, val title: String, val createdAt: Long)
@@ -37,7 +37,8 @@ internal data class ProcessingBatchRow(@PrimaryKey val id: String, val title: St
 @Entity(tableName = "processing_entries", indices = [Index("batchId")], foreignKeys = [ForeignKey(
     entity = ProcessingBatchRow::class, parentColumns = ["id"], childColumns = ["batchId"],
 )])
-internal data class ProcessingEntryRow(@PrimaryKey val photoId: String, val batchId: String, val ordinal: Long)
+internal data class ProcessingEntryRow(@PrimaryKey val photoId: String, val batchId: String, val ordinal: Long,
+    @ColumnInfo(defaultValue = "0") val removed: Boolean = false)
 
 internal data class ProcessingEntryWithPhoto(
     @Embedded val entry: ProcessingEntryRow,

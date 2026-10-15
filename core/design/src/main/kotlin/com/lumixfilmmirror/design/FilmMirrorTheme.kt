@@ -25,16 +25,16 @@ data class FilmMaterials(
 )
 
 private val LightMaterials = FilmMaterials(
-    background = Color(0xFFF0EEE7), paper = Color(0xFFFAF5EC),
+    background = Color(0xFFF2EADB), paper = Color(0xFFFAF3E7),
     paperHighlight = Color(0xFFFFFDF6), rim = Color(0xFFD2CEC2),
-    shadow = Color(0x33252017), ink = Color(0xFF262821),
+    shadow = Color(0x33252017), ink = Color(0xFF292625),
     secondaryInk = Color(0xFF68685F), amber = Color(0xFF89591C),
 )
 private val DarkMaterials = FilmMaterials(
-    background = Color(0xFF101214), paper = Color(0xFF222629),
-    paperHighlight = Color(0xFF30363A), rim = Color(0xFF454A4D),
+    background = Color(0xFF101115), paper = Color(0xFF1B1E26),
+    paperHighlight = Color(0xFF252A35), rim = Color(0xFF424958),
     shadow = Color(0x77000000), ink = Color(0xFFF0EEE4),
-    secondaryInk = Color(0xFFB3B8AC), amber = Color(0xFFDBB278),
+    secondaryInk = Color(0xFFB9BCC8), amber = Color(0xFFE7BD83),
 )
 
 val LocalFilmMaterials = staticCompositionLocalOf { LightMaterials }

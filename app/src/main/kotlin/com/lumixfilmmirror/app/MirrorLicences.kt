@@ -17,7 +17,7 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val entries = remember {
         listOf(
-            LicenceEntry("Lumix Film Mirror", "本项目新应用代码 · GNU GPLv3；第三方组件与素材继续采用各自许可。", listOf("licenses/LumixFilmMirror-GPL-3.0.txt")),
+            LicenceEntry("松映 · Pineframe", "本项目新应用代码 · GNU GPLv3；第三方组件与素材继续采用各自许可。", listOf("licenses/LumixFilmMirror-GPL-3.0.txt")),
             LicenceEntry("AndroidX / Jetpack Compose / Room", "Android Open Source Project · Apache 2.0", listOf("licenses/Apache-2.0.txt")),
             LicenceEntry("Kotlin / kotlinx.coroutines", "JetBrains · Apache 2.0", listOf("licenses/Apache-2.0.txt")),
             LicenceEntry("OkHttp / Okio", "Square · Apache 2.0", listOf("licenses/Apache-2.0.txt")),
@@ -31,6 +31,7 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
             LicenceEntry("Instrument Serif", "Instrument Serif Project Authors · SIL OFL 1.1 · 窄衬线斜体",
                 listOf("licenses/instrument-serif-OFL.txt")),
             LicenceEntry("Great Vibes / Dancing Script", "SIL OFL 1.1", listOf("licenses/great-vibes-OFL.txt", "licenses/dancingscript-OFL.txt")),
+            LicenceEntry("华康翩翩体 W5-A", "用户提供的本机字体副本；仅用于包含中文的 LUT 名称。未附公开分发许可文本。", emptyList()),
             LicenceEntry("Source Han Serif / Source Han Sans", "Adobe · SIL OFL 1.1", listOf("licenses/source-han-serif-OFL.txt", "frames/licenses/SourceHanSans-OFL.txt")),
             LicenceEntry("画框字体", "Playfair Display、Julius Sans One、Cutive Mono、Abril Fatface、Dancing Script、Great Vibes · SIL OFL 1.1",
                 listOf("frames/licenses/playfairdisplay-OFL.txt", "frames/licenses/juliussansone-OFL.txt", "frames/licenses/cutivemono-OFL.txt",

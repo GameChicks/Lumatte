@@ -135,11 +135,18 @@ private fun WorkspaceState.showExportRun(run: ExportRun?): WorkspaceState {
 }
 
 private fun syncFilmBatch(existing: FilmBatch?, photos: List<SourceImage>): FilmBatch? {
-    if (photos.isEmpty()) return existing
-    val entries = existing?.photos.orEmpty().toMutableList()
+    if (photos.isEmpty()) return null
+    val present = photos.map { it.id }.toSet()
+    val entries = existing?.photos.orEmpty().filter { it.id in present }.toMutableList()
     val ids = entries.map { it.id }.toSet()
     photos.filter { it.id !in ids }.forEach { entries += BatchPhoto(it.id, FilmParameters(), it.id.value.hashCode().toLong()) }
-    return if (existing == null) FilmBatch(entries, photos.first().id) else existing.copy(photos = entries)
+    val reference=existing?.referenceId?.takeIf { it in present } ?: photos.first().id
+    if(existing != null && existing.referenceId !in present && existing.mode==FilmBatchMode.FIRST_PHOTO) {
+        val inherited=existing.effectiveParameters(existing.referenceId)
+        val index=entries.indexOfFirst { it.id==reference }
+        entries[index]=entries[index].copy(parameters=inherited)
+    }
+    return if (existing == null) FilmBatch(entries, reference) else existing.copy(photos = entries,referenceId=reference)
 }
 
 class WorkspaceViewModel(application: Application) : AndroidViewModel(application) {
@@ -721,6 +728,37 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         if (mutable.value.recovering || mutable.value.photos.none { it.id == id }) return
         mutable.update { it.copy(selected = id) }
         persistPreferences()
+    }
+    fun removePhotos(ids: Set<PhotoId>) {
+        val snapshot=mutable.value
+        if(snapshot.busy || camera.cameraState.value.busy) { notice("当前任务结束后可移除照片"); return }
+        val batchId=snapshot.processingBatchId ?: return
+        val actual=ids.intersect(snapshot.photos.map { it.id }.toSet())
+        if(actual.isEmpty())return
+        val remaining=snapshot.photos.filterNot { it.id in actual }
+        val film=syncFilmBatch(snapshot.filmBatch,remaining)
+        val oldDraft=editDrafts[batchId]
+        mutable.update { it.copy(batchBusy=true) }
+        viewModelScope.launch {
+            try {
+                editSaveJobs.remove(batchId)?.let { job -> job.cancel(); job.join() }
+                editDrafts[batchId]=snapshot.treatment to film
+                store.removeProcessingPhotos(batchId,actual,snapshot.treatment,film)
+                mutable.update { current ->
+                    val batches=current.processingBatches.map { if(it.id==batchId)it.copy(photos=remaining,film=film) else it }
+                    val position=snapshot.photos.indexOfFirst { it.id==snapshot.selected }.coerceAtLeast(0)
+                    val selected=snapshot.selected?.takeIf { it !in actual }
+                        ?: remaining.getOrNull(position.coerceAtMost(remaining.lastIndex))?.id
+                    current.showBatch(batches,batchId).copy(selected=selected,
+                        notice="已移除 ${actual.size} 张待处理照片，原文件保留")
+                }
+                persistPreferences()
+            } catch(error:CancellationException) { throw error }
+            catch(error:Exception) {
+                if(oldDraft==null)editDrafts.remove(batchId) else editDrafts[batchId]=oldDraft
+                notice(error.message ?: "照片未移除，请重试")
+            } finally { mutable.update { it.copy(batchBusy=false) } }
+        }
     }
     fun output(settings: JpegOutput) {
         if (!mutable.value.busy) { mutable.update { it.copy(output = settings) }; persistPreferences() }

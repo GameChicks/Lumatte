@@ -4,6 +4,7 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
+import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,26 +25,27 @@ import androidx.core.content.res.ResourcesCompat
 
 /** Knock out a narrow gap at intersections so both real letterforms remain legible. */
 @Composable
-internal fun MirrorLayeredTitle(first: String, second: String, ink: Color, accent: Color) {
+internal fun MirrorLayeredTitle(first: String, second: String, ink: Color, accent: Color,
+    compact: Boolean = false) {
     val context = LocalContext.current
     val faces = remember(context) {
-        ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.cormorant_garamond) to
+        Typeface.create(ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.cormorant_garamond), 700, false) to
             ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.instrument_serif_italic)
     }
     val density = LocalDensity.current
-    Canvas(Modifier.fillMaxWidth().height(with(density) { 100.sp.toDp() })
+    Canvas(Modifier.fillMaxWidth().height(with(density) { (if(compact)68 else 106).sp.toDp() })
         .semantics { contentDescription = "$first $second" }
         .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
-        val top = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = faces.first; textSize = 48.sp.toPx(); color = ink.toArgb() }
-        val lower = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = faces.second; textSize = 54.sp.toPx(); color = accent.toArgb() }
-        val inset = 32.sp.toPx()
+        val top = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = faces.first; textSize = (if(compact)34 else 50).sp.toPx(); color = ink.toArgb() }
+        val lower = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = faces.second; textSize = (if(compact)36 else 54).sp.toPx(); color = accent.toArgb() }
+        val inset = (if(compact)20 else 30).sp.toPx()
         val fit = minOf(1f, (size.width - 8.sp.toPx()) / top.measureText(first),
             (size.width - inset - 8.sp.toPx()) / lower.measureText(second))
         top.textSize *= fit; lower.textSize *= fit
         val a = Rect(); val b = Rect()
         top.getTextBounds(first, 0, first.length, a); lower.getTextBounds(second, 0, second.length, b)
         val firstBaseline = 6.sp.toPx() - a.top
-        val secondBaseline = firstBaseline + a.bottom - 5.sp.toPx() - b.top
+        val secondBaseline = firstBaseline + a.bottom - 2.sp.toPx() - b.top
         val x = inset - b.left
         drawContext.canvas.nativeCanvas.apply {
             drawText(first, 3.sp.toPx() - a.left, firstBaseline, top)

@@ -18,7 +18,12 @@ class ExportQueueStore(context: Context) {
     val runs = dao.observe().map { rows -> rows.map(::run) }.flowOn(Dispatchers.Default)
 
     suspend fun initialize() = recoveryGate.withLock {
-        if (!recovered) { dao.recoverInterrupted(); recovered = true }
+        if (!recovered) {
+            dao.recoverInterrupted()
+            // Backfill confirmed receipts from versions that left saved photos pending.
+            dao.retireSavedPhotos(null, null)
+            recovered = true
+        }
     }
 
     suspend fun enqueue(batchId: String, photos: List<ExportRequestPhoto>, options: BatchExportOptions,

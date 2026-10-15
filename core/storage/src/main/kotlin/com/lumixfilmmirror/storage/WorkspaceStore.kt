@@ -33,7 +33,7 @@ class WorkspaceStore(context: Context) {
     val photos = dao.photos().map { rows -> rows.map(::source) }
     val processingBatches = dao.processingBatches().map { groups -> groups.map { group ->
         ProcessingBatch(group.batch.id, group.batch.title, group.batch.createdAt,
-            group.entries.sortedWith(compareBy({ it.entry.ordinal }, { it.entry.photoId }))
+            group.entries.filterNot { it.entry.removed }.sortedWith(compareBy({ it.entry.ordinal }, { it.entry.photoId }))
                 .mapNotNull { it.photos.singleOrNull()?.let(::source) },
             group.lutRecipes.singleOrNull()?.let { LutRecipe(LutSlot(it.firstId, it.firstStrength),
                 LutSlot(it.secondId, it.secondStrength), it.grain, it.grainEnabled, it.ditheringEnabled) } ?: LutRecipe(),
@@ -63,6 +63,10 @@ class WorkspaceStore(context: Context) {
         return ProcessingBatch(id, title, created)
     }
     suspend fun reserveLocalPhoto(batchId: String, id: PhotoId) = dao.reserveProcessingPhoto(batchId, id.value)
+    /** Hide only this processing entry; originals, recovered copies and export history are retained. */
+    suspend fun removeProcessingPhotos(batchId: String, ids: Set<PhotoId>, treatment: PhotoTreatment, film: FilmBatch?) =
+        dao.removeProcessingPhotos(batchId, ids.map { it.value },
+            BatchEditRecipeRow(batchId, treatment.name, film?.let(FilmBatchCodec::write)))
     suspend fun saveLutRecipe(batchId: String, recipe: LutRecipe) = dao.saveLutRecipe(BatchLutRecipeRow(batchId,
         recipe.first.id, recipe.first.strength, recipe.second.id, recipe.second.strength, recipe.grain,
         recipe.grainEnabled, recipe.ditheringEnabled))
