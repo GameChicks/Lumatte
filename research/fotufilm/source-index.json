@@ -1,0 +1,25 @@
+{
+  "snapshot": "fotufilm-public-demo-20261016",
+  "profileCommit": "12c8efea259e4cea70ec22166e504634d401a0cd",
+  "publicPackBase": "https://fotufilm.com/demo/packs/",
+  "packCommitNotPublished": true,
+  "files": {
+    "config-layout.json": "63a54642930835ee84651383a11a069708bb5c1b5f31ebaa99ac281a6821893e",
+    "licenses/CC-BY-SA-4.0.txt": "28a9529c7d0bb4dc51f4bf5c116a3d16ef247a052f7591466768ddf563fd1cf5",
+    "licenses/LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "licenses/LICENSING.md": "0ad0f609bbbe9e5e03ab6fc3bfd81b0b446eea5a5e4c660c68a641613ce9921f",
+    "licenses/NOTICE": "9caf6666129aa46f724e2aa71321952fd24b7389a91b3403ad29ce5e5542e7b9",
+    "profiles/acros100.json": "592e2463a0c1d01db35e6f1515c87a6cb134234677bbec7adde8db4002be338c",
+    "profiles/cinestill400d.json": "814a7d8253abc0dc3471ae1bd778a6e3991d042de52bf40c02563b0924841f3f",
+    "profiles/cinestill800t.json": "c051fe32e497958421bf7535088556540217590d06f83efb2da3fa047f2ced15",
+    "profiles/delta3200.json": "c036841c9c3409b3f5f96a625b73af386bfcc4650d7764e7ad3e8aba12a4d604",
+    "profiles/hp5plus400.json": "ad24baff296ef58fbd1cfeb77c2efe963b46104bded410588a9fa68771a18b9d",
+    "profiles/trix400.json": "9d83989cb617a545ca934dc6bb053da1b5ce23f2639218c297a757f499c3e9bf",
+    "public-packs/acros100.pack": "c1f17cf20f2109ee4d9c330bee3d7e4e099400d0284fc840c5bf7f55e3bc19b7",
+    "public-packs/cinestill400d.pack": "9c98602708c83471a4cb5205867a487055aaca74b6166aa9c4e21d26862d4267",
+    "public-packs/cinestill800t.pack": "48dfaf359c7d8d28a3cfa07820e219c6e62497b13f7c793de8965fa67305140e",
+    "public-packs/delta3200.pack": "5d3e60e0a25af3b95ce560159be75797839857e0e072ec3521537d745156ae12",
+    "public-packs/hp5plus400.pack": "49ec3a1f7db98b2645119bebeef293e84b9ecb17809f0b611127de1b3232912f",
+    "public-packs/trix400.pack": "8a16b2071cbbafd2b5d4a4d346510439211b7d11da1dd55aaa8d1322cc20e403"
+  }
+}

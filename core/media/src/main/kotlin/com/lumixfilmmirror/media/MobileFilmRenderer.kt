@@ -51,18 +51,16 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
             if (index % 6 < 3) stage.minimum[index % 6] else stage.maximum[index % 6 - 3]
         }
         val effect = model.effects
-        // Explicit artistic red-record option, not the ordinary stock baseline or an imported 800T.
-        // Default stock mode retains channel balance at unit gain; no global saturation adjustment.
-        val redLayer = plan.spatialOptions.halationAppearance == FilmHalationAppearance.RED_LAYER_RETURN &&
-            plan.preset.category in setOf(FilmCategory.NEGATIVE, FilmCategory.CINEMA)
-        val redReturn = effect.halationStrength[0] * 2f
-        val halationReturns = if (redLayer) floatArrayOf(redReturn, redReturn * .04f, 0f)
-            else effect.halationStrength
+        // Only the two dedicated CineStill profiles carry a creative returned-light look.
+        // All other models retain supplied strength, channel balance and bounce defaults.
+        val cineStill = plan.preset.id == "cinestill_800t" || plan.preset.id == "cinestill_400d"
         val controls = floatArrayOf(plan.parameters.diffusion.strength,
             if (plan.parameters.halationEnabled) 1f else 0f, plan.parameters.exposureEv,
             if (effect.grainActive) 1f else 0f, effect.particleAreaUm2,
             *effect.particleScale, *effect.densityFloor, *effect.grainUniformity,
-            *effect.densityMaximum, *halationReturns, *effect.halationSigmaUm, effect.filmFormatMm)
+            *effect.densityMaximum, *effect.halationStrength, *effect.halationSigmaUm, effect.filmFormatMm,
+            if (cineStill) 1f else 0f, effect.halationBounces.toFloat(), effect.halationDecay, effect.grainSpacingUm,
+            effect.scatterAmount, *effect.scatterCoreUm, *effect.scatterTailUm, *effect.scatterTailWeight)
         val modelKey = "${model.info.modelVersion}:${model.info.sourceCommit}:${model.info.stockId}:${model.info.printId}"
         val task = NativeMobileFilmBridge.createTask()
         check(task != 0L) { "无法建立移动胶片任务" }

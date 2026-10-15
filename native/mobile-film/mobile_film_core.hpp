@@ -91,6 +91,11 @@ struct Effects {
     bool halation, grain;
     float particle_area, format_mm;
     Colour particle_scale, floor, uniformity, density_max, halation_strength, halation_sigma_um;
+    bool cinestill;
+    int halation_bounces;
+    float halation_decay, grain_spacing_um;
+    float scatter_amount;
+    Colour scatter_core_um, scatter_tail_um, scatter_tail_weight;
 };
 
 inline float decode(float value) { return value <= .04045f ? value / 12.92f : std::pow((value + .055f) / 1.055f, 2.4f); }
@@ -218,9 +223,10 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
     const bool active_halation = effects.halation && std::any_of(effects.halation_strength.begin(),
         effects.halation_strength.end(), [](float value) { return value > 0; });
     if (effects.diffusion == 0 && !active_halation) return spatial;
-    const double scale = std::min(1.0, 512.0 / std::max(image.width, image.height));
-    const uint32_t w = std::min(512u, std::max(1u, uint32_t(std::ceil(image.width * scale))));
-    const uint32_t h = std::min(512u, std::max(1u, uint32_t(std::ceil(image.height * scale))));
+    const uint32_t analysis_edge = effects.cinestill ? 1024u : 512u;
+    const double scale = std::min(1.0, double(analysis_edge) / std::max(image.width, image.height));
+    const uint32_t w = std::min(analysis_edge, std::max(1u, uint32_t(std::ceil(image.width * scale))));
+    const uint32_t h = std::min(analysis_edge, std::max(1u, uint32_t(std::ceil(image.height * scale))));
     // One full-image pass shared by lens diffusion and film return. No absolute highlight cutoff.
     // Linear area means preserve the energy of small lights before the compact response lookup.
     Field light(w, h);
@@ -271,6 +277,28 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
             for (int c = 0; c < 3; ++c) response.values[offset + c] = std::max(0.f, raw[c]);
         }
     });
+    Field original_response;
+    if (!effects.cinestill && effects.scatter_amount > 0) {
+        // SpektraFilm's default emulsion scatter: Gaussian core plus exponential
+        // tail, with its pinned three-Gaussian exponential surrogate. Bounded-grid approximation.
+        original_response = response;
+        const float pixel_um = effects.format_mm * 1000 / std::max(w, h);
+        Colour core_sigma{};
+        for (int c = 0; c < 3; ++c) core_sigma[c] = effects.scatter_core_um[c] / pixel_um;
+        const Field core = scatter_gaussian(response, core_sigma, check);
+        Field tail(w, h);
+        for (const auto [weight, factor] : std::array<std::array<float, 2>, 3>{{{.1633f, .5360f}, {.6496f, 1.5236f}, {.1870f, 2.7684f}}}) {
+            Colour tail_sigma{};
+            for (int c = 0; c < 3; ++c) tail_sigma[c] = effects.scatter_tail_um[c] * factor / pixel_um;
+            const Field part = scatter_gaussian(response, tail_sigma, check);
+            for (size_t i = 0; i < tail.values.size(); ++i) tail.values[i] += weight * part.values[i];
+        }
+        for (size_t i = 0; i < response.values.size(); ++i) {
+            const float weight = effects.scatter_tail_weight[i % 3];
+            response.values[i] = (1 - effects.scatter_amount) * response.values[i] +
+                effects.scatter_amount * ((1 - weight) * core.values[i] + weight * tail.values[i]);
+        }
+    }
     // The caller resolves stock versus explicit creative look. Do not add another gain here:
     // ordinary stocks keep their supplied returned/direct ratios, including zero channels.
     Colour sigma{};
@@ -281,8 +309,17 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
     }
     spatial.halation = Field(w, h);
     // Positive centred scales form a smooth return profile. No broad-minus-core shell or clipping.
-    // This project-authored mixture is an approximation, not Fotufilm's fitted 800T profile.
-    for (const auto [scale_factor, weight] : std::array<std::array<float, 2>, 3>{{{.65f, .25f}, {1.3f, .50f}, {2.6f, .25f}}}) {
+    // Ordinary films use SpektraFilm's sqrt(k) bounce widths and normalized decay.
+    // CineStill only uses the project near/main/tail look, not full Fotufilm parity.
+    std::vector<std::array<float, 2>> kernels;
+    if (effects.cinestill) kernels = {{.65f, .25f}, {1.3f, .50f}, {2.6f, .25f}};
+    else {
+        float total = 0.f;
+        for (int k = 0; k < effects.halation_bounces; ++k) total += std::pow(effects.halation_decay, float(k));
+        for (int k = 0; k < effects.halation_bounces; ++k)
+            kernels.push_back({std::sqrt(float(k + 1)), std::pow(effects.halation_decay, float(k)) / total});
+    }
+    for (const auto [scale_factor, weight] : kernels) {
         Colour scales{};
         for (int c = 0; c < 3; ++c) scales[c] = sigma[c] * scale_factor;
         const Field blurred = scatter_gaussian(response, scales, check);
@@ -290,6 +327,15 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
             if ((i & 16383u) == 0) check();
             spatial.halation.values[i] += weight * spatial.halation_mix[i % 3] * blurred.values[i];
         }
+    }
+    if (!effects.cinestill) {
+        // Carry the bounded-field correction E2-E0 into the full-resolution pixel.
+        // This also carries E1's scatter without another texture or full image pass.
+        for (size_t i = 0; i < spatial.halation.values.size(); ++i) {
+            const float before = original_response.values.empty() ? response.values[i] : original_response.values[i];
+            spatial.halation.values[i] += response.values[i] * (1 - spatial.halation_mix[i % 3]) - before;
+        }
+        spatial.halation_mix = {};
     }
     return spatial;
 }
@@ -305,8 +351,8 @@ inline float normal_at(int64_t x, int64_t y, uint32_t seed, uint32_t salt) {
     for (uint32_t i = 0; i < 3; ++i) sum += float(hash(base + i * 0x9e3779b9u) & 65535u) / 65535.f - .5f;
     return sum * 2.f; // Three uniforms, mean 0 and approximately unit variance; not exact Gaussian.
 }
-inline float grain_noise(double gx, double gy, uint32_t seed, uint32_t salt) {
-    gx /= 1.4; gy /= 1.4;
+inline float grain_noise(double gx, double gy, uint32_t seed, uint32_t salt, double spacing) {
+    gx /= spacing; gy /= spacing;
     const auto x = int64_t(std::floor(gx)), y = int64_t(std::floor(gy));
     const float fx = float(gx - x), fy = float(gy - y);
     const float a = (1-fx)*(1-fy), b = fx*(1-fy), c = (1-fx)*fy, d = fx*fy;
@@ -315,15 +361,15 @@ inline float grain_noise(double gx, double gy, uint32_t seed, uint32_t salt) {
             c*normal_at(x,y+1,seed,salt) + d*normal_at(x+1,y+1,seed,salt)) / energy;
 }
 inline void apply_grain(Colour& density, const Effects& effects, double gx, double gy,
-                        float pixel_area, uint32_t seed) {
+                        float pixel_area, uint32_t seed, double spacing) {
     if (!effects.grain) return;
-    const float shared = grain_noise(gx, gy, seed, 0x7f4a7c15u);
+    const float shared = grain_noise(gx, gy, seed, 0x7f4a7c15u, spacing);
     for (int c = 0; c < 3; ++c) {
         const float maximum = effects.density_max[c] + effects.floor[c];
         const float p = std::clamp((density[c] + effects.floor[c]) / maximum, 0.f, 1.f);
         const float n_inverse = effects.particle_area * effects.particle_scale[c] / pixel_area;
         const float deviation = maximum * std::sqrt(std::max(0.f, p * (1 - p * effects.uniformity[c]) * n_inverse));
-        const float noise = .35f * shared + .9367497f * grain_noise(gx, gy, seed, 0x9e3779b9u * uint32_t(c + 1));
+        const float noise = .35f * shared + .9367497f * grain_noise(gx, gy, seed, 0x9e3779b9u * uint32_t(c + 1), spacing);
         density[c] += deviation * noise;
     }
 }
@@ -335,6 +381,8 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
     const Spatial spatial = prepare_spatial(image, model, effects, decode_lut, check);
     const float pixel_um = effects.format_mm * 1000 / std::max(image.width, image.height);
     const uint32_t seed = uint32_t(grain_seed) ^ hash(uint32_t(grain_seed >> 32));
+    const double grain_spacing = effects.grain_spacing_um > 0 ? std::max(.7,
+        double(effects.grain_spacing_um) * std::max(source_width, source_height) / (effects.format_mm * 1000)) : 1.4;
     // All spatial input fields are complete. In-place output never feeds a later pixel.
     parallel_rows(image.height, image.width, check, [&](uint32_t y) {
         uint8_t* row = image.pixels + size_t(y) * image.stride;
@@ -349,7 +397,7 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
                 raw[c] * (1.f - spatial.halation_mix[c]) + halo[c]) * effects.exposure_gain + 1e-10f);
             Colour density = model.development.sample(raw);
             const double gx = (double(x) + .5) * source_width / image.width - .5;
-            apply_grain(density, effects, gx, gy, pixel_um * pixel_um, seed);
+            apply_grain(density, effects, gx, gy, pixel_um * pixel_um, seed, grain_spacing);
             const Colour result = model.scan.sample(density);
             for (int c = 0; c < 3; ++c) {
                 if (!std::isfinite(result[c])) throw std::runtime_error("Non-finite mobile film output");

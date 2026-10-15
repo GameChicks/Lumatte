@@ -193,6 +193,9 @@ public:
         glUniform1f(uniform("uSoftness"), spatial.softness); glUniform1f(uniform("uExposureGain"), effects.exposure_gain);
         const float pixel_um = effects.format_mm * 1000 / std::max(image.width, image.height);
         glUniform1f(uniform("uPixelArea"), pixel_um * pixel_um); glUniform1f(uniform("uParticleArea"), effects.particle_area);
+        const float spacing = effects.grain_spacing_um > 0 ? std::max(.7f,
+            effects.grain_spacing_um * std::max(source_width, source_height) / (effects.format_mm * 1000)) : 1.4f;
+        glUniform1f(uniform("uGrainSpacing"), spacing);
         glUniform1i(uniform("uHalation"), !spatial.halation.values.empty()); glUniform1i(uniform("uGrain"), effects.grain);
         glUniform1ui(uniform("uSeed"), uint32_t(seed) ^ hash(uint32_t(seed >> 32)));
         gl_check("Configure film GPU");

@@ -17,7 +17,7 @@ class FilmCatalogue(context: Context) {
     suspend fun load(): List<FilmPreset> = withContext(Dispatchers.IO) {
         // Display metadata stays lightweight. The mobile library loads only the selected
         // model's separately hashed, finite float tables; reference profiles are not parsed here.
-        val presets = listOf("film/catalogue.json", "film/mobile-monochrome-v1/catalogue.json").flatMap { path ->
+        val presets = listOf("film/catalogue.json", "film/mobile-fotufilm-v1/catalogue.json").flatMap { path ->
             val stocks = assets.open(path).bufferedReader().use { JSONObject(it.readText()).getJSONArray("stocks") }
             (0 until stocks.length()).map { index ->
                 val info = stocks.getJSONObject(index)
@@ -32,5 +32,11 @@ class FilmCatalogue(context: Context) {
 
     fun plan(parameters: FilmParameters, presets: List<FilmPreset>, grainSeed: Long,
         spatialOptions: FilmSpatialOptions = FilmSpatialOptions()): FilmRenderPlan = FilmRenderPlan(parameters,
-        requireNotNull(presets.firstOrNull { it.id == parameters.presetId }) { "所选胶卷模型不可用，请重新选卷" }, grainSeed, spatialOptions)
+        requireNotNull(presets.firstOrNull { it.id == parameters.presetId }
+            ?: legacySilver.firstOrNull { it.id == parameters.presetId }) { "所选胶卷模型不可用，请重新选卷" }, grainSeed, spatialOptions)
+
+    private val legacySilver = listOf(
+        FilmPreset("lfm_silver_neutral", "Silver · Neutral", FilmCategory.MONOCHROME, "lfm_silver_paper", false),
+        FilmPreset("lfm_silver_contrast", "Silver · Contrast", FilmCategory.MONOCHROME, "lfm_silver_paper", false),
+    ) // Saved recipes remain renderable; new selection shows the four named films.
 }

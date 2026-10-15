@@ -12,6 +12,7 @@ uniform sampler3D uScan;
 uniform vec3 uResponseLow, uResponseHigh, uDevelopmentLow, uDevelopmentHigh, uScanLow, uScanHigh;
 uniform ivec2 uOrigin, uImageSize, uSourceSize;
 uniform float uSoftness, uExposureGain, uPixelArea, uParticleArea;
+uniform float uGrainSpacing;
 uniform bool uHalation, uGrain;
 uniform vec3 uParticleScale, uFloor, uUniformity, uDensityMaximum;
 uniform vec3 uHalationMix;
@@ -60,7 +61,7 @@ float normalAt(ivec2 p, uint salt) {
     return sum * 2.0;
 }
 float noiseAt(vec2 globalPosition, uint salt) {
-    vec2 p = globalPosition / 1.4;
+    vec2 p = globalPosition / uGrainSpacing;
     ivec2 lo = ivec2(floor(p)); vec2 f = p - vec2(lo);
     vec4 w = vec4((1.0-f.x)*(1.0-f.y), f.x*(1.0-f.y), (1.0-f.x)*f.y, f.x*f.y);
     vec4 v = vec4(normalAt(lo, salt), normalAt(lo + ivec2(1,0), salt),

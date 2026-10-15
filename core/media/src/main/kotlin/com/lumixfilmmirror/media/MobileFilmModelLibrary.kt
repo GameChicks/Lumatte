@@ -68,6 +68,13 @@ internal class MobileFilmModelLibrary(context: Context) {
                     source.getString("author") == "Lumix Film Mirror" && source.getString("implementation") == "silver-negative-v1" &&
                     source.getString("license") == "GPL-3.0-only" && manifest.getString("dir") == "none_silver_density" &&
                     !manifest.getJSONObject("silverModel").getBoolean("commercialStockCalibration")) { "不支持此自有黑白模型来源" }
+                FilmModelOrigin.FOTUFILM_MOBILE -> require(source.getString("origin") == "fotufilm_public_pack_adapter" &&
+                    source.getString("commit") == FOTU_COMMIT && source.getString("license") == "CC-BY-SA-4.0" &&
+                    source.getString("repository") == "https://github.com/DhaliwalX/fotufilm-engine" &&
+                    manifest.getString("dir") == "baked_local_only" &&
+                    manifest.getJSONObject("mobileAdaptation").getBoolean("monochrome") == (preset.category == FilmCategory.MONOCHROME)) {
+                    "不支持此 Fotufilm 移动模型来源"
+                }
             }
             val tables = manifest.getJSONObject("tables")
             val scanDescriptor = tables.getJSONObject("scan")
@@ -97,8 +104,11 @@ internal class MobileFilmModelLibrary(context: Context) {
         entries?.let { return it }
         val spectral = readIndex(ROOT, MODEL_VERSION, FilmModelOrigin.SPEKTRAFILM)
         val monochrome = readIndex(MONO_ROOT, MONO_VERSION, FilmModelOrigin.PROJECT_MONOCHROME)
-        require(spectral.keys.intersect(monochrome.keys).isEmpty()) { "移动胶片目录标识重复" }
-        return (spectral + monochrome).also { entries = it }
+        val fotufilm = readIndex(FOTU_ROOT, FOTU_VERSION, FilmModelOrigin.FOTUFILM_MOBILE)
+        require((spectral.keys + monochrome.keys + fotufilm.keys).size == spectral.size + monochrome.size + fotufilm.size) {
+            "移动胶片目录标识重复"
+        }
+        return (spectral + monochrome + fotufilm).also { entries = it }
     }
 
     private suspend fun readIndex(root: String, expectedVersion: String, origin: FilmModelOrigin): Map<String, Entry> {
@@ -107,6 +117,8 @@ internal class MobileFilmModelLibrary(context: Context) {
             when (origin) {
                 FilmModelOrigin.SPEKTRAFILM -> json.getString("sourceCommit") == SOURCE_COMMIT
                 FilmModelOrigin.PROJECT_MONOCHROME -> json.getString("origin") == "project_authored"
+                FilmModelOrigin.FOTUFILM_MOBILE -> json.getString("origin") == "fotufilm_public_pack_adapter" &&
+                    json.getString("sourceCommit") == FOTU_COMMIT
             }) { "不支持此移动胶片目录版本" }
         val array = json.getJSONArray("models")
         require(array.length() in 1..128) { "移动胶片目录数量无效" }
@@ -122,8 +134,14 @@ internal class MobileFilmModelLibrary(context: Context) {
                 size in 1..MAX_MODEL_BYTES && SHA256.matches(digest) && !result.containsKey(id)) { "移动胶片目录条目无效" }
             if (origin == FilmModelOrigin.PROJECT_MONOCHROME) require(id in MONO_STOCKS && printId == "lfm_silver_paper" &&
                 !item.getBoolean("positive")) { "自有黑白目录条目无效" }
+            if (origin == FilmModelOrigin.FOTUFILM_MOBILE) require(id in FOTU_STOCKS && printId == "fotu_fixed_print" &&
+                !item.getBoolean("positive")) { "Fotufilm 移动目录条目无效" }
             result[id] = Entry(MobileFilmModelInfo(id, printId, item.getBoolean("positive"), version,
-                SOURCE_COMMIT.takeIf { origin == FilmModelOrigin.SPEKTRAFILM }, size, origin), digest, root)
+                when (origin) {
+                    FilmModelOrigin.SPEKTRAFILM -> SOURCE_COMMIT
+                    FilmModelOrigin.FOTUFILM_MOBILE -> FOTU_COMMIT
+                    FilmModelOrigin.PROJECT_MONOCHROME -> null
+                }, size, origin), digest, root)
         }
         return result.toMap()
     }
@@ -207,11 +225,21 @@ internal class MobileFilmModelLibrary(context: Context) {
         }
         // v1 generators reserve 0.2 above the declared density ceiling.
         val maximum = triple(scan, "maximum", .21f, 10f).also { for (c in 0..2) it[c] -= .2f }
+        fun scatter(key: String, fallback: FloatArray, high: Float): FloatArray =
+            if (halation.has(key)) triple(halation, key, 0f, high) else fallback
+        require(halation.optBoolean("halation_renormalize", true)) { "移动模型需要归一化返光" }
         return MobileFilmEffects(grain.getBoolean("active"), scalar(grain, "particle_area_um2", .0001f, 10f),
             triple(grain, "particle_scale", .0001f, 20f), triple(grain, "density_min", 0f, 1f),
             triple(grain, "uniformity", 0f, 1f), maximum,
             triple(halation, "halation_strength", 0f, 2f), triple(halation, "halation_first_sigma_um", 0f, 1000f),
-            scalar(manifest.getJSONObject("settingsSnapshot").getJSONObject("camera"), "film_format_mm", 10f, 100f))
+            scalar(manifest.getJSONObject("settingsSnapshot").getJSONObject("camera"), "film_format_mm", 10f, 100f),
+            halation.optInt("halation_n_bounces", 3).also { require(it in 1..8) },
+            halation.optDouble("halation_bounce_decay", .5).toFloat().also { require(it.isFinite() && it in 0f..1f) },
+            grain.optDouble("spacing_um", 0.0).toFloat().also { require(it.isFinite() && it in 0f..40f) },
+            halation.optDouble("scatter_amount", 1.0).toFloat().also { require(it.isFinite() && it in 0f..1f) },
+            scatter("scatter_core_um", floatArrayOf(2.2f, 2f, 1.6f), 1000f),
+            scatter("scatter_tail_um", floatArrayOf(9.3f, 9.7f, 9.1f), 1000f),
+            scatter("scatter_tail_weight", floatArrayOf(.78f, .65f, .67f), 1f))
     }
 
     companion object {
@@ -221,9 +249,14 @@ internal class MobileFilmModelLibrary(context: Context) {
         private const val MONO_ROOT = "film/mobile-monochrome-v1"
         private const val MONO_VERSION = "lfm-silver-three-stage-v1"
         private val MONO_STOCKS = setOf("lfm_silver_neutral", "lfm_silver_contrast")
+        private const val FOTU_ROOT = "film/mobile-fotufilm-v1"
+        private const val FOTU_VERSION = "lfm-fotufilm-public-three-stage-v1"
+        private const val FOTU_COMMIT = "12c8efea259e4cea70ec22166e504634d401a0cd"
+        private val FOTU_STOCKS = setOf("cinestill_800t", "cinestill_400d", "fujifilm_acros_100_ii",
+            "kodak_tri_x_400", "ilford_hp5_plus_400", "ilford_delta_3200")
         private const val MAX_JSON_BYTES = 256 * 1024
         private const val MAX_MODEL_BYTES = 12L * 1024 * 1024
-        private const val CACHE_BYTES = 4L * 1024 * 1024
+        private const val CACHE_BYTES = 12L * 1024 * 1024
         private const val CACHE_MODELS = 2
         private val ID = Regex("[a-z0-9_]{1,80}")
         private val SHA256 = Regex("[0-9a-f]{64}")

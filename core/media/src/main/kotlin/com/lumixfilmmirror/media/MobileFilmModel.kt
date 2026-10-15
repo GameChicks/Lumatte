@@ -5,7 +5,7 @@ import kotlin.math.log10
 import kotlin.math.pow
 
 /** Describes packaged data, not an active/validated processing backend. */
-enum class FilmModelOrigin { SPEKTRAFILM, PROJECT_MONOCHROME }
+enum class FilmModelOrigin { SPEKTRAFILM, PROJECT_MONOCHROME, FOTUFILM_MOBILE }
 
 data class MobileFilmModelInfo(val stockId: String, val printId: String, val positive: Boolean,
     val modelVersion: String, val sourceCommit: String?, val tableBytes: Long,
@@ -21,7 +21,11 @@ internal data class NativeFilmStage(val size: Int, val values: FloatArray, val m
 internal data class MobileFilmEffects(val grainActive: Boolean, val particleAreaUm2: Float,
     val particleScale: FloatArray, val densityFloor: FloatArray, val grainUniformity: FloatArray,
     val densityMaximum: FloatArray, val halationStrength: FloatArray, val halationSigmaUm: FloatArray,
-    val filmFormatMm: Float)
+    val filmFormatMm: Float, val halationBounces: Int = 3, val halationDecay: Float = .5f,
+    val grainSpacingUm: Float = 0f, val scatterAmount: Float = 1f,
+    val scatterCoreUm: FloatArray = floatArrayOf(2.2f, 2f, 1.6f),
+    val scatterTailUm: FloatArray = floatArrayOf(9.3f, 9.7f, 9.1f),
+    val scatterTailWeight: FloatArray = floatArrayOf(.78f, .65f, .67f))
 
 /** Immutable after loading. Caller-owned output avoids per-pixel arrays and shared scratch state. */
 internal class FilmStageTable(val size: Int, private val domain: FilmTableDomain, private val values: FloatArray) {

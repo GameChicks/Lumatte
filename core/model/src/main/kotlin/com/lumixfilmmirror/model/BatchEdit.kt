@@ -7,16 +7,22 @@ enum class FilmBatchMode { INDIVIDUAL, FIRST_PHOTO }
 enum class DiffusionGrade(val strength: Float) { OFF(0f), EIGHTH(.125f), QUARTER(.25f), HALF(.5f) }
 enum class PhotoTreatment { LUT, FILM, ORIGINAL }
 
+object FilmDefaults {
+    fun halationEnabled(presetId: String): Boolean = presetId == "cinestill_800t" || presetId == "cinestill_400d"
+}
+
 /** Three public controls; exposure uses one EV and professional settings stay inside the engine. */
 data class FilmParameters(
     val presetId: String = "kodak_gold_200",
     val exposureEv: Float = 0f,
     val diffusion: DiffusionGrade = DiffusionGrade.OFF,
-    val halationEnabled: Boolean = true,
+    val halationEnabled: Boolean = FilmDefaults.halationEnabled(presetId),
 ) {
     init {
         require(exposureEv.isFinite() && exposureEv in -3f..3f)
     }
+
+    fun withPreset(id: String): FilmParameters = copy(presetId = id, halationEnabled = FilmDefaults.halationEnabled(id))
 }
 
 data class BatchPhoto(

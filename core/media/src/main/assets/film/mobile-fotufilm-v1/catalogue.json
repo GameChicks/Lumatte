@@ -1,0 +1,52 @@
+{
+  "stocks": [
+    {
+      "id": "cinestill_800t",
+      "name": "CineStill 800T",
+      "category": "CINEMA",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "description": "钨丝灯夜景；独立红橙光晕，保留明亮灯芯。 移动近似风格，非实测胶卷或完整上游引擎一致性声明。"
+    },
+    {
+      "id": "cinestill_400d",
+      "name": "CineStill 400D",
+      "category": "NEGATIVE",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "description": "日光彩色负片；暖色返光比 800T 克制。 移动近似风格，非实测胶卷或完整上游引擎一致性声明。"
+    },
+    {
+      "id": "fujifilm_acros_100_ii",
+      "name": "Fujifilm Acros 100 II",
+      "category": "MONOCHROME",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "description": "细腻颗粒与平顺灰阶，适合建筑和日常光影。 移动近似风格，非实测胶卷或完整上游引擎一致性声明。"
+    },
+    {
+      "id": "kodak_tri_x_400",
+      "name": "Kodak Tri-X 400",
+      "category": "MONOCHROME",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "description": "鲜明的黑白层次与可见颗粒，适合街头纪实。 移动近似风格，非实测胶卷或完整上游引擎一致性声明。"
+    },
+    {
+      "id": "ilford_hp5_plus_400",
+      "name": "Ilford HP5 Plus 400",
+      "category": "MONOCHROME",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "description": "宽容的中间调与柔和过渡，适合人像和日常。 移动近似风格，非实测胶卷或完整上游引擎一致性声明。"
+    },
+    {
+      "id": "ilford_delta_3200",
+      "name": "Ilford Delta 3200",
+      "category": "MONOCHROME",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "description": "明显颗粒与低照度气氛，适合夜间和室内。 移动近似风格，非实测胶卷或完整上游引擎一致性声明。"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # 自有黑白胶片功能（2026-10-11）
 
+> 2026-10-16：新选型目录已由四款有各自源资料的黑白移动模型替换，见 [CineStill 与四款黑白卷](cinestill-and-four-monochrome.md)。本页保留旧 Silver 资源的历史实现说明；旧配方兼容仍使用这些资源。
+
 固定 spektrafilm 来源的 20 款资源没有提供黑白模型。本轮加入两项本项目自有风格：`lfm_silver_neutral`（Silver · Neutral，中性）和 `lfm_silver_contrast`（Silver · Contrast，高反差）。它们是艺术参数的银盐负片／相纸近似，**没有品牌胶卷实测标定**，不以 HP5、Tri-X 等商品名称呈现，也不称作 spektrafilm 的黑白数据。
 
 实际运行了本项目 `tools/produce_monochrome_models.py`，生产两项数据包与轻量目录。原件和彩色来源资源没有改写。Android 目录、模型读取、GLES／CPU 共用入口有源码接线；没有编译、运行照片、设备验证、测试、基准或 APK。

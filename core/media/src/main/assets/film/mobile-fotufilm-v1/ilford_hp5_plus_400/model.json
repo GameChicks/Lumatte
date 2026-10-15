@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+  "stockId": "ilford_hp5_plus_400",
+  "printId": "fotu_fixed_print",
+  "positive": false,
+  "source": {
+    "origin": "fotufilm_public_pack_adapter",
+    "repository": "https://github.com/DhaliwalX/fotufilm-engine",
+    "commit": "12c8efea259e4cea70ec22166e504634d401a0cd",
+    "packSnapshot": "fotufilm-public-demo-20261016",
+    "packSha256": "49ec3a1f7db98b2645119bebeef293e84b9ecb17809f0b611127de1b3232912f",
+    "profileSha256": "ad24baff296ef58fbd1cfeb77c2efe963b46104bded410588a9fa68771a18b9d",
+    "author": "Fotufilm / MUAStudio Inc.",
+    "license": "CC-BY-SA-4.0"
+  },
+  "storage": "float32_le_rgb_x_fastest",
+  "dir": "baked_local_only",
+  "spatialEffectsBaked": false,
+  "grainBaked": false,
+  "tables": {
+    "response": {
+      "file": "response.f32",
+      "size": 33,
+      "bytes": 431244,
+      "sha256": "f52bc78b5dcd0b2235276128974599b8015a2e342fe7ce2bcb71cd5b1eacddb1",
+      "minimum": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maximum": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "srgb_encoded",
+      "outputSpace": "film_raw_linear"
+    },
+    "development": {
+      "file": "development.f32",
+      "size": 65,
+      "bytes": 3295500,
+      "sha256": "06bcccda16e9835861b8eee55eb52f2b5d54eb729ea64dd8a4d3f1c40638afbd",
+      "minimum": [
+        -4.0,
+        -4.0,
+        -4.0
+      ],
+      "maximum": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_log10_exposure",
+      "outputSpace": "film_cmy_density"
+    },
+    "scan": {
+      "file": "scan.f32",
+      "size": 41,
+      "bytes": 827052,
+      "sha256": "630a8d46c7e9e1f87447c2d1d003a40719589e8fc13056afc19ddc0533d51a75",
+      "minimum": [
+        -0.2,
+        -0.2,
+        -0.2
+      ],
+      "maximum": [
+        2.94577894726599,
+        2.94577894726599,
+        2.94577894726599
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_cmy_density",
+      "outputSpace": "srgb_encoded"
+    }
+  },
+  "grainReference": {
+    "active": true,
+    "particle_area_um2": 0.1,
+    "particle_scale": [
+      3.1955289167950522,
+      3.1955289167950522,
+      3.1955289167950522
+    ],
+    "density_min": [
+      0.02,
+      0.02,
+      0.02
+    ],
+    "uniformity": [
+      0.9,
+      0.9,
+      0.9
+    ],
+    "spacing_um": 8.0
+  },
+  "halationReference": {
+    "halation_strength": [
+      0.05,
+      0.015,
+      0
+    ],
+    "halation_first_sigma_um": [
+      65,
+      65,
+      65
+    ],
+    "halation_n_bounces": 3,
+    "halation_bounce_decay": 0.5,
+    "halation_renormalize": true
+  },
+  "settingsSnapshot": {
+    "camera": {
+      "film_format_mm": 36.0
+    }
+  },
+  "mobileAdaptation": {
+    "monochrome": true,
+    "halationModel": "spektrafilm_default_shape",
+    "fullEngineParity": false,
+    "sampledCurves": true,
+    "sceneMetering": false,
+    "spatialDIR": false,
+    "grain": "density-statistical-approximation"
+  }
+}

@@ -55,7 +55,7 @@ lfm::mobile::Model read_model(JNIEnv* env, jobjectArray tables, jintArray sizes,
     return {stage(0), stage(1), stage(2)};
 }
 lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
-    const auto values = copy(env, controls, 24);
+    const auto values = copy(env, controls, 38);
     if ((values[0] != 0 && values[0] != .125f && values[0] != .25f && values[0] != .5f) ||
         (values[1] != 0 && values[1] != 1) || values[2] < -3 || values[2] > 3 ||
         (values[3] != 0 && values[3] != 1) || values[4] < .0001f || values[4] > 10 || values[23] < 10 || values[23] > 100)
@@ -64,6 +64,19 @@ lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
     result.diffusion = values[0]; result.halation = values[1] == 1;
     result.exposure_gain = std::pow(2.f, values[2]); result.grain = values[3] == 1;
     result.particle_area = values[4]; result.format_mm = values[23];
+    if ((values[24] != 0 && values[24] != 1) || values[25] < 1 || values[25] > 8 ||
+        values[25] != std::floor(values[25]) || values[26] < 0 || values[26] > 1 || values[27] < 0 || values[27] > 40)
+        throw std::invalid_argument("Mobile spatial profile invalid");
+    result.cinestill = values[24] == 1; result.halation_bounces = int(values[25]);
+    result.halation_decay = values[26]; result.grain_spacing_um = values[27];
+    if (values[28] < 0 || values[28] > 1) throw std::invalid_argument("Invalid scatter amount");
+    result.scatter_amount = values[28];
+    for (int c = 0; c < 3; ++c) {
+        result.scatter_core_um[c] = values[29+c]; result.scatter_tail_um[c] = values[32+c];
+        result.scatter_tail_weight[c] = values[35+c];
+        if (values[29+c] < 0 || values[29+c] > 1000 || values[32+c] < 0 || values[32+c] > 1000 ||
+            values[35+c] < 0 || values[35+c] > 1) throw std::invalid_argument("Invalid emulsion scatter profile");
+    }
     for (int c = 0; c < 3; ++c) {
         result.particle_scale[c] = values[5 + c]; result.floor[c] = values[8 + c];
         result.uniformity[c] = values[11 + c]; result.density_max[c] = values[14 + c];

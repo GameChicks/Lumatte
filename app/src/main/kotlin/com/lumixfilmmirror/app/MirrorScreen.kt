@@ -115,7 +115,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                 workspace.treatment(PhotoTreatment.FILM)
                 val batch = workspace.state.value.filmBatch
                 val current = workspace.state.value.selected?.let { batch?.effectiveParameters(it) } ?: FilmParameters()
-                workspace.updateFilm(current.copy(presetId = film.id)); pane = "editor"
+                workspace.updateFilm(current.withPreset(film.id)); pane = "editor"
             }
         }
     }
