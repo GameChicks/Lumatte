@@ -26,7 +26,7 @@ internal object CameraXml {
                     "service" -> service = mutableMapOf()
                     "serviceType", "controlURL" -> service?.set(name, parser.nextText().trim())
                     "URLBase" -> urlBase = URI(parser.nextText().trim())
-                    "manufacturer", "friendlyName", "modelName", "X_FirmVersion", "UDN", "X_CamCapability", "X_CamCategory" ->
+                    "manufacturer", "friendlyName", "modelName", "modelNumber", "X_FirmVersion", "UDN", "X_CamCapability", "X_CamCategory" ->
                         values.putIfAbsent(name, parser.nextText().trim())
                 }
             } else if (parser.eventType == XmlPullParser.END_TAG && parser.name == "service") {
@@ -37,13 +37,20 @@ internal object CameraXml {
             }
             parser.next()
         }
-        require(values["modelName"]?.isNotBlank() == true) { "未读取到相机型号" }
+        // UPnP modelName can be the generic "Panasonic LUMIX". The actual body
+        // identifier is modelNumber (the official descriptor parser reads both).
+        val model = values["modelNumber"]?.takeIf {
+            it.matches(Regex("(?:DC|DMC)-[A-Za-z0-9-]{1,24}", RegexOption.IGNORE_CASE))
+        } ?: values["modelName"].orEmpty()
+        require(model.isNotBlank()) { "未读取到相机型号" }
         require(values["manufacturer"]?.contains("Panasonic", ignoreCase = true) == true &&
             (values.containsKey("X_CamCapability") || values.containsKey("X_CamCategory") ||
-                values.getValue("modelName").startsWith("DC-", ignoreCase = true) ||
-                values.getValue("modelName").startsWith("DMC-", ignoreCase = true) ||
+                model.startsWith("DC-", ignoreCase = true) ||
+                model.startsWith("DMC-", ignoreCase = true) ||
                 description.path.startsWith("/Lumix/"))) { "发现的设备不是松下相机" }
-        return CameraDevice(description, values["friendlyName"].orEmpty(), values.getValue("modelName"),
+        CameraConnectionLog.info("LFMCamera", "descriptorModelSource=" +
+            if (model == values["modelNumber"]) "modelNumber" else "modelName")
+        return CameraDevice(description, values["friendlyName"].orEmpty(), model,
             values["X_FirmVersion"].orEmpty(), values["UDN"].orEmpty(),
             values["X_CamCapability"]?.endsWith("1") == true,
             (urlBase ?: description).resolve(contentUrl ?: "/Server0/CDS_control"))

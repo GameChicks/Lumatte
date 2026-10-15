@@ -950,9 +950,11 @@ class CameraController(private val application: Application) {
         val status = (error as? CameraProtocolException)?.status?.takeIf {
             it.matches(Regex("(?:err_[a-z0-9_]{1,48}|HTTP [0-9]{3})"))
         }.orEmpty()
+        val origin = error.stackTrace.firstOrNull { it.className.startsWith("com.lumixfilmmirror.") }
+            ?.let { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }.orEmpty()
         // Exception text can contain URLs, query tokens, local file paths or camera names.
         CameraConnectionLog.warn("LFMCamera", "operation=$result type=${error.javaClass.simpleName} " +
-            "status=$status bt=${state.bluetoothStep} wifiHttp=${state.step} pairingApproved=${state.bluetoothPairingCompleted}")
+            "status=$status at=$origin bt=${state.bluetoothStep} wifiHttp=${state.step} pairingApproved=${state.bluetoothPairingCompleted}")
     }
 
     fun cancelCameraOperation() {

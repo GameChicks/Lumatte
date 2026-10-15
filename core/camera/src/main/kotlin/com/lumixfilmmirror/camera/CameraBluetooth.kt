@@ -236,6 +236,7 @@ class CameraBluetooth(private val context: Context) {
             session.connect()
             onStep(BluetoothConnectionStep.READING_SERVICES)
             session.discover()
+            session.logConnectionCapabilities()
             return block(session)
         } finally { session.close() }
     }
@@ -453,8 +454,10 @@ private class ConnectionGatt(private val context: Context, private val device: B
 
     fun canStartTransferWifi(): Boolean {
         val protocol = LumixBleProtocol
-        return hasWritable(protocol.wifiConnectionType, protocol.wifiService) && hasWritable(protocol.connectionMode, protocol.service) &&
-            hasNotification(protocol.wifiChoiceReply, protocol.wifiService) && hasNotification(protocol.connectionStatus, protocol.service)
+        // Starting SoftAP requires the two writes. Optional status subscriptions
+        // must not prevent those writes: Wi-Fi + HTTP approval confirm success.
+        return hasWritable(protocol.wifiConnectionType, protocol.wifiService) &&
+            hasWritable(protocol.connectionMode, protocol.service)
     }
     fun canObserveIncoming(): Boolean {
         val protocol = LumixBleProtocol
@@ -462,17 +465,32 @@ private class ConnectionGatt(private val context: Context, private val device: B
             hasNotification(protocol.sendingModeEvent, protocol.service)
     }
     fun canStartRouterWifi(): Boolean = canStartTransferWifi() &&
-        hasWritable(LumixBleProtocol.routerSsid, LumixBleProtocol.wifiService)
+        hasWritable(LumixBleProtocol.routerSsid, LumixBleProtocol.wifiService) &&
+        hasNotification(LumixBleProtocol.wifiChoiceReply, LumixBleProtocol.wifiService)
     private fun hasWritable(uuid: UUID, service: UUID): Boolean = has(uuid, service) &&
-        characteristic(uuid, service).properties and BluetoothGattCharacteristic.PROPERTY_WRITE != 0
+        characteristic(uuid, service).properties and (BluetoothGattCharacteristic.PROPERTY_WRITE or
+            BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0
     private fun hasNotification(uuid: UUID, service: UUID): Boolean {
         if (!has(uuid, service)) return false
         val characteristic = characteristic(uuid, service)
-        return characteristic.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY != 0 &&
-            descriptor(characteristic) != null
+        // Some Panasonic revisions provide a writable notification descriptor
+        // without the NOTIFY property bit. Match the reference's descriptor check.
+        return descriptor(characteristic) != null
     }
     private fun descriptor(characteristic: BluetoothGattCharacteristic): BluetoothGattDescriptor? =
         characteristic.getDescriptor(characteristic.uuid) ?: characteristic.getDescriptor(LumixBleProtocol.cccd)
+    fun logConnectionCapabilities() {
+        val protocol = LumixBleProtocol
+        listOf(protocol.service to protocol.connectionMode, protocol.service to protocol.connectionStatus,
+            protocol.wifiService to protocol.wifiConnectionType, protocol.wifiService to protocol.wifiChoiceReply)
+            .forEach { (service, uuid) ->
+                val value = requireGatt().getService(service)?.getCharacteristic(uuid)
+                CameraConnectionLog.info("LFMBle", "capability uuid=$uuid present=${value != null} " +
+                    "properties=${value?.properties ?: 0} descriptor=${value?.let { descriptor(it) != null } ?: false}")
+            }
+        CameraConnectionLog.info("LFMBle", "capability transferStartup=${canStartTransferWifi()} " +
+            "incoming=${canObserveIncoming()} router=${canStartRouterWifi()}")
+    }
     suspend fun prepareConnectionNotifications() {
         val protocol = LumixBleProtocol
         if (hasNotification(protocol.connectionStatus, protocol.service)) subscribe(protocol.connectionStatus, protocol.service)
@@ -484,7 +502,10 @@ private class ConnectionGatt(private val context: Context, private val device: B
         val characteristic = characteristic(uuid, service)
         val descriptor = descriptor(characteristic) ?: error("相机连接通知暂不支持，请在相机上开启 Wi-Fi 后连接")
         check(requireGatt().setCharacteristicNotification(characteristic, true)) { "无法启用相机连接通知" }
-        val value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+        val indicateOnly = characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0 &&
+            characteristic.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY == 0
+        val value = if (indicateOnly) BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+            else BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
         CameraConnectionLog.info("LFMBle", "operation=DESCRIPTOR uuid=$uuid state=requested")
         val accepted = if (Build.VERSION.SDK_INT >= 33)
             requireGatt().writeDescriptor(descriptor, value).let { status ->
@@ -499,8 +520,7 @@ private class ConnectionGatt(private val context: Context, private val device: B
     }
     suspend fun startTransferWifi(initialPairing: Boolean) {
         val protocol = LumixBleProtocol
-        subscribe(protocol.wifiChoiceReply, protocol.wifiService)
-        subscribe(protocol.connectionStatus, protocol.service)
+        prepareConnectionNotifications()
         startupActive.set(true)
         // The pairing advertisement selects registration mode 5; ordinary reconnect uses 3.
         // Official C0393g/C0272a and the user's successful S5 trace agree on this distinction.
@@ -685,7 +705,8 @@ private class ConnectionGatt(private val context: Context, private val device: B
                         error("$operation 失败（状态 ${event.status}），请重新进入相机配对页面后重试")
                     }
                     // Protocol UUIDs only: never log characteristic values, device IDs or addresses.
-                    CameraConnectionLog.info("LFMBle", "operation=$kind uuid=$uuid status=success")
+                    CameraConnectionLog.info("LFMBle", "operation=$kind uuid=$uuid status=success" +
+                        if (kind == Kind.READ) " bytes=${event.bytes.size}" else "")
                     return@withTimeout event
                 }
                 @Suppress("UNREACHABLE_CODE") error("蓝牙响应未到达")
