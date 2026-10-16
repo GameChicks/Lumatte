@@ -43,6 +43,9 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
         val model = models.load(plan.preset)
         coroutineContext.ensureActive()
         require(bitmap.isMutable && bitmap.config == Bitmap.Config.ARGB_8888) { "移动胶片输入需为可写 sRGB 位图" }
+        require(bitmap.colorSpace == android.graphics.ColorSpace.get(android.graphics.ColorSpace.Named.SRGB)) {
+            "移动胶片输入必须转换到 sRGB，不能仅重标色彩空间"
+        }
         val stages = listOf(model.response.nativeData, model.development.nativeData, model.scan.nativeData)
         val tables = stages.map { it.values }.toTypedArray()
         val sizes = IntArray(3) { stages[it].size }

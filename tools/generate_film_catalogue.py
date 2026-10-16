@@ -4,10 +4,11 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 profiles = root / 'third_party/spektralab/upstream/engine/resources/profiles'
+retired_stocks = {'kodak_portra_800_push1', 'kodak_portra_800_push2'}
 entries = []
 for file in sorted(profiles.glob('*.json')):
     info = json.loads(file.read_text(encoding='utf-8'))['info']
-    if info.get('stage') != 'filming' or info.get('support') != 'film':
+    if info.get('stage') != 'filming' or info.get('support') != 'film' or info.get('stock') in retired_stocks:
         continue
     positive = info['type'] == 'positive'
     category = 'MONOCHROME' if info.get('channel_model') == 'bw' else 'REVERSAL' if positive else 'CINEMA' if info.get('use') == 'cine' else 'NEGATIVE'

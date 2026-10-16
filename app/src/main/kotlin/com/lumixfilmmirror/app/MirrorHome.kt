@@ -93,7 +93,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 ActionAtmosphere("蓝牙\n连接", "连接你的相机", listOf(Color(0xFFFFCF78), Color(0xFFED653B), Color(0xFF428FA6)),
                     Modifier.weight(1f), cardHeight, DotGlyph.BLUETOOTH, "BLUETOOTH\nCONNECT", { onCamera(null) })
-                ActionAtmosphere("进入\n相册", "导入图片", listOf(Color(0xFF758FB5), Color(0xFFCC9E9B), Color(0xFFF2C992)),
+                ActionAtmosphere("进入\n相册", "导入图片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
                     Modifier.weight(1f), cardHeight, DotGlyph.ALBUM, "IMPORT\nPHOTOS", onAlbum)
             }
         }
@@ -101,7 +101,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
         item {
             Atmosphere(Modifier.fillMaxWidth().height(cardHeight).clickable(role = Role.Button) {
                 note = personal.journal; noteEditing = true
-            }, listOf(Color(0xFFBCA28A), Color(0xFF89696E), Color(0xFF3F425D))) {
+            }, listOf(Color(0xFFAEA891), Color(0xFF777967), Color(0xFF414D43))) {
                 Text("“", Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = if (personal.journal.isBlank()) 20.dp else 54.dp),
                     fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
                 Text("”", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 20.dp),

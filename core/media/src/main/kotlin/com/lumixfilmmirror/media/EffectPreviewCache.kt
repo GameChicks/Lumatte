@@ -10,7 +10,7 @@ data class PreviewCacheInfo(val bytes: Long, val entries: Int, val hits: Long, v
 /** Source JPEGs are immutable private copies. Parsed LUT identity also participates in invalidation. */
 internal data class EffectPreviewKey(val photoId: String, val path: String, val length: Long, val modified: Long,
     val sourceSize: PixelSize, val orientation: Int, val outputSize: PixelSize, val recipe: PhotoRecipe,
-    val firstTable: CubeLut?, val secondTable: CubeLut?, val stock: FilmPreset?)
+    val firstTable: CubeLut?, val secondTable: CubeLut?, val stock: FilmPreset?, val filmRenderSize: PixelSize?)
 
 /** Access only while PhotoProcessor's preview gate is held. Returned bitmaps never borrow cache storage. */
 internal class EffectPreviewCache(private val budget: Long = 8L * 1024 * 1024, private val entryLimit: Int = 2) {

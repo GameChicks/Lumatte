@@ -112,13 +112,6 @@ internal object FilmEditorialLibrary {
             listOf("高反差", "轮廓", "硬光", "自有"), "银盐灰阶", "更强纹理", "鲜明反差", "建筑与硬光", "中性响应", "银盐近似", Color(0xFF8F969B), null, "项目自有艺术风格；非品牌胶卷实测模型。")
     )
     fun forFilm(film: FilmPreset): FilmEditorial {
-        if (film.id == "kodak_portra_800_push1" || film.id == "kodak_portra_800_push2") {
-            val stops = if (film.id.endsWith("push1")) 1 else 2
-            return entries.getValue("kodak_portra_800").copy(
-                tagline = "Portra 800，推片 +$stops 档的另一种呈现。",
-                story = "这不是另一款实体胶卷，而是 Portra 800 的推片模型变体。保留同一个 800 暗盒与基准感光度，用独立模型表现推片后的密度与色彩关系。与标准 800 对照时，关注暗部、反差和颗粒；+$stops 档不代表在应用里自动给 JPEG 增加 $stops EV 曝光。",
-                tags = listOf("推片 +$stops", "高速", "纹理", "对照"), contrast = "推片变体", note = "基准 ISO 800 · 推片模型 +$stops 档；曝光仍可单独调整。")
-        }
         return entries[film.id] ?: FilmEditorial(film.name, film.description ?: "该卷的资料正在整理。",
             emptyList(), "资料待补", "资料待补", "资料待补", "查看实际预览", "未标注", "未标注", film.category.colour(), null)
     }

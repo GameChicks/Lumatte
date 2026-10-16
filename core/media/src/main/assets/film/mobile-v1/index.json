@@ -100,22 +100,6 @@
       "tableBytes": 1689540
     },
     {
-      "stockId": "kodak_portra_800_push1",
-      "printId": "kodak_portra_endura",
-      "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "e1ee8b43bc980b7bfa63717676ffd8f6f8a4dd1e34717a6aee8a9e9790371ce0",
-      "tableBytes": 1689540
-    },
-    {
-      "stockId": "kodak_portra_800_push2",
-      "printId": "kodak_portra_endura",
-      "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "a0446a53cc451b83fc1d7b64ad865b856f2fcceeebe12ec83e617ac17faccaef",
-      "tableBytes": 1689540
-    },
-    {
       "stockId": "kodak_ultramax_400",
       "printId": "kodak_portra_endura",
       "positive": false,

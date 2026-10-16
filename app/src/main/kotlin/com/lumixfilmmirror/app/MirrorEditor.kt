@@ -7,6 +7,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -163,20 +169,22 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
     // snapshot, and must not invalidate identical composition pixels while editing.
     val options = state.exportOptions.copy(jpeg = state.output.copy(compressionQuality = 100))
     val frameNumber = state.photos.indexOfFirst { it.id == source.id } + 1
-    val previewKey = listOf("editor", source.id, recipe, if (frame) options else null, if (frame) frameNumber else null)
+    val filmOutputSize=if(recipe is PhotoRecipe.Film)state.output.contentSize(source.size) else null
+    val previewKey = listOf("editor", source.id, recipe, if (frame) options else null, if (frame) frameNumber else null, filmOutputSize)
     var bitmap by remember(source.id, frame) { mutableStateOf(workspace.displayPreviews.peek(previewKey)?.image) }
     var problem by remember(source.id, frame) { mutableStateOf<String?>(null) }
     var loading by remember(source.id, frame) { mutableStateOf(true) }
     var retry by rememberSaveable(source.id.value, frame) { mutableIntStateOf(0) }
-    LaunchedEffect(source.id, recipe, if (frame) state.frame else null, if (frame) state.output.dimensionPercent else null, state.luts, retry) {
+    LaunchedEffect(source.id, recipe, if (frame) state.frame else null, if (frame) state.output.dimensionPercent else null, filmOutputSize, state.luts, retry) {
         loading = workspace.displayPreviews.peek(previewKey) == null; problem = null
         try {
             if (loading) delay(160)
             val frozenRecipe = recipe ?: error("照片配方不可用")
             val result = workspace.displayPreviews.load(previewKey, keepLoading = false) {
                 val catalogue = ProcessingCatalogue(state.luts, state.filmPresets, emptyList())
-                MirrorPreview(if (frame) workspace.processor.previewExport(source, frozenRecipe, catalogue, options, longEdge = 960, frameNumber = frameNumber)
-                    else workspace.processor.preview(source, frozenRecipe, catalogue, longEdge = 960))
+                MirrorPreview(if (frame) workspace.processor.previewExport(source, frozenRecipe, catalogue, options, longEdge = 960,
+                    frameNumber = frameNumber, matchFilmOutput = true)
+                    else workspace.processor.preview(source, frozenRecipe, catalogue, longEdge = 960, filmOutputSize = filmOutputSize))
             }.image
             bitmap = result; onReady?.invoke(result)
         } catch (error: CancellationException) { throw error }
@@ -370,6 +378,7 @@ internal fun FilmReveal(state: WorkspaceState, workspace: WorkspaceViewModel, on
 @Composable
 internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, onImport: () -> Unit,
     onBack: (() -> Unit)? = null) {
+    val transitionDuration = if (LocalMirrorReducedMotion.current) 0 else 320
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var frameTab by rememberSaveable { mutableStateOf("frame") }
@@ -410,6 +419,21 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
             }
             RoundAction("导入照片", DotGlyph.PLUS, onClick = { if (!state.busy) onImport() })
         }
+        // Keep the outgoing snapshot alive until the transition finishes. The last photo
+        // is retired from the pending queue before the saved screen is presented.
+        AnimatedContent(targetState = state, modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentKey = { when {
+                it.current != null -> "editing"
+                it.exporting -> "finishing"
+                it.exported.isNotEmpty() -> "saved"
+                else -> "empty"
+            } },
+            transitionSpec = {
+                (fadeIn(tween(transitionDuration)) + slideInVertically(tween(transitionDuration, easing = MirrorEase)) { it / 24 }) togetherWith
+                    (fadeOut(tween(transitionDuration)) + slideOutVertically(tween(transitionDuration, easing = MirrorEase)) { -it / 32 })
+            }, label = "export-completion") { sceneState ->
+        val state = sceneState
+        Column(Modifier.fillMaxSize()) {
         if (state.current == null) Box(Modifier.weight(1f).fillMaxWidth()) {
             if (state.exported.isNotEmpty() && !state.exporting)
                 EmptyImport("已保存 ${state.exported.size} 张照片。", "已完成的照片已移出待处理列表，可在导出记录中查看。", onImport)
@@ -476,6 +500,8 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
         if (state.current != null) MirrorButton(enabled = !state.busy, onClick = { workspace.export() },
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp), shape = RoundedCornerShape(28.dp)) {
             Text(if (state.exporting) "保存中…" else "导出本批 · ${state.photos.size} 张")
+        }
+        }
         }
     }
     if (largeFramePreview && state.current != null) MirrorDialog("构图预览", onDismiss = { largeFramePreview = false }) { close ->

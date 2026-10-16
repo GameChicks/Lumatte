@@ -161,7 +161,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         require(frameNumber > 0)
         val layout = FrameLayouts.preview(FrameLayouts.plan(output.contentSize(source.size), frame), longEdge)
         val pixels = previewPixels(source, PixelSize(maxOf(1, kotlin.math.round(layout.photo.width).toInt()),
-            maxOf(1, kotlin.math.round(layout.photo.height).toInt())), lut, film, checkActive)
+            maxOf(1, kotlin.math.round(layout.photo.height).toInt())), lut, film, checkActive = checkActive)
         try {
             checkActive()
             val result = frames.render(pixels, source, frame, layout, film?.preset, frameNumber, checkActive)
@@ -173,14 +173,23 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
 
     /** Shared treatment-only stage, allowing frame previews to reuse an unchanged effect image. */
     internal suspend fun previewPixels(source: SourceImage, size: PixelSize, lut: LutRenderPlan?,
-        film: FilmRenderPlan?, checkActive: () -> Unit): Bitmap {
+        film: FilmRenderPlan?, filmOutputSize: PixelSize? = null, checkActive: () -> Unit): Bitmap {
         require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
         checkActive()
-        var pixels = decode(source, size)
+        // Grain is applied in density space before the nonlinear scan table. Rendering
+        // fewer pixels changes its variance and the resulting mean color. The editor
+        // therefore simulates at the chosen export dimensions, then downsamples once.
+        // Small catalogue cards keep the cheaper approximation by omitting this size.
+        val renderSize = if(film != null)filmOutputSize ?: size else size
+        var pixels = decode(source, renderSize)
         try {
-            film?.let { renderFilm(source, size, it, pixels) { fresh -> pixels = fresh } }
+            film?.let { renderFilm(source, renderSize, it, pixels) { fresh -> pixels = fresh } }
             lut?.render(pixels, source, checkActive)
             checkActive()
+            if(renderSize != size) {
+                val scaled=BitmapOrientation.render(pixels,size,1)
+                pixels.recycle();pixels=scaled
+            }
             return pixels
         } catch (error: Throwable) { pixels.recycle(); throw error }
     }

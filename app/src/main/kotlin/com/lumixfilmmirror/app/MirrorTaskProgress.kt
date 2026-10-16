@@ -2,8 +2,14 @@ package com.lumixfilmmirror.app
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -15,7 +21,17 @@ import com.lumixfilmmirror.design.LocalFilmMaterials
 internal fun MirrorTaskProgress(state: WorkspaceState, camera: CameraWorkspaceState, workspace: WorkspaceViewModel,
     collapsed: Boolean, onCollapse: (Boolean) -> Unit) {
     val transfer = camera.activeTransferBatch != null
-    if (!transfer && !state.exporting) return
+    val active = transfer || state.exporting
+    var lastState by remember { mutableStateOf(state) }
+    var lastCamera by remember { mutableStateOf(camera) }
+    SideEffect { if (active) { lastState = state; lastCamera = camera } }
+    val duration = if (LocalMirrorReducedMotion.current) 0 else 300
+    AnimatedVisibility(visible = active,
+        enter = fadeIn(tween(duration)) + expandVertically(tween(duration, easing = MirrorEase)),
+        exit = fadeOut(tween(duration)) + shrinkVertically(tween(duration, easing = MirrorEase))) {
+    val state = if (active) state else lastState
+    val camera = if (active) camera else lastCamera
+    val transfer = camera.activeTransferBatch != null
     Surface(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), shape = RoundedCornerShape(20.dp),
         color = LocalFilmMaterials.current.paperHighlight, shadowElevation = 2.dp) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -26,7 +42,10 @@ internal fun MirrorTaskProgress(state: WorkspaceState, camera: CameraWorkspaceSt
                 ).joinToString(" · ") else "任务进度", Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 TextButton(onClick = { onCollapse(!collapsed) }) { Text(if (collapsed) "展开进度" else "收起") }
             }
-            if (!collapsed) {
+            AnimatedVisibility(visible = !collapsed,
+                enter = fadeIn(tween(duration)) + expandVertically(tween(duration, easing = MirrorEase)),
+                exit = fadeOut(tween(duration)) + shrinkVertically(tween(duration, easing = MirrorEase))) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (state.exporting) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("正在保存 ${state.completed} / ${state.total}", Modifier.weight(1f))
@@ -43,7 +62,9 @@ internal fun MirrorTaskProgress(state: WorkspaceState, camera: CameraWorkspaceSt
                     }
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
+                }
             }
         }
+    }
     }
 }

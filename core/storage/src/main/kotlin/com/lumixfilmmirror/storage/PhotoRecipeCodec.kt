@@ -40,7 +40,7 @@ internal object PhotoRecipeCodec {
                 PhotoRecipe.Lut(LutRecipe(slot("first"), slot("second"), json.getDouble("grain").toFloat(),
                     json.optBoolean("grainEnabled", true), json.optBoolean("ditheringEnabled", false)))
             }
-            "FILM" -> PhotoRecipe.Film(FilmParameters(json.getString("preset"), json.getDouble("exposure").toFloat(),
+            "FILM" -> PhotoRecipe.Film(FilmParameters(FilmDefaults.currentPresetId(json.getString("preset")), json.getDouble("exposure").toFloat(),
                 DiffusionGrade.valueOf(json.getString("diffusion")), json.getBoolean("halation")), json.getLong("seed"))
             else -> error("导出配方类型不支持")
         }

@@ -11,12 +11,14 @@ private val labelAssets = mapOf(
     "kodak_vision3_50d" to "film_pkg_kodak_5203.png", "kodak_vision3_200t" to "film_pkg_kodak_5213.png",
     "kodak_vision3_500t" to "film_pkg_kodak_5219.png")
 internal fun FilmPreset.shortTitle() = name.removePrefix("Kodak ").removePrefix("Fujifilm ")
+    .removePrefix("Ilford ")
 
 internal data class FilmEditorialName(val title: String, val speed: String?, val variant: String?)
 
 /** Processing variants are not a different physical cartridge or an extra ISO number. */
 internal fun FilmPreset.editorialName(): FilmEditorialName {
     val raw = shortTitle()
+    if (id == "fujifilm_acros_100_ii") return FilmEditorialName("Acros", "100", "II")
     if (id.startsWith("lfm_silver_")) return FilmEditorialName("Silver", null, raw.substringAfter(" · ", "").ifBlank { null })
     val push = Regex("\\s*\\(Push ([12])\\)$").find(raw)
     val stock = if (push == null) raw else raw.substring(0, push.range.first)

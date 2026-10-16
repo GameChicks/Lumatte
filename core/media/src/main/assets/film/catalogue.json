@@ -100,22 +100,6 @@
       "source": "profiles/kodak_portra_800.json"
     },
     {
-      "id": "kodak_portra_800_push1",
-      "name": "Kodak Portra 800 (Push 1)",
-      "category": "NEGATIVE",
-      "printId": "kodak_portra_endura",
-      "positive": false,
-      "source": "profiles/kodak_portra_800_push1.json"
-    },
-    {
-      "id": "kodak_portra_800_push2",
-      "name": "Kodak Portra 800 (Push 2)",
-      "category": "NEGATIVE",
-      "printId": "kodak_portra_endura",
-      "positive": false,
-      "source": "profiles/kodak_portra_800_push2.json"
-    },
-    {
       "id": "kodak_ultramax_400",
       "name": "Kodak Ultramax 400",
       "category": "NEGATIVE",

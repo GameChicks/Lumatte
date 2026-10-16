@@ -95,6 +95,16 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             wifiLauncher.launch(permissions)
         }
     }
+    fun connectCandidate(address: String) {
+        selectedCamera = address
+        val permissions = (wifiPermissions + bluetoothPermissions).distinct().toTypedArray()
+        if (permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
+            workspace.readBluetoothCamera(address)
+        else {
+            pendingCamera = address
+            wifiLauncher.launch(permissions)
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("在相机上打开蓝牙配对。",
                 style = MaterialTheme.typography.bodySmall)
@@ -123,19 +133,16 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
                             Text(if (found.pairing) "相机正在等待配对" else "相机已开机",
                                 style = MaterialTheme.typography.bodySmall)
                         }
+                        TextButton(enabled = selectable, onClick = { connectCandidate(found.address) }) {
+                            Text("连接")
+                        }
                     }
                 }
             }
             MirrorButton(modifier = Modifier.fillMaxWidth(), enabled = selectable &&
                 camera.bluetoothCameras.any { it.address == selectedCamera }, onClick = {
                 val address = selectedCamera ?: return@MirrorButton
-                val permissions = (wifiPermissions + bluetoothPermissions).distinct().toTypedArray()
-                if (permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
-                    workspace.readBluetoothCamera(address)
-                else {
-                    pendingCamera = address
-                    wifiLauncher.launch(permissions)
-                }
+                connectCandidate(address)
             }) { Text("配对并连接所选相机") }
             val selected = camera.bluetoothCameras.firstOrNull { it.address == selectedCamera }
             if (selected != null && !selected.pairing) {

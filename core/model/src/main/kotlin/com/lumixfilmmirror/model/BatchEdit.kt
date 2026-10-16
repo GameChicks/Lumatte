@@ -8,6 +8,11 @@ enum class DiffusionGrade(val strength: Float) { OFF(0f), EIGHTH(.125f), QUARTER
 enum class PhotoTreatment { LUT, FILM, ORIGINAL }
 
 object FilmDefaults {
+    /** Retired push models resolve to the normal stock without changing the user's exposure. */
+    fun currentPresetId(id: String): String = when (id) {
+        "kodak_portra_800_push1", "kodak_portra_800_push2" -> "kodak_portra_800"
+        else -> id
+    }
     fun halationEnabled(presetId: String): Boolean = presetId == "cinestill_800t" || presetId == "cinestill_400d"
 }
 

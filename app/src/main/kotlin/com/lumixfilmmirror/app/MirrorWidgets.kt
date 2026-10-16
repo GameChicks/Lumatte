@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.BroadcastReceiver
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -18,6 +19,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.RemoteViews
 import org.json.JSONObject
+import java.util.UUID
 
 internal enum class WidgetStyle(val title: String) { SOFT("柔光胶卷"), BANDS("分层胶卷"), CAMERA("相机连接") }
 internal data class WidgetPalette(val title: String, val hex: String)
@@ -40,14 +42,55 @@ internal object MirrorWidgets {
     fun read(context: Context, id: Int): MirrorWidgetConfig {
         val fallback = defaultStyle(context,id)
         return runCatching {
-            val item=JSONObject(requireNotNull(preferences(context).getString(id.toString(),null)))
-            MirrorWidgetConfig(WidgetStyle.valueOf(item.getString("style")),item.optString("film","kodak_gold_200"),
+            decode(requireNotNull(preferences(context).getString(id.toString(),null)))
+        }.getOrElse { defaultConfig(fallback) }
+    }
+    fun defaultConfig(style: WidgetStyle) = if(style==WidgetStyle.CAMERA)
+        MirrorWidgetConfig(style,title="松下相机",footer="连接相机 →",hex="F2AB54") else MirrorWidgetConfig(style)
+    private fun decode(json: String): MirrorWidgetConfig {
+            val item=JSONObject(json)
+            return MirrorWidgetConfig(WidgetStyle.valueOf(item.getString("style")),com.lumixfilmmirror.model.FilmDefaults.currentPresetId(item.optString("film","kodak_gold_200")),
                 item.optString("camera").takeIf { it.isNotBlank() && it != "null" },item.getString("title"),item.getString("footer"),
                 item.getString("hex").takeIf { it.matches(Regex("[0-9a-fA-F]{6}")) } ?: "4EADD8")
-        }.getOrElse {
-            if(fallback==WidgetStyle.CAMERA)MirrorWidgetConfig(fallback,title="松下相机",footer="连接相机 →",hex="F2AB54")
-            else MirrorWidgetConfig(fallback)
+    }
+    /** Pinning does not launch the configuration activity. Save a draft before asking the launcher. */
+    fun requestPin(context: Context,config: MirrorWidgetConfig): Boolean {
+        val manager=AppWidgetManager.getInstance(context)
+        if(!manager.isRequestPinAppWidgetSupported)return false
+        val token=UUID.randomUUID().toString()
+        val prefs=preferences(context)
+        val edit=prefs.edit()
+        val now=System.currentTimeMillis()
+        prefs.all.filterKeys { it.startsWith("pin:") }.forEach { (key,value) ->
+            val created=runCatching { JSONObject(value as String).getLong("created") }.getOrDefault(0L)
+            if(now-created>86_400_000L)edit.remove(key)
         }
+        if(!edit.putString("pin:$token",JSONObject().put("created",now).put("config",config.json()).toString()).commit())return false
+        val intent=Intent(context,MirrorWidgetPinnedReceiver::class.java).setAction(WIDGET_PINNED)
+            .setData(Uri.parse("pineframe://widget-pin/$token"))
+        // The launcher supplies EXTRA_APPWIDGET_ID after the user accepts this explicit callback.
+        val mutable=if(android.os.Build.VERSION.SDK_INT>=31)PendingIntent.FLAG_MUTABLE else 0
+        val callback=PendingIntent.getBroadcast(context,0,intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_ONE_SHOT or mutable)
+        val preview=background(config)
+        return try {
+            val extras=Bundle().apply { putParcelable(AppWidgetManager.EXTRA_APPWIDGET_PREVIEW,contentViews(context,config,preview)) }
+            manager.requestPinAppWidget(component(context,config.style),extras,callback).also { accepted ->
+                if(!accepted) { prefs.edit().remove("pin:$token").apply();callback.cancel() }
+            }
+        } catch(error: RuntimeException) {
+            prefs.edit().remove("pin:$token").apply();callback.cancel();throw error
+        } finally { preview.recycle() }
+    }
+    fun completePin(context: Context,intent: Intent) {
+        if(intent.action!=WIDGET_PINNED)return
+        val token=intent.data?.takeIf { it.scheme=="pineframe" && it.host=="widget-pin" }?.lastPathSegment ?: return
+        val prefs=preferences(context)
+        val draft=runCatching { JSONObject(prefs.getString("pin:$token",null) ?: return) }.getOrNull() ?: return
+        if(System.currentTimeMillis()-draft.optLong("created")>86_400_000L) { prefs.edit().remove("pin:$token").apply();return }
+        val config=runCatching { decode(draft.getString("config")) }.getOrNull() ?: return
+        val id=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID)
+        if(AppWidgetManager.getInstance(context).getAppWidgetInfo(id)?.provider!=component(context,config.style))return
+        if(prefs.edit().putString(id.toString(),config.json()).remove("pin:$token").commit())update(context,id)
     }
     fun save(context: Context,id: Int,config: MirrorWidgetConfig): Boolean = preferences(context).edit().putString(id.toString(),config.json()).commit()
     fun delete(context: Context,id: Int) { preferences(context).edit().remove(id.toString()).apply() }
@@ -61,29 +104,39 @@ internal object MirrorWidgets {
         WidgetStyle.BANDS -> FilmBandsWidget::class.java
         WidgetStyle.CAMERA -> CameraConnectWidget::class.java
     })
+    private fun contentViews(context: Context,config: MirrorWidgetConfig,bitmap: Bitmap): RemoteViews {
+        val layout=when(config.style) { WidgetStyle.SOFT -> R.layout.widget_film_soft
+            WidgetStyle.BANDS -> R.layout.widget_film_bands; WidgetStyle.CAMERA -> R.layout.widget_camera }
+        return RemoteViews(context.packageName,layout).apply {
+            setImageViewBitmap(R.id.widget_background,bitmap)
+            setTextViewText(R.id.widget_title,config.title)
+            setTextViewText(R.id.widget_footer,config.footer)
+            setTextColor(R.id.widget_title,Color.WHITE)
+            setTextColor(R.id.widget_footer,if(config.style==WidgetStyle.BANDS)Color.rgb(111,78,58) else Color.rgb(221,238,246))
+            setContentDescription(R.id.widget_root,config.title+"，"+if(config.style==WidgetStyle.CAMERA)"打开相机连接" else "导入照片并使用此胶卷")
+        }
+    }
     fun update(context: Context,id: Int) {
         val manager=AppWidgetManager.getInstance(context)
         if(manager.getAppWidgetInfo(id)==null)return
         val config=read(context,id)
-        val layout=when(config.style) { WidgetStyle.SOFT -> R.layout.widget_film_soft
-            WidgetStyle.BANDS -> R.layout.widget_film_bands; WidgetStyle.CAMERA -> R.layout.widget_camera }
         val options=manager.getAppWidgetOptions(id)
         val width=options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,180).coerceAtLeast(100)
         val height=options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,180).coerceAtLeast(100)
         val ratio=512f/maxOf(width,height)
         val bitmap=background(config,(width*ratio).toInt().coerceAtLeast(100),(height*ratio).toInt().coerceAtLeast(100))
-        val views=RemoteViews(context.packageName,layout)
-        views.setImageViewBitmap(R.id.widget_background,bitmap)
-        views.setTextViewText(R.id.widget_title,config.title)
-        views.setTextViewText(R.id.widget_footer,config.footer)
-        views.setTextColor(R.id.widget_title,Color.WHITE)
-        views.setTextColor(R.id.widget_footer,if(config.style==WidgetStyle.BANDS)Color.rgb(111,78,58) else Color.rgb(221,238,246))
-        views.setContentDescription(R.id.widget_root,config.title+"，"+if(config.style==WidgetStyle.CAMERA)"打开相机连接" else "导入照片并使用此胶卷")
+        val views=contentViews(context,config,bitmap)
         val intent=Intent(context,MainActivity::class.java).setAction(WIDGET_OPEN)
             .setData(Uri.parse("pineframe://widget/$id"))
             .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
-            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         views.setOnClickPendingIntent(R.id.widget_root,PendingIntent.getActivity(context,id,intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+        val editIntent=Intent(context,MirrorWidgetConfigurationActivity::class.java)
+            .setAction(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).setData(Uri.parse("pineframe://widget-edit/$id"))
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        views.setOnClickPendingIntent(R.id.widget_edit,PendingIntent.getActivity(context,id,editIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
         manager.updateAppWidget(id,views)
         bitmap.recycle()
@@ -120,6 +173,12 @@ internal object MirrorWidgets {
         return bitmap
     }
     const val WIDGET_OPEN="com.lumixfilmmirror.app.WIDGET_OPEN"
+    const val WIDGET_PINNED="com.lumixfilmmirror.app.WIDGET_PINNED"
+    const val EXTRA_STYLE="com.lumixfilmmirror.app.WIDGET_STYLE"
+}
+
+class MirrorWidgetPinnedReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context,intent: Intent) = MirrorWidgets.completePin(context,intent)
 }
 
 abstract class MirrorWidgetProvider : AppWidgetProvider() {

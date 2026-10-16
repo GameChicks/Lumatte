@@ -148,11 +148,11 @@ class PhotoProcessor(context: Context) {
     }
 
     suspend fun preview(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
-        longEdge: Int = 960) = ownedPreview {
+        longEdge: Int = 960, filmOutputSize: PixelSize? = null) = ownedPreview {
         require(longEdge in 64..2048) { "预览长边需在 64～2048 像素之间" }
         previewGate.withPermit {
             val layout = FrameLayouts.preview(exportLayout(source, BatchExportOptions()), longEdge)
-            effectPreview(source, recipe, catalogue, photoSize(layout))
+            effectPreview(source, recipe, catalogue, photoSize(layout), filmOutputSize)
         }
     }
 
@@ -171,13 +171,15 @@ class PhotoProcessor(context: Context) {
 
     /** Complete composition preview. longEdge bounds the final canvas, including frame and text. */
     suspend fun previewExport(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
-        options: BatchExportOptions, longEdge: Int = 960, frameNumber: Int = 1) = ownedPreview {
+        options: BatchExportOptions, longEdge: Int = 960, frameNumber: Int = 1,
+        matchFilmOutput: Boolean = false) = ownedPreview {
         require(longEdge in 64..2048) { "预览长边需在 64～2048 像素之间" }
         previewGate.withPermit {
             val active = coroutineContext
             require(frameNumber > 0)
             val layout = FrameLayouts.preview(exportLayout(source, options), longEdge)
-            val pixels = effectPreview(source, recipe, catalogue, photoSize(layout))
+            val pixels = effectPreview(source, recipe, catalogue, photoSize(layout),
+                if(matchFilmOutput)options.jpeg.contentSize(source.size) else null)
             try {
                 val stock = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed).preset }
                 val result = writer.framePreview(pixels, source, options.frame, layout, stock, frameNumber) { active.ensureActive() }
@@ -190,18 +192,21 @@ class PhotoProcessor(context: Context) {
     private fun photoSize(layout: FrameLayout) = PixelSize(maxOf(1, kotlin.math.round(layout.photo.width).toInt()),
         maxOf(1, kotlin.math.round(layout.photo.height).toInt()))
 
-    private suspend fun effectPreview(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue, size: PixelSize): Bitmap {
+    private suspend fun effectPreview(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue, size: PixelSize,
+        filmOutputSize: PixelSize? = null): Bitmap {
         val lut = (recipe as? PhotoRecipe.Lut)?.parameters
         fun table(id: String?) = id?.let { value ->
             requireNotNull(catalogue.luts.firstOrNull { it.id == value }) { "所选 LUT 不可用，请重新选择" }.table
         }
         val film = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed) }
+        val renderSize = filmOutputSize?.takeIf { film != null }
         val key = EffectPreviewKey(source.id.value, source.jpeg.absolutePath, source.jpeg.length(), source.jpeg.lastModified(),
-            source.size, source.orientation, size, recipe, table(lut?.first?.id), table(lut?.second?.id), film?.preset)
+            source.size, source.orientation, size, recipe, table(lut?.first?.id), table(lut?.second?.id), film?.preset, renderSize)
         coroutineContext.ensureActive()
         previewCache.copy(key)?.let { return it }
         val active = coroutineContext
-        val pixels = writer.previewPixels(source, size, lut?.let { luts.plan(it, catalogue.luts) }, film) { active.ensureActive() }
+        val pixels = writer.previewPixels(source, size, lut?.let { luts.plan(it, catalogue.luts) }, film,
+            filmOutputSize = renderSize) { active.ensureActive() }
         try {
             active.ensureActive()
             previewCache.remember(key, pixels)

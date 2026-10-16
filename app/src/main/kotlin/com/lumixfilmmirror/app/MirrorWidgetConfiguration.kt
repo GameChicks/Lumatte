@@ -35,8 +35,10 @@ class MirrorWidgetConfigurationActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setResult(RESULT_CANCELED)
         val id=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID)
-        if(AppWidgetManager.getInstance(this).getAppWidgetInfo(id)?.provider?.packageName!=packageName) { finish();return }
-        val config=MirrorWidgets.read(this,id)
+        val pinStyle=intent.getStringExtra(MirrorWidgets.EXTRA_STYLE)?.let { raw -> WidgetStyle.entries.firstOrNull { it.name==raw } }
+        val pinning=id==AppWidgetManager.INVALID_APPWIDGET_ID && pinStyle!=null
+        if(!pinning && AppWidgetManager.getInstance(this).getAppWidgetInfo(id)?.provider?.packageName!=packageName) { finish();return }
+        val config=if(pinning)MirrorWidgets.defaultConfig(requireNotNull(pinStyle)) else MirrorWidgets.read(this,id)
         setContent {
             var problem by remember { mutableStateOf<String?>(null) }
             val choices by produceState<WidgetChoices?>(null) {
@@ -52,7 +54,10 @@ class MirrorWidgetConfigurationActivity : ComponentActivity() {
                         Text(problem ?: "正在准备小组件…")
                         if(problem!=null)TextButton(onClick={finish()}) { Text("返回") }
                     } else WidgetConfiguration(config,data,onCancel={finish()}) { selected ->
-                        if(MirrorWidgets.save(this,id,selected)) {
+                        if(pinning) {
+                            val accepted=runCatching { MirrorWidgets.requestPin(this,selected) }.getOrDefault(false)
+                            if(accepted)finish() else problem="请从桌面的小组件列表添加，再选择胶卷与颜色。"
+                        } else if(MirrorWidgets.save(this,id,selected)) {
                             MirrorWidgets.update(this,id)
                             setResult(RESULT_OK,Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id));finish()
                         } else problem="小组件设置未能保存，请重试。"
@@ -153,7 +158,7 @@ internal fun DesktopWidgetsDialog(onDismiss: () -> Unit) {
     }
     val installed=remember(refresh) { WidgetStyle.entries.flatMap { manager.getAppWidgetIds(MirrorWidgets.component(context,it)).toList() }.distinct() }
     MirrorDialog("桌面小组件",onDismiss=onDismiss) { close ->
-        Text("在桌面长按应用图标或空白处添加，选择胶卷、机型与颜色；长按已添加的小组件可重新配置。")
+        Text("先选择胶卷、机型与颜色，再添加到桌面。已添加的小组件可点右上角的编辑按钮修改。")
         WidgetStyle.entries.forEach { style ->
             val config=if(style==WidgetStyle.CAMERA)MirrorWidgetConfig(style,title="松下相机",footer="连接相机 →",hex="F2AB54") else MirrorWidgetConfig(style)
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -162,8 +167,8 @@ internal fun DesktopWidgetsDialog(onDismiss: () -> Unit) {
                     Text(style.title)
                     MirrorTextAction("添加到桌面",{
                         if(manager.isRequestPinAppWidgetSupported) {
-                            val accepted=manager.requestPinAppWidget(MirrorWidgets.component(context,style),null,null)
-                            problem=if(accepted)"添加后可长按小组件，选择编辑或配置。" else "请从桌面的小组件列表添加。"
+                            context.startActivity(Intent(context,MirrorWidgetConfigurationActivity::class.java)
+                                .putExtra(MirrorWidgets.EXTRA_STYLE,style.name))
                         } else problem="请从桌面的小组件列表添加。"
                     })
                 }

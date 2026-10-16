@@ -1,0 +1,155 @@
+[
+  {
+    "id": "kodak_ektar_100",
+    "path": "C:\\Users\\lenovo\\.codex\\generated_images\\01a135c7-ae88-7b53-9c65-b537a6c4c685\\exec-2d0f2cda-1e09-4ed1-9157-5d65600eff98.png",
+    "applicationFile": "app/src/main/res/drawable-nodpi/cartridge_kodak_ektar_100_v1.png",
+    "sha256": "eb58465ae8026eff6cfb3a1182d546cce502c0a1509464b08833bc39b074351d",
+    "size": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "fujifilm_pro_400h",
+    "path": "C:\\Users\\lenovo\\.codex\\generated_images\\01a135c7-ae88-7b53-9c65-b537a6c4c685\\exec-e5f1c110-f7c2-4d6a-9d53-5a517a8f89cc.png",
+    "applicationFile": "app/src/main/res/drawable-nodpi/cartridge_fujifilm_pro_400h_v1.png",
+    "sha256": "800fdc988b3b83a563f75a9106ac331ce2b2b5de8d690a3171520fcc5712cb6c",
+    "size": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "fujifilm_provia_100f",
+    "path": "C:\\Users\\lenovo\\.codex\\generated_images\\01a135c7-ae88-7b53-9c65-b537a6c4c685\\exec-e275d919-a545-48ec-9fd0-4f26e6b27016.png",
+    "applicationFile": "app/src/main/res/drawable-nodpi/cartridge_fujifilm_provia_100f_v1.png",
+    "sha256": "69ea3ee527e429a7251fa37c65245a629a939e101936be700b501fa821e55bf1",
+    "size": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "fujifilm_xtra_400",
+    "path": "C:\\Users\\lenovo\\.codex\\generated_images\\01a135c7-ae88-7b53-9c65-b537a6c4c685\\exec-5289860d-e32d-464d-9782-7752bfb74ed8.png",
+    "applicationFile": "app/src/main/res/drawable-nodpi/cartridge_fujifilm_xtra_400_v1.png",
+    "sha256": "d2b087e0d5bed90fbea1acd5cf6fd47e5f561e419eb69ac26c346968612de79a",
+    "size": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "kodak_ektachrome_100",
+    "path": "C:\\Users\\lenovo\\.codex\\generated_images\\01a135c7-ae88-7b53-9c65-b537a6c4c685\\exec-06726229-61a5-4424-aee1-9221806f7886.png",
+    "applicationFile": "app/src/main/res/drawable-nodpi/cartridge_kodak_ektachrome_100_v1.png",
+    "sha256": "48378cf6e1f24750488596324dbcb07b3a24eb14e02e407a227bf6998e7ac5cf",
+    "size": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "kodak_kodachrome_64",
+    "path": "C:\\Users\\lenovo\\.codex\\generated_images\\01a135c7-ae88-7b53-9c65-b537a6c4c685\\exec-1b29956f-c823-4023-9f63-09ece2ed3470.png",
+    "applicationFile": "app/src/main/res/drawable-nodpi/cartridge_kodak_kodachrome_64_v1.png",
+    "sha256": "b36c3cf42ab13fc55061492f355be90dcca617a46e5d83ce8a01ab9f5f358b36",
+    "size": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "kodak_portra_160",
+    "path": "C:\\Users\\lenovo\\.codex\\generated_images\\01a135c7-ae88-7b53-9c65-b537a6c4c685\\exec-011c81f3-953d-4c23-aea8-3804193553f5.png",
+    "applicationFile": "app/src/main/res/drawable-nodpi/cartridge_kodak_portra_160_v1.png",
+    "sha256": "4691769fe21a1c1dca998a91c95b43ff3d8e41787413e0f1e0b89685c03de145",
+    "size": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "kodak_portra_400",
+    "path": "C:/Users/lenovo/.codex/generated_images/01a135c7-ae88-7b53-9c65-b537a6c4c685/exec-52def022-6a16-4474-88f6-73d5a93a227f.png",
+    "applicationFile": "app/src/main/res/drawable-nodpi/cartridge_kodak_portra_400_v1.png",
+    "sha256": "7a5a56de5a1c4358024bbf4faffa370fc32a36ae94edd81d076a1f8b27ccc4eb",
+    "size": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "kodak_portra_800",
+    "path": "C:/Users/lenovo/.codex/generated_images/01a135c7-ae88-7b53-9c65-b537a6c4c685/exec-bfefd1ac-1da8-4f35-9253-9dfdbf14c047.png",
+    "applicationFile": "app/src/main/res/drawable-nodpi/cartridge_kodak_portra_800_v1.png",
+    "sha256": "be18de7d6a5ae49b2998daffcee0b1ad86201503a4ce6bd65f2f2c7434ba5bf5",
+    "size": [
+      1024,
+      1536
+    ],
+    "mode": "RGBA",
+    "cornerAlpha": [
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+]

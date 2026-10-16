@@ -2,6 +2,7 @@ package com.lumixfilmmirror.media
 
 import android.content.Context
 import com.lumixfilmmirror.model.FilmParameters
+import com.lumixfilmmirror.model.FilmDefaults
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -31,9 +32,12 @@ class FilmCatalogue(context: Context) {
     }
 
     fun plan(parameters: FilmParameters, presets: List<FilmPreset>, grainSeed: Long,
-        spatialOptions: FilmSpatialOptions = FilmSpatialOptions()): FilmRenderPlan = FilmRenderPlan(parameters,
-        requireNotNull(presets.firstOrNull { it.id == parameters.presetId }
-            ?: legacySilver.firstOrNull { it.id == parameters.presetId }) { "所选胶卷模型不可用，请重新选卷" }, grainSeed, spatialOptions)
+        spatialOptions: FilmSpatialOptions = FilmSpatialOptions()): FilmRenderPlan {
+        val current = parameters.copy(presetId = FilmDefaults.currentPresetId(parameters.presetId))
+        return FilmRenderPlan(current,
+            requireNotNull(presets.firstOrNull { it.id == current.presetId }
+                ?: legacySilver.firstOrNull { it.id == current.presetId }) { "所选胶卷模型不可用，请重新选卷" }, grainSeed, spatialOptions)
+    }
 
     private val legacySilver = listOf(
         FilmPreset("lfm_silver_neutral", "Silver · Neutral", FilmCategory.MONOCHROME, "lfm_silver_paper", false),

@@ -28,7 +28,7 @@ internal object FilmBatchCodec {
         val photos = (0 until array.length()).map { index ->
             val value = array.getJSONObject(index)
             BatchPhoto(PhotoId(value.getString("id")), FilmParameters(
-                presetId = value.getString("preset"), exposureEv = value.getDouble("exposure").toFloat(),
+                presetId = FilmDefaults.currentPresetId(value.getString("preset")), exposureEv = value.getDouble("exposure").toFloat(),
                 halationEnabled = value.getBoolean("halation"), diffusion = DiffusionGrade.valueOf(value.getString("diffusion"))),
                 value.getLong("seed"))
         }

@@ -32,3 +32,11 @@ Playfair / Dancing Script 许可副本放入 `core/design/src/main/assets/licens
 暗盒原图没有重新生成或覆盖：归一透明边界、临时标签曲面包裹、透视与阴影在运行时处理。剩余生图继续暂停。参考对应、视觉验证边界及资料来源见 [Film 修订记录](film-fidelity-2026-10-14.md)。
 
 用户后续提供华康翩翩体 W5-A。本轮保留原字节复制为 `chinese_handwriting.ttf`（24,010,412 字节），仅用于包含中文的 LUT 名称；纯英文仍使用 Dancing Script。原文件、元数据与哈希见 `research/film-editorial/chinese-handwriting-provenance.json`，公开分发许可文本未提供，设置许可中如实记录。海报正体后续改用已有 Cormorant Garamond Bold，Abril 的副本保留但不再用于 Film 分类标题。详情、字体和推荐入口的新修订见 [Color / Film 修订](color-atlas-and-film-refinement-2026-10-14.md)。
+
+## 2026-10-15 暗盒接入与暂停
+
+本轮在功能与小组件源码收尾后重新获准生图，完成并接入 9 款母卷暗盒。用户随后要求暂停全部生图并沿用最初图标；前景原件、inset 和背景色均已恢复。已完成 / 保留原外观的清单、提示词和证据边界见 [本轮素材记录](generated-cartridges-2026-10-15.md)。未完成素材保持暂停，不影响原有外观回退。
+
+## 2026-10-16 暗盒补齐
+
+用户重新授权补齐暗盒，使用内置 ImageGen 完成剩余 11 款并接入统一资源映射。公开目录 24 卷全部使用独立暗盒，旧 Silver 仅供历史配方。素材文件、完整提示词及原件哈希见 [补齐记录](generated-cartridges-2026-10-16.md)。最初应用图标保持原样。

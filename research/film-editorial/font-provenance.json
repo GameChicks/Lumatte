@@ -1,0 +1,16 @@
+[
+  {
+    "path": "core/design/src/main/res/font/instrument_serif_regular.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/InstrumentSerif-Regular.ttf",
+    "license": "core/design/src/main/assets/licenses/instrument-serif-OFL.txt",
+    "bytes": 70012,
+    "sha256": "498EFD461F6DDFCB7A111BF9A565709D2085D48201D501EAD960D93E84FFBB88"
+  },
+  {
+    "path": "core/design/src/main/res/font/film_poster.ttf",
+    "source": "core/media/src/main/assets/frames/fonts/print_display.ttf",
+    "license": "core/media/src/main/assets/frames/licenses/abrilfatface-OFL.txt",
+    "bytes": 58372,
+    "sha256": "C74A9205B39807559F17A668D6675421EEE0292D8060749A9B0721B6F66DFD73"
+  }
+]
