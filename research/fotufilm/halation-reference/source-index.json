@@ -1,0 +1,15 @@
+{
+  "commit": "12c8efea259e4cea70ec22166e504634d401a0cd",
+  "repository": "https://github.com/DhaliwalX/fotufilm-engine",
+  "files": {
+    "Sources/FotufilmCore/Halation.swift": "614646c91f558b57632f8cc10e0631d5a76fd0750c18ec8bdfdb4f6f09f1f832",
+    "Sources/FotufilmCore/HalationModel.swift": "0d202b9e6240afebcfea962e681d72134f68bf82706eec6c4f9de316651712a7",
+    "Sources/FotufilmCore/FilmFormat.swift": "9f9e3d459e176879c0974514e5dd345d6f9b37c93f7b037f4ea1866266004c99",
+    "Sources/FotufilmHalide/Stages/Halation.h": "d55e800f0fff758d11d634bf180ef2e69c2a723fa84a13df17ecca0404d9e697",
+    "docs/layered-transport.md": "f7298b92b0f1f178c7748d27dc33e8f888a2f493e072af47a984773d29439dd2",
+    "Sources/FotufilmCore/FilmEngine.swift": "babeb77e5ac8ea90a4073ccf8457ff4d5239b515d86dde6ad73042669a5b2247",
+    "Sources/FotufilmCore/Pipeline.swift": "0f3dca02ed69f380a8205cf37aff7aa9f3a4b632b1b4d2fbf76a4a0b8f0e376b",
+    "Sources/FotufilmHalide/Schedule/Cpu.h": "bd2264fd761af100244ee175de42efdb6766d539652a0d3d793c3073e95c813f",
+    "Sources/FotufilmHalide/include/FotufilmHalide.h": "12e023e92f3d3946604043c1c69fcc311509b81faa70b91423bc49385ad5e8f2"
+  }
+}

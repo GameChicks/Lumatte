@@ -8,12 +8,12 @@ data class FilmSpatialOptions(val halationAppearance: FilmHalationAppearance = F
 /** Algorithm identification for frontends/diagnostics; not a measured quality or speed claim. */
 data class FilmSpatialEffectsInfo(
     val version: String = VERSION,
-    val halationModel: String = "spektrafilm-default-bounces-and-cinestill-mobile-look",
+    val halationModel: String = "spektrafilm-default-and-fotufilm-physical-legacy",
     val diffusionModel: String = "absorbing-three-scale-black-mist",
     val analysisLongEdge: Int = 512,
-    val cineStillAnalysisLongEdge: Int = 1024,
+    val cineStillAnalysisLongEdge: Int = 1536,
     val calibration: String = "project-approximation",
     val defaultHalationAppearance: FilmHalationAppearance = FilmHalationAppearance.STOCK_RETURN,
 ) {
-    companion object { const val VERSION = "lfm-optical-spatial-v3-stock-and-cinestill" }
+    companion object { const val VERSION = "lfm-optical-spatial-v4-fotufilm-physical" }
 }

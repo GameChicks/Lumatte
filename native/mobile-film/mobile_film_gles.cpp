@@ -47,7 +47,7 @@ class Device {
     EGLDisplay display = EGL_NO_DISPLAY;
     EGLContext context = EGL_NO_CONTEXT;
     EGLSurface surface = EGL_NO_SURFACE;
-    GLuint program = 0, vao = 0, framebuffer = 0;
+    GLuint program = 0, vao = 0, framebuffer = 0, vertex_buffer = 0;
     // Input, response, development, scan, lens, halo, output. Only this device owns these names.
     std::array<GLuint, 7> textures{};
     int tile_edge = 0, max_3d = 0;
@@ -120,6 +120,11 @@ class Device {
         glDeleteShader(vertex); glDeleteShader(fragment);
         glGenTextures(GLsizei(textures.size()), textures.data()); glGenVertexArrays(1, &vao); glGenFramebuffers(1, &framebuffer);
         glUseProgram(program); glBindVertexArray(vao);
+        // Same fullscreen triangle; explicit input avoids no-attribute gl_VertexID driver failures.
+        glGenBuffers(1,&vertex_buffer); glBindBuffer(GL_ARRAY_BUFFER,vertex_buffer);
+        constexpr float positions[]{-1.f,-1.f,3.f,-1.f,-1.f,3.f};
+        glBufferData(GL_ARRAY_BUFFER,sizeof(positions),positions,GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0); glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,0,nullptr);
         constexpr const char* samplers[]{"uInput", "uResponse", "uDevelopment", "uScan", "uLens", "uHalo"};
         for (int i = 0; i < 6; ++i) glUniform1i(uniform(samplers[i]), i);
         bind_texture(0, GL_TEXTURE_2D, 0); texture_parameters(GL_TEXTURE_2D);
@@ -141,6 +146,7 @@ class Device {
             glFinish(); glDeleteTextures(GLsizei(textures.size()), textures.data());
             if (program) glDeleteProgram(program);
             if (vao) glDeleteVertexArrays(1, &vao);
+            if (vertex_buffer) glDeleteBuffers(1,&vertex_buffer);
             if (framebuffer) glDeleteFramebuffers(1, &framebuffer);
         }
         eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -186,6 +192,9 @@ public:
         triple("uDevelopmentLow", model.development.minimum); triple("uDevelopmentHigh", model.development.maximum);
         triple("uScanLow", model.scan.minimum); triple("uScanHigh", model.scan.maximum);
         triple("uHalationMix", spatial.halation_mix);
+        glUniform1i(uniform("uSpectralReturn"), spatial.spectral_return);
+        triple("uReturnRow0",spatial.return_matrix[0]); triple("uReturnRow1",spatial.return_matrix[1]);
+        triple("uReturnRow2",spatial.return_matrix[2]);
         triple("uParticleScale", effects.particle_scale); triple("uFloor", effects.floor);
         triple("uUniformity", effects.uniformity); triple("uDensityMaximum", effects.density_max);
         glUniform2i(uniform("uImageSize"), GLint(image.width), GLint(image.height));

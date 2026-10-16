@@ -16,6 +16,8 @@ uniform float uGrainSpacing;
 uniform bool uHalation, uGrain;
 uniform vec3 uParticleScale, uFloor, uUniformity, uDensityMaximum;
 uniform vec3 uHalationMix;
+uniform bool uSpectralReturn;
+uniform vec3 uReturnRow0, uReturnRow1, uReturnRow2;
 uniform uint uSeed;
 layout(location = 0) out vec4 outColour;
 
@@ -80,7 +82,11 @@ void main() {
         encoded = vec3(encode(linear.r), encode(linear.g), encode(linear.b));
     }
     vec3 raw = cube(uResponse, encoded, uResponseLow, uResponseHigh);
-    if (uHalation) raw = raw * (1.0 - uHalationMix) + field(uHalo, globalPixel);
+    if (uHalation) {
+        if (uSpectralReturn) raw = raw + field(uHalo, globalPixel) -
+            vec3(dot(uReturnRow0, raw), dot(uReturnRow1, raw), dot(uReturnRow2, raw));
+        else raw = raw * (1.0 - uHalationMix) + field(uHalo, globalPixel);
+    }
     vec3 logExposure = log(max(raw, 0.0) * uExposureGain + 1e-10) * .4342944819032518;
     if (invalid(logExposure)) { failure(inputPixel.a); return; }
     vec3 density = cube(uDevelopment, logExposure, uDevelopmentLow, uDevelopmentHigh);

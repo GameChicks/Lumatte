@@ -11,3 +11,5 @@
 生成器为 `tools/produce_fotufilm_models.py`。使用具备 NumPy 的 Python 手动执行；不会联网、执行上游脚本、运行测试或调用 Android 打包。生成阶段排除随机颗粒、光晕、微观空间作用与场景自动测光；对应移动运行效果独立处理。发布资源仅包含派生三阶段表及许可，不把公开输入包装入 APK。
 
 此处资料与派生模型均不构成实测胶卷校准、完整 Fotufilm 引擎一致性或手机性能证据。
+
+2026-10-17：`halation-reference/` 保存默认光晕方程、渲染调度与格式的固定版本原始源码及 SHA-256；遵循上文 Apache-2.0 许可与原始 NOTICE。`tools/produce_fotufilm_halation.py` 移植带明确物理 profile 的默认求解分支，离线生成两个 CineStill 的折射/吸收/多反射核、分色权重与返光矩阵，并更新其 manifest 哈希。单独运行只更新这两卷的说明与索引，不重烘其他卷或任何色彩表。三阶段完整生成器也引用同一函数，避免再次覆盖成旧艺术参数。Layered Transport 是上游另选的实验模型，默认 legacy 光晕不会启用它。

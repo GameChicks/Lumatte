@@ -55,7 +55,7 @@ lfm::mobile::Model read_model(JNIEnv* env, jobjectArray tables, jintArray sizes,
     return {stage(0), stage(1), stage(2)};
 }
 lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
-    const auto values = copy(env, controls, 38);
+    const auto values = copy(env, controls, 59);
     if ((values[0] != 0 && values[0] != .125f && values[0] != .25f && values[0] != .5f) ||
         (values[1] != 0 && values[1] != 1) || values[2] < -3 || values[2] > 3 ||
         (values[3] != 0 && values[3] != 1) || values[4] < .0001f || values[4] > 10 || values[23] < 10 || values[23] > 100)
@@ -68,6 +68,23 @@ lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
         values[25] != std::floor(values[25]) || values[26] < 0 || values[26] > 1 || values[27] < 0 || values[27] > 40)
         throw std::invalid_argument("Mobile spatial profile invalid");
     result.cinestill = values[24] == 1; result.halation_bounces = int(values[25]);
+    if (result.cinestill) {
+        for (int c = 0; c < 3; ++c) {
+            result.fotu_sigma_mm[c] = values[38+c];
+            if (values[38+c] < .000001f || values[38+c] > 2)
+                throw std::invalid_argument("Invalid physical halation sigma");
+            float weights = 0, matrix = 0;
+            for (int j = 0; j < 3; ++j) {
+                const float weight = values[41+3*c+j], routed = values[50+3*c+j];
+                if (weight < -1e-6f || weight > 1 || routed < 0 || routed > 1)
+                    throw std::invalid_argument("Invalid physical halation matrix");
+                result.fotu_weights[c][j] = weight; result.fotu_matrix[c][j] = routed;
+                weights += weight; matrix += routed;
+            }
+            if (std::abs(weights-1) > 1e-5f || matrix > 1)
+                throw std::invalid_argument("Invalid physical halation partition");
+        }
+    }
     result.halation_decay = values[26]; result.grain_spacing_um = values[27];
     if (values[28] < 0 || values[28] > 1) throw std::invalid_argument("Invalid scatter amount");
     result.scatter_amount = values[28];

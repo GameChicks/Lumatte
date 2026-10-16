@@ -18,6 +18,8 @@ internal data class FilmTableDomain(val minimum: FloatArray, val maximum: FloatA
 /** Borrowed immutable arrays: only the native bridge copies them; never mutate in Kotlin. */
 internal data class NativeFilmStage(val size: Int, val values: FloatArray, val minimum: FloatArray, val maximum: FloatArray)
 
+internal data class FotufilmHalationKernel(val sigmaMm: FloatArray, val weights: FloatArray, val matrix: FloatArray)
+
 internal data class MobileFilmEffects(val grainActive: Boolean, val particleAreaUm2: Float,
     val particleScale: FloatArray, val densityFloor: FloatArray, val grainUniformity: FloatArray,
     val densityMaximum: FloatArray, val halationStrength: FloatArray, val halationSigmaUm: FloatArray,
@@ -25,7 +27,8 @@ internal data class MobileFilmEffects(val grainActive: Boolean, val particleArea
     val grainSpacingUm: Float = 0f, val scatterAmount: Float = 1f,
     val scatterCoreUm: FloatArray = floatArrayOf(2.2f, 2f, 1.6f),
     val scatterTailUm: FloatArray = floatArrayOf(9.3f, 9.7f, 9.1f),
-    val scatterTailWeight: FloatArray = floatArrayOf(.78f, .65f, .67f))
+    val scatterTailWeight: FloatArray = floatArrayOf(.78f, .65f, .67f),
+    val fotufilmHalation: FotufilmHalationKernel? = null)
 
 /** Immutable after loading. Caller-owned output avoids per-pixel arrays and shared scratch state. */
 internal class FilmStageTable(val size: Int, private val domain: FilmTableDomain, private val values: FloatArray) {

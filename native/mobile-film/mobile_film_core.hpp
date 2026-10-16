@@ -86,6 +86,36 @@ struct Table {
     }
 };
 struct Model { Table response, development, scan; };
+/** Exact trilinear response with byte-axis coordinates hoisted out of CineStill's pixel loops. */
+struct ByteResponseSampler {
+    const Table& table;
+    std::array<std::array<size_t,256>,3> lower{},upper{};
+    std::array<std::array<float,256>,3> fraction{};
+    explicit ByteResponseSampler(const Table& source):table(source) {
+        size_t stride=3;
+        for(int c=0;c<3;++c) {
+            for(int v=0;v<256;++v) {
+                const float p=std::clamp((float(v)/255.f-table.minimum[c])/(table.maximum[c]-table.minimum[c]),0.f,1.f)*(table.size-1);
+                const int lo=int(p);
+                lower[c][v]=size_t(lo)*stride;upper[c][v]=size_t(std::min(lo+1,table.size-1))*stride;
+                fraction[c][v]=p-lo;
+            }
+            stride*=size_t(table.size);
+        }
+    }
+    Colour sample(const uint8_t* pixel)const {
+        const auto& v=table.values;
+        const size_t x=lower[0][pixel[0]],xx=upper[0][pixel[0]],y=lower[1][pixel[1]],yy=upper[1][pixel[1]],z=lower[2][pixel[2]],zz=upper[2][pixel[2]];
+        const float fx=fraction[0][pixel[0]],fy=fraction[1][pixel[1]],fz=fraction[2][pixel[2]];
+        Colour out{};
+        for(int c=0;c<3;++c) {
+            const float low=(v[x+y+z+c]*(1-fx)+v[xx+y+z+c]*fx)*(1-fy)+(v[x+yy+z+c]*(1-fx)+v[xx+yy+z+c]*fx)*fy;
+            const float high=(v[x+y+zz+c]*(1-fx)+v[xx+y+zz+c]*fx)*(1-fy)+(v[x+yy+zz+c]*(1-fx)+v[xx+yy+zz+c]*fx)*fy;
+            out[c]=low*(1-fz)+high*fz;
+        }
+        return out;
+    }
+};
 struct Effects {
     float diffusion, exposure_gain;
     bool halation, grain;
@@ -96,6 +126,8 @@ struct Effects {
     float halation_decay, grain_spacing_um;
     float scatter_amount;
     Colour scatter_core_um, scatter_tail_um, scatter_tail_weight;
+    Colour fotu_sigma_mm;
+    std::array<Colour, 3> fotu_weights, fotu_matrix;
 };
 
 inline float decode(float value) { return value <= .04045f ? value / 12.92f : std::pow((value + .055f) / 1.055f, 2.4f); }
@@ -207,7 +239,13 @@ inline Field scatter_gaussian(const Field& source, Colour sigmas, const Check& c
     return output;
 }
 
-struct Spatial { Field lens, halation; float softness = 0; Colour halation_mix{}; };
+struct Spatial {
+    Field lens, halation;
+    float softness = 0;
+    Colour halation_mix{};
+    bool spectral_return = false;
+    std::array<Colour, 3> return_matrix{};
+};
 inline Colour lens_colour(Colour linear, const Colour& glow, float softness) {
     for (int c = 0; c < 3; ++c) linear[c] = std::clamp(linear[c] * (1 - softness) + glow[c], 0.f, 1.f);
     return linear;
@@ -217,13 +255,177 @@ inline Colour film_response(const Model& model, Colour linear) {
     return model.response.sample(linear);
 }
 
+/** Fotufilm default halation's decimated, collapsed three-box convolution.
+ * Adapted from Schedule/Cpu.h and FotufilmHalide.h (Apache-2.0, MUAStudio Inc.).
+ * Preserve the discrete radius, edge normalization and scale-specific grids.
+ */
+inline Field fotu_spread(const Field& source, float sigma_pixels, uint32_t& stride, const Check& check) {
+    const int radius = sigma_pixels > .3f ? int((std::sqrt(4*sigma_pixels*sigma_pixels+1)-1)*.5f) : 0;
+    const float sigma = std::sqrt(float(radius*(radius+1)));
+    stride = 1;
+    while (stride < 8 && float(2*stride)*2.5f <= sigma) stride *= 2;
+    int r = radius;
+    if (stride > 1) {
+        const float variance = std::max(.25f, sigma*sigma/float(stride*stride)-.25f);
+        r = std::max(1, int((std::sqrt(4*variance+1)-1)*.5f+.5f));
+    }
+    const uint32_t w = (source.width+stride-1)/stride, h = (source.height+stride-1)/stride;
+    Field down(w,h);
+    parallel_rows(h, uint64_t(w)*stride*stride*3, check, [&](uint32_t y) {
+        for (uint32_t x=0; x<w; ++x) {
+            Colour sum{};
+            const uint32_t x1=std::min((x+1)*stride,source.width), y1=std::min((y+1)*stride,source.height);
+            for (uint32_t sy=y*stride; sy<y1; ++sy) for (uint32_t sx=x*stride; sx<x1; ++sx)
+                for (int c=0;c<3;++c) sum[c]+=source.values[(size_t(sy)*source.width+sx)*3+c];
+            const float count=float((x1-x*stride)*(y1-y*stride));
+            for(int c=0;c<3;++c) down.values[(size_t(y)*w+x)*3+c]=sum[c]/count;
+        }
+    });
+    if (r==0) return down; // Subpixel scale keeps its energy in place, as upstream.
+    std::vector<float> kernel(1,1.f);
+    const float box=1.f/(2*r+1);
+    for(int pass=0;pass<3;++pass) {
+        std::vector<float> next(kernel.size()+2*r,0.f);
+        for(size_t i=0;i<kernel.size();++i) for(int j=0;j<=2*r;++j) next[i+j]+=kernel[i]*box;
+        kernel=std::move(next);
+    }
+    const int reach=3*r;
+    Field horizontal(w,h), output(w,h);
+    // Constant exterior with valid-tap normalization, not edge replication per box pass.
+    parallel_rows(h,uint64_t(w)*kernel.size()*3,check,[&](uint32_t y) {
+        for(uint32_t x=0;x<w;++x) {
+            Colour sum{}; float norm=0;
+            for(int k=-reach;k<=reach;++k) {
+                const int sx=int(x)+k;
+                if(sx<0 || sx>=int(w))continue;
+                const float weight=kernel[size_t(k+reach)]; norm+=weight;
+                for(int c=0;c<3;++c) sum[c]+=down.values[(size_t(y)*w+sx)*3+c]*weight;
+            }
+            for(int c=0;c<3;++c)horizontal.values[(size_t(y)*w+x)*3+c]=sum[c]/std::max(norm,1e-12f);
+        }
+    });
+    parallel_rows(h,uint64_t(w)*kernel.size()*3,check,[&](uint32_t y) {
+        for(uint32_t x=0;x<w;++x) {
+            Colour sum{}; float norm=0;
+            for(int k=-reach;k<=reach;++k) {
+                const int sy=int(y)+k;
+                if(sy<0 || sy>=int(h))continue;
+                const float weight=kernel[size_t(k+reach)]; norm+=weight;
+                for(int c=0;c<3;++c)sum[c]+=horizontal.values[(size_t(sy)*w+x)*3+c]*weight;
+            }
+            for(int c=0;c<3;++c)output.values[(size_t(y)*w+x)*3+c]=sum[c]/std::max(norm,1e-12f);
+        }
+    });
+    return output;
+}
+
+inline Colour fotu_sample(const Field& field, uint32_t x, uint32_t y, uint32_t stride) {
+    const float px=(float(x)+.5f)/stride-.5f, py=(float(y)+.5f)/stride-.5f;
+    const int x0=int(std::floor(px)),y0=int(std::floor(py));
+    const float fx=px-x0,fy=py-y0;
+    Colour out{};float norm=0;
+    for(int dy=0;dy<2;++dy)for(int dx=0;dx<2;++dx) {
+        const int sx=x0+dx,sy=y0+dy;
+        if(sx<0 || sy<0 || sx>=int(field.width) || sy>=int(field.height))continue;
+        const float weight=(dx?fx:1-fx)*(dy?fy:1-fy);norm+=weight;
+        for(int c=0;c<3;++c)out[c]+=weight*field.values[(size_t(sy)*field.width+sx)*3+c];
+    }
+    for(float& c:out)c/=std::max(norm,1e-12f);
+    return out;
+}
+
+inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const Effects& effects,
+                                   const std::array<float,256>& decode_lut,const Check& check) {
+    Spatial spatial;
+    constexpr uint32_t edge=1536;
+    const double scale=std::min(1.0,double(edge)/std::max(image.width,image.height));
+    const uint32_t w=std::min(edge,std::max(1u,uint32_t(std::ceil(image.width*scale))));
+    const uint32_t h=std::min(edge,std::max(1u,uint32_t(std::ceil(image.height*scale))));
+    Field light,response;
+    if(effects.diffusion>0)light=Field(w,h);
+    const ByteResponseSampler byte_response(model.response);
+    if(effects.halation)response=Field(w,h);
+    // Nonlinear exposure BEFORE spatial reduction. No max-pooling or invented highlight gain.
+    parallel_rows(h,uint64_t(image.width)*image.height/h,check,[&](uint32_t gy) {
+        const uint32_t y0=uint32_t(uint64_t(gy)*image.height/h),y1=uint32_t(uint64_t(gy+1)*image.height/h);
+        for(uint32_t gx=0;gx<w;++gx) {
+            const uint32_t x0=uint32_t(uint64_t(gx)*image.width/w),x1=uint32_t(uint64_t(gx+1)*image.width/w);
+            double sum[3]{},raw_sum[3]{};
+            for(uint32_t y=y0;y<y1;++y)for(uint32_t x=x0;x<x1;++x) {
+                if((x&1023u)==0)check();
+                const uint8_t* pixel=image.pixels+size_t(y)*image.stride+size_t(x)*4;
+                if(effects.diffusion>0) {
+                    const Colour rgb=read_linear(pixel,decode_lut);
+                    for(int c=0;c<3;++c)sum[c]+=rgb[c];
+                }
+                if(effects.halation && effects.diffusion==0) {
+                    const Colour raw=byte_response.sample(pixel);
+                    for(int c=0;c<3;++c)raw_sum[c]+=raw[c];
+                }
+            }
+            const double count=double(x1-x0)*(y1-y0);
+            for(int c=0;c<3;++c) {
+                if(effects.diffusion>0)light.values[(size_t(gy)*w+gx)*3+c]=float(sum[c]/count);
+                if(effects.halation && effects.diffusion==0)response.values[(size_t(gy)*w+gx)*3+c]=float(raw_sum[c]/count);
+            }
+        }
+    });
+    if(effects.diffusion>0) {
+        spatial.softness=effects.diffusion*.45f;
+        spatial.lens=Field(w,h);
+        for(const auto [sigma,weight]:std::array<std::array<float,2>,3>{{{.75f,.20f},{3.5f,.35f},{10.f,.45f}}}) {
+            const Field blurred=scatter_gaussian(light,{sigma,sigma,sigma},check);
+            for(size_t i=0;i<blurred.values.size();++i)spatial.lens.values[i]+=spatial.softness*.55f*weight*blurred.values[i];
+        }
+        if(effects.halation)parallel_rows(h,uint64_t(image.width)*image.height/h,check,[&](uint32_t gy) {
+            const uint32_t y0=uint32_t(uint64_t(gy)*image.height/h),y1=uint32_t(uint64_t(gy+1)*image.height/h);
+            for(uint32_t gx=0;gx<w;++gx) {
+                const uint32_t x0=uint32_t(uint64_t(gx)*image.width/w),x1=uint32_t(uint64_t(gx+1)*image.width/w);
+                double sum[3]{};
+                for(uint32_t y=y0;y<y1;++y)for(uint32_t x=x0;x<x1;++x) {
+                    if((x&1023u)==0)check();
+                    const Colour rgb=read_linear(image.pixels+size_t(y)*image.stride+size_t(x)*4,decode_lut);
+                    const Colour raw=film_response(model,lens_colour(rgb,spatial.lens.sample(x,y,image),spatial.softness));
+                    for(int c=0;c<3;++c)sum[c]+=raw[c];
+                }
+                const double count=double(x1-x0)*(y1-y0);
+                for(int c=0;c<3;++c)response.values[(size_t(gy)*w+gx)*3+c]=float(sum[c]/count);
+            }
+        });
+    }
+    if(!effects.halation)return spatial;
+    light.values.clear();light.values.shrink_to_fit();
+    Field scattered(w,h);
+    // FilmFormat.still35 uses the rendered short side / 24mm, including non-3:2 images.
+    const float px_per_mm=std::min(w,h)/(effects.format_mm*(24.f/36.f));
+    for(int k=0;k<3;++k) {
+        uint32_t stride;
+        const Field part=fotu_spread(response,effects.fotu_sigma_mm[k]*px_per_mm,stride,check);
+        parallel_rows(h,uint64_t(w)*12,check,[&](uint32_t y) {
+            for(uint32_t x=0;x<w;++x) {
+                const Colour value=fotu_sample(part,x,y,stride);
+                for(int c=0;c<3;++c)scattered.values[(size_t(y)*w+x)*3+c]+=effects.fotu_weights[c][k]*value[c];
+            }
+        });
+    }
+    // Carry M * scattered; subtract M * full-resolution direct in BOTH final backends.
+    // Do not subtract an averaged direct field or return the old diagonal-only mix.
+    spatial.halation=Field(w,h);spatial.spectral_return=true;spatial.return_matrix=effects.fotu_matrix;
+    parallel_rows(h,uint64_t(w)*12,check,[&](uint32_t y) {
+        for(uint32_t x=0;x<w;++x)for(int c=0;c<3;++c)for(int j=0;j<3;++j)
+            spatial.halation.values[(size_t(y)*w+x)*3+c]+=effects.fotu_matrix[c][j]*scattered.values[(size_t(y)*w+x)*3+j];
+    });
+    return spatial;
+}
+
 inline Spatial prepare_spatial(const Image& image, const Model& model, const Effects& effects,
                                const std::array<float, 256>& decode_lut, const Check& check) {
     Spatial spatial;
     const bool active_halation = effects.halation && std::any_of(effects.halation_strength.begin(),
         effects.halation_strength.end(), [](float value) { return value > 0; });
     if (effects.diffusion == 0 && !active_halation) return spatial;
-    const uint32_t analysis_edge = effects.cinestill ? 1024u : 512u;
+    if (effects.cinestill) return prepare_fotu_spatial(image,model,effects,decode_lut,check);
+    const uint32_t analysis_edge = 512u;
     const double scale = std::min(1.0, double(analysis_edge) / std::max(image.width, image.height));
     const uint32_t w = std::min(analysis_edge, std::max(1u, uint32_t(std::ceil(image.width * scale))));
     const uint32_t h = std::min(analysis_edge, std::max(1u, uint32_t(std::ceil(image.height * scale))));
@@ -278,7 +480,7 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
         }
     });
     Field original_response;
-    if (!effects.cinestill && effects.scatter_amount > 0) {
+    if (effects.scatter_amount > 0) {
         // SpektraFilm's default emulsion scatter: Gaussian core plus exponential
         // tail, with its pinned three-Gaussian exponential surrogate. Bounded-grid approximation.
         original_response = response;
@@ -310,10 +512,9 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
     spatial.halation = Field(w, h);
     // Positive centred scales form a smooth return profile. No broad-minus-core shell or clipping.
     // Ordinary films use SpektraFilm's sqrt(k) bounce widths and normalized decay.
-    // CineStill only uses the project near/main/tail look, not full Fotufilm parity.
+    // CineStill has already returned through its own upstream physical branch above.
     std::vector<std::array<float, 2>> kernels;
-    if (effects.cinestill) kernels = {{.65f, .25f}, {1.3f, .50f}, {2.6f, .25f}};
-    else {
+    {
         float total = 0.f;
         for (int k = 0; k < effects.halation_bounces; ++k) total += std::pow(effects.halation_decay, float(k));
         for (int k = 0; k < effects.halation_bounces; ++k)
@@ -393,7 +594,14 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
             Colour raw = effects.diffusion == 0 ? model.response.sample({pixel[0] / 255.f, pixel[1] / 255.f, pixel[2] / 255.f}) :
                 film_response(model, lens_colour(read_linear(pixel, decode_lut), spatial.lens.sample(x, y, image), spatial.softness));
             const Colour halo = spatial.halation.sample(x, y, image);
-            for (int c = 0; c < 3; ++c) raw[c] = std::log10(std::max(0.f,
+            if (spatial.spectral_return) {
+                const Colour direct=raw;
+                for(int c=0;c<3;++c) {
+                    raw[c]+=halo[c];
+                    for(int j=0;j<3;++j)raw[c]-=spatial.return_matrix[c][j]*direct[j];
+                }
+                for(float& c:raw)c=std::log10(std::max(0.f,c)*effects.exposure_gain+1e-10f);
+            } else for (int c = 0; c < 3; ++c) raw[c] = std::log10(std::max(0.f,
                 raw[c] * (1.f - spatial.halation_mix[c]) + halo[c]) * effects.exposure_gain + 1e-10f);
             Colour density = model.development.sample(raw);
             const double gx = (double(x) + .5) * source_width / image.width - .5;

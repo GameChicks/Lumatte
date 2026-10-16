@@ -9,7 +9,7 @@
       "printId": "fotu_fixed_print",
       "positive": false,
       "modelVersion": "lfm-fotufilm-public-three-stage-v1",
-      "manifestSha256": "d5e83e8dc7078aa9b17df5ba4996b6a9ea404bae03ab345081242b056cced05c",
+      "manifestSha256": "3b5211e4b399665038bf49f88743cfd067a482b3e9cf906382894070ffa874c3",
       "tableBytes": 4553796
     },
     {
@@ -17,7 +17,7 @@
       "printId": "fotu_fixed_print",
       "positive": false,
       "modelVersion": "lfm-fotufilm-public-three-stage-v1",
-      "manifestSha256": "0418e700a9c3cbeff6bae3d892be15a9d2eecc84058419a8e8fc05017ae08f68",
+      "manifestSha256": "986defb0ec627cfcc61bdee21f4df22132960e8bcba3020658703d88f78e7caf",
       "tableBytes": 4553796
     },
     {

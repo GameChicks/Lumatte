@@ -228,6 +228,29 @@ internal class MobileFilmModelLibrary(context: Context) {
         fun scatter(key: String, fallback: FloatArray, high: Float): FloatArray =
             if (halation.has(key)) triple(halation, key, 0f, high) else fallback
         require(halation.optBoolean("halation_renormalize", true)) { "移动模型需要归一化返光" }
+        val cineStill = manifest.getString("stockId") in setOf("cinestill_800t", "cinestill_400d")
+        val physical = if (cineStill) {
+            val kernel = halation.getJSONObject("fotufilm_kernel")
+            require(kernel.getString("algorithm") == "fotufilm-legacy-physical-v1" &&
+                kernel.getInt("analysis_long_edge") == 1536) { "不支持的 CineStill 光晕求解" }
+            fun rows(key: String, high: Float, unitSum: Boolean): FloatArray {
+                val array = kernel.getJSONArray(key)
+                require(array.length() == 3)
+                val output = FloatArray(9)
+                for (r in 0..2) {
+                    val row = array.getJSONArray(r)
+                    require(row.length() == 3)
+                    for (c in 0..2) output[r * 3 + c] = row.getDouble(c).toFloat().also {
+                        require(it.isFinite() && it >= -1e-6f && it <= high)
+                    }
+                    val sum = (0..2).sumOf { output[r * 3 + it].toDouble() }
+                    require(if (unitSum) kotlin.math.abs(sum - 1) < 1e-5 else sum in 0.0..1.0)
+                }
+                return output
+            }
+            FotufilmHalationKernel(triple(kernel, "sigma_mm", .000001f, 2f),
+                rows("weights", 1f, true), rows("mix_matrix", 1f, false))
+        } else null
         return MobileFilmEffects(grain.getBoolean("active"), scalar(grain, "particle_area_um2", .0001f, 10f),
             triple(grain, "particle_scale", .0001f, 20f), triple(grain, "density_min", 0f, 1f),
             triple(grain, "uniformity", 0f, 1f), maximum,
@@ -239,7 +262,7 @@ internal class MobileFilmModelLibrary(context: Context) {
             halation.optDouble("scatter_amount", 1.0).toFloat().also { require(it.isFinite() && it in 0f..1f) },
             scatter("scatter_core_um", floatArrayOf(2.2f, 2f, 1.6f), 1000f),
             scatter("scatter_tail_um", floatArrayOf(9.3f, 9.7f, 9.1f), 1000f),
-            scatter("scatter_tail_weight", floatArrayOf(.78f, .65f, .67f), 1f))
+            scatter("scatter_tail_weight", floatArrayOf(.78f, .65f, .67f), 1f), physical)
     }
 
     companion object {

@@ -15,6 +15,7 @@ import shutil
 import struct
 
 import numpy as np
+from produce_fotufilm_halation import halation_reference, ALGORITHM as HALATION_ALGORITHM
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "research/fotufilm"
@@ -209,16 +210,15 @@ def main():
         grain={"active":True,"particle_area_um2":.1,"particle_scale":np.clip(area/.1,.0001,20).tolist(),"density_min":[.02]*3,"uniformity":[.9]*3,
                "spacing_um":min(40,max(.1,float(profile["grainSizeMM"])*1000))}
         cine=upstream.startswith("cinestill")
-        # Explicit mobile art direction, separate from the upstream base colour.
-        halo={"halation_strength":([.12,.004,0] if upstream=="cinestill800t" else [.065,.003,0]) if cine else [.05,.015,0],
-              "halation_first_sigma_um":[90 if upstream=="cinestill800t" else 65]*3,
-              "halation_n_bounces":3,"halation_bounce_decay":.5,"halation_renormalize":True}
+        halo=halation_reference(profile) if cine else {"halation_strength":[.05,.015,0],
+              "halation_first_sigma_um":[65]*3,"halation_n_bounces":3,
+              "halation_bounce_decay":.5,"halation_renormalize":True}
         metadata={"schema":1,"modelVersion":VERSION,"stockId":stock,"printId":"fotu_fixed_print","positive":False,
                   "source":{"origin":"fotufilm_public_pack_adapter","repository":"https://github.com/DhaliwalX/fotufilm-engine","commit":COMMIT,"packSnapshot":sources["snapshot"],"packSha256":digest(pack.bytes),"profileSha256":digest(profile_path.read_bytes()),"author":"Fotufilm / MUAStudio Inc.","license":"CC-BY-SA-4.0"},
                   "storage":"float32_le_rgb_x_fastest","dir":"baked_local_only","spatialEffectsBaked":False,"grainBaked":False,
                   "tables":{"response":response,"development":development,"scan":scan},"grainReference":grain,"halationReference":halo,
                   "settingsSnapshot":{"camera":{"film_format_mm":36.0}},
-                  "mobileAdaptation":{"monochrome":mono,"halationModel":"cinestill_mobile_look" if cine else "spektrafilm_default_shape","fullEngineParity":False,"sampledCurves":True,"sceneMetering":False,"spatialDIR":False,"grain":"density-statistical-approximation"}}
+                  "mobileAdaptation":{"monochrome":mono,"halationModel":HALATION_ALGORITHM if cine else "spektrafilm_default_shape","fullEngineParity":False,"sampledCurves":True,"sceneMetering":False,"spatialDIR":False,"grain":"density-statistical-approximation"}}
         write_json(folder/"model.json",metadata)
         entries.append(dict(stockId=stock,printId="fotu_fixed_print",positive=False,modelVersion=VERSION,manifestSha256=digest((folder/"model.json").read_bytes()),tableBytes=sum(t["bytes"] for t in (response,development,scan))))
         catalogue.append(dict(id=stock,name=name,category=category,printId="fotu_fixed_print",positive=False,description=description+" 移动近似风格，非实测胶卷或完整上游引擎一致性声明。"))
@@ -228,7 +228,7 @@ def main():
     shutil.copyfile(SOURCE/"licenses/CC-BY-SA-4.0.txt",stage/"CC-BY-SA-4.0.txt")
     shutil.copyfile(SOURCE/"licenses/LICENSE",stage/"Apache-2.0.txt")
     shutil.copyfile(SOURCE/"licenses/NOTICE",stage/"UPSTREAM-NOTICE.txt")
-    (stage/"NOTICE.txt").write_text("Fotufilm profiles and derived tables: CC BY-SA 4.0. Copyright MUAStudio Inc.\nAttribution: Fotufilm, https://fotufilm.com, https://github.com/DhaliwalX/fotufilm-engine\nPointwise equations adapted from Fotufilm, Apache-2.0; original NOTICE preserved in research/fotufilm/licenses.\nChanges: fixed public-demo pack snapshot to three sRGB mobile tables; no scene auto levels, spatial DIR or full-engine grain; independent CineStill mobile halo look.\nSource profiles, public pack hashes and adapter are preserved in research/fotufilm and tools/produce_fotufilm_models.py.\nNot calibrated physical-film, full-engine-parity, rendered-photo or device-performance verification.\n",encoding="utf-8")
+    (stage/"NOTICE.txt").write_text("Fotufilm profiles and derived tables: CC BY-SA 4.0. Copyright MUAStudio Inc.\nAttribution: Fotufilm, https://fotufilm.com, https://github.com/DhaliwalX/fotufilm-engine\nPointwise equations adapted from Fotufilm, Apache-2.0; original NOTICE preserved in research/fotufilm/licenses.\nChanges: fixed public-demo pack snapshot to three sRGB mobile tables; no scene auto levels, spatial DIR or full-engine grain; CineStill physical default halation kernel adapted from pinned upstream, with bounded mobile spatial sampling.\nSource profiles, public pack hashes and adapter are preserved in research/fotufilm and tools/produce_fotufilm_models.py.\nNot calibrated physical-film, full-engine-parity, rendered-photo or device-performance verification.\n",encoding="utf-8")
     DEST.mkdir(parents=True,exist_ok=True)
     shutil.copytree(stage,DEST,dirs_exist_ok=True)
 

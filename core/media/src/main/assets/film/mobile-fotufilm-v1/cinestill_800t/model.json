@@ -99,18 +99,122 @@
   },
   "halationReference": {
     "halation_strength": [
-      0.12,
-      0.004,
-      0
+      0.03,
+      0.00101248,
+      9.4e-07
     ],
     "halation_first_sigma_um": [
-      90,
-      90,
-      90
+      188.1200525452262,
+      282.77264797974505,
+      425.04969227697507
     ],
     "halation_n_bounces": 3,
     "halation_bounce_decay": 0.5,
-    "halation_renormalize": true
+    "halation_renormalize": true,
+    "fotufilm_kernel": {
+      "algorithm": "fotufilm-legacy-physical-v1",
+      "sigma_mm": [
+        0.1881200525452262,
+        0.28277264797974505,
+        0.4250496922769751
+      ],
+      "weights": [
+        [
+          0.0,
+          0.952535497960449,
+          0.04746450203955099
+        ],
+        [
+          0.20609906075656145,
+          0.7939009392434385,
+          0.0
+        ],
+        [
+          0.43051448022761946,
+          0.5694855197723805,
+          0.0
+        ]
+      ],
+      "mix_matrix": [
+        [
+          0.028665171593352162,
+          0.0,
+          0.00046104199888084537
+        ],
+        [
+          6.107549862227004e-05,
+          0.0009503804224867255,
+          0.0
+        ],
+        [
+          0.0,
+          3.1333303880027686e-07,
+          6.266660776005537e-07
+        ]
+      ],
+      "strength": [
+        0.03,
+        0.00101248,
+        9.4e-07
+      ],
+      "haze_mm": 0,
+      "base_thickness_mm": 0.13,
+      "record_refractive_indices": [
+        1.474,
+        1.48,
+        1.489
+      ],
+      "format_frame_height_mm": 24,
+      "angle_samples": 256,
+      "max_bounces": 5,
+      "fit_distance_count": 209,
+      "source_profile": {
+        "angularExponent": [
+          1,
+          1,
+          1
+        ],
+        "bounceRetention": [
+          0.283,
+          0.1375,
+          0.0651
+        ],
+        "diffuseShare": [
+          0,
+          0,
+          0
+        ],
+        "diffuseSigmaMM": [
+          0,
+          0,
+          0
+        ],
+        "roundTripOpticalDepth": [
+          0.9275,
+          1.458,
+          2.0075
+        ]
+      },
+      "source_return_matrix": [
+        [
+          0.099977,
+          0,
+          0.001608
+        ],
+        [
+          0.000214,
+          0.00333,
+          0
+        ],
+        [
+          0,
+          1e-06,
+          2e-06
+        ]
+      ],
+      "fit_arithmetic": "float64-offline",
+      "analysis_long_edge": 1536
+    }
   },
   "settingsSnapshot": {
     "camera": {
@@ -119,7 +223,7 @@
   },
   "mobileAdaptation": {
     "monochrome": false,
-    "halationModel": "cinestill_mobile_look",
+    "halationModel": "fotufilm-legacy-physical-v1",
     "fullEngineParity": false,
     "sampledCurves": true,
     "sceneMetering": false,
