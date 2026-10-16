@@ -6,7 +6,7 @@ import com.lumixfilmmirror.model.PixelSize
 /** Configured source route. Does not claim native compilation, loading or measured performance. */
 enum class FilmBackend { MOBILE_GLES3_WITH_CPU_FALLBACK, MOBILE_NATIVE_CPU }
 
-/** Product facade; the full spectral Vulkan implementation remains a separate developer reference. */
+/** Product facade for the staged mobile model and its CPU fallback. */
 internal class FilmEngine(models: MobileFilmModelLibrary) {
     private val renderer = MobileFilmRenderer(models)
     val gpuFallbackReason get() = fallbackReason

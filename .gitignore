@@ -7,6 +7,7 @@ local.properties
 *.keystore
 *.jks
 tools/.cache/
+tools/.local/
 research/filmtool/raw/
 research/filmtool/decompiled/
 research/lumix-sync/raw/
@@ -15,6 +16,10 @@ research/lumix-lab/raw/
 research/lumix-lab/decompiled/
 artifacts/
 /lut/
+/reference/
+/research/filmtool/
+/research/ui/
+/research/film-editorial/
 __pycache__/
 *.pyc
 .idea/

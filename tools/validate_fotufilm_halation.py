@@ -5,7 +5,7 @@ Independent public upstream packed kernels + SciPy spatial oracle; never reuses
 the production solver/spread functions to calculate expected values.
 """
 from pathlib import Path
-import argparse, hashlib, json, struct, subprocess, sys
+import argparse, hashlib, json, os, shutil, struct, subprocess, sys
 import numpy as np
 from scipy.ndimage import convolve1d, map_coordinates
 from PIL import Image
@@ -16,11 +16,14 @@ from produce_fotufilm_models import Pack, SOURCE
 ASSETS=ROOT/'core/media/src/main/assets/film/mobile-fotufilm-v1'
 OUT=ROOT/'artifacts/validation/fotufilm-halation-20261017'
 FIXTURES=OUT/'fixtures'
-ADB=ROOT/'tools/.cache/android-prototype/sdk/platform-tools/adb.exe'
 REMOTE='/data/local/tmp/lfm-halation-validation'
 
 def adb(*args,timeout=180):
-    result=subprocess.run([str(ADB),'-s','emulator-5582',*map(str,args)],capture_output=True,text=True,timeout=timeout)
+    config=ROOT/'tools/.local/android-paths.json'
+    sdk=json.loads(config.read_text(encoding='utf-8-sig'))['sdk'] if config.exists() else os.environ.get('ANDROID_HOME',os.environ.get('ANDROID_SDK_ROOT'))
+    executable=Path(sdk)/'platform-tools'/('adb.exe' if os.name=='nt' else 'adb') if sdk else shutil.which('adb')
+    if not executable:raise RuntimeError('Set ANDROID_HOME or put adb on PATH')
+    result=subprocess.run([str(executable),'-s',os.environ.get('LFM_ADB_SERIAL','emulator-5582'),*map(str,args)],capture_output=True,text=True,timeout=timeout)
     if result.returncode:raise RuntimeError(result.stdout+result.stderr)
     return result.stdout
 

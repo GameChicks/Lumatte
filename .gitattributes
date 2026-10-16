@@ -1,7 +1,10 @@
 * text=auto
 .gitattributes text eol=lf
 .gitignore text eol=lf
+gradlew text eol=lf
+gradlew.bat text eol=crlf
 *.properties text eol=lf
+*.ps1 text eol=lf
 *.txt text eol=lf
 *.kt text eol=lf
 *.kts text eol=lf
@@ -15,10 +18,7 @@
 *.cube -text whitespace=cr-at-eol,-blank-at-eof
 *.ttf binary
 *.otf binary
-research/filmtool/assets/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
-research/ui/fonts/Playfair-Display-OFL.txt -text whitespace=-blank-at-eol,-blank-at-eof
 core/media/src/main/assets/frames/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
-research/filmtool/recovered/** whitespace=-blank-at-eol,-blank-at-eof
 *.csv text eol=lf
 *.cpp text eol=lf
 *.h text eol=lf
@@ -30,7 +30,6 @@ research/filmtool/recovered/** whitespace=-blank-at-eol,-blank-at-eof
 *.pro text eol=lf
 CMakeLists.txt text eol=lf
 third_party/libraw/upstream/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
-third_party/spektralab/upstream/** -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
 *.bin binary
 *.f32 binary
 *.pack binary
@@ -42,4 +41,3 @@ core/media/src/main/assets/film/mobile-monochrome-v1/LICENSE.txt -text whitespac
 LICENSE -text whitespace=-blank-at-eol,-blank-at-eof
 app/src/main/assets/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
 core/design/src/main/assets/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
-docs/design/*-OFL.txt -text whitespace=-blank-at-eol,-blank-at-eof

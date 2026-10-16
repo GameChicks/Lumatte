@@ -52,7 +52,7 @@
 
 1536 预算另与同一公式、2000 长边不缩小的独立空间计算对照：800T 最大/平均曝光绝对差 0.0045166 / 3.7600e-5，400D 为 0.0045638 / 3.8510e-5。它证实预算仍会改变细小高光的局部返光，不能声称完全无损；这是合成灯带与单像素输入的数值，不能换算成通用“画质损失百分比”。
 
-合成开关图已实际查看：`artifacts/validation/fotufilm-halation-20261017/cinestill_800t-lights-off-on.png`（左关右开），400D 同名对应图。在这组 8-bit 合成灯带上，两卷开关最大只改变 **3 个色阶**，肉眼差异弱。模型/后端对照通过不等于用户期待的强红晕观感已经达成；没有擅自放大原始返光参数，也没有把图中已裁剪的白色重建成 HDR。若要继续追求参考实拍的强度，需要另行核对实际原片、曝光输入映射与完整色彩链路，不能仅凭本次小误差判定照片效果满意。
+合成开关图已实际查看：交付附件 `halation-validation/cinestill_800t-lights-off-on.png`（左关右开），400D 同名对应图。在这组 8-bit 合成灯带上，两卷开关最大只改变 **3 个色阶**，肉眼差异弱。模型/后端对照通过不等于用户期待的强红晕观感已经达成；没有擅自放大原始返光参数，也没有把图中已裁剪的白色重建成 HDR。若要继续追求参考实拍的强度，需要另行核对实际原片、曝光输入映射与完整色彩链路，不能仅凭本次小误差判定照片效果满意。
 
 ## 2400 万像素性能检查的边界
 
@@ -68,6 +68,6 @@ Windows 上 Android x86_64 API 35 模拟器，主机 GLES 后端 NVIDIA GTX 1650
 
 软件 SwiftShader 后端曾出现无属性 `gl_VertexID` 三角形未绘制，改成等坐标的显式 VBO 后能够绘制，但色彩采样仍异常；该模拟器随后退出。主机 GPU 下全链路对照通过，未把软件后端失败覆盖成“所有驱动通过”。生产代码保留等价显式顶点，未加入调试用硬编码 LUT 尺寸或绕过数值断言。
 
-资源生产完成，两款 manifest / 索引更新；三张色彩表字节、其他卷 manifest 未修改。末轮 GLSL 顶点/片元语法编译、arm64-v8a / x86_64 native、media / app Kotlin 编译通过（`tools/.cache/fotufilm-physical-halation-20261017-final-compile.log`，BUILD SUCCESSFUL，45s）。没有物理 Android/骁龙 865 或相机验证，没有新 APK。
+资源生产完成，两款 manifest / 索引更新；三张色彩表字节、其他卷 manifest 未修改。末轮 GLSL 顶点/片元语法编译、arm64-v8a / x86_64 native、media / app Kotlin 编译通过（交付附件 `halation-source-compile.log`，BUILD SUCCESSFUL，45s）。没有物理 Android/骁龙 865 或相机验证。移植验证之后用户另行授权打包，已交付 [0.2.1](../releases/0.2.1.md)。
 
-原始结果位于 `artifacts/validation/fotufilm-halation-20261017/` 的 `results.json`、`performance-results.json` 及 PNG；大体积可再生 fixtures 保持在此忽略目录。手动复现前须取得当次验证授权，工具不会自动启动测试或打包：先用 NDK x86_64 clang++ 编译 validator 与生产 `mobile_film_gles.cpp`（C++20、O3、`-ffp-contract=off`、静态 libc++、EGL/GLESv3），生成 `mobile_shaders.hpp` 使用生产模板和两份生产 shader；在 D: 的 `LumixMirrorVisual` AVD（端口 5582，host GPU）启动后运行验证脚本，另以 `--performance-only` 执行上述单次大图检查。
+`results.json`、`performance-results.json`、PNG 和编译日志已随 0.2.1 保存到 `dist/release-0.2.1-20261017-064901/`；可再生 fixtures 和旧缓存已移出项目。手动复现前须取得当次验证授权，工具不会自动启动测试或打包：先用 NDK x86_64 clang++ 编译 validator 与生产 `mobile_film_gles.cpp`（C++20、O3、`-ffp-contract=off`、静态 libc++、EGL/GLESv3），生成 `mobile_shaders.hpp` 使用生产模板和两份生产 shader；在 D: 的 `LumixMirrorVisual` AVD（端口 5582，host GPU）启动后运行验证脚本，另以 `--performance-only` 执行上述单次大图检查。ADB 从 `ANDROID_HOME` / `PATH` 或本机忽略配置查找，不依赖项目内 SDK 副本。

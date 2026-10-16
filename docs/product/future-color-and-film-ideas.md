@@ -52,7 +52,7 @@
 
 - [例图颜色分析](../../core/media/src/main/kotlin/com/lumixfilmmirror/media/LutGalleryColours.kt)
 - [LUT 页面](../../app/src/main/kotlin/com/lumixfilmmirror/app/MirrorLuts.kt)
-- [既有图库接口说明](../engineering/lut-gallery.md)
+- 既有图库接口说明
 
 现有“今日推荐”是按日期轮换，尚未实现上述照片匹配排序。例图颜色也不是 LUT 的完整色彩模型。这里记录源码基础，不代表推荐功能已经研发或验证。
 
@@ -111,7 +111,7 @@ spektrafilm 以厂家公开的测量资料建立感光、显影、染料密度�
 
 优先考虑电脑端完成建模、拟合和数据生产，再沿用本项目分阶段移动处理架构。新增胶卷不是简单复制名称或给既有模型换标签；数据包格式、精度、空间效果与移动端成本仍需评估。
 
-有关既有路线的背景见 [胶片引擎说明](../engineering/film-engine.md)与[移动分阶段后端](../engineering/mobile-film-rendering.md)。这些文档中的历史状态不替代后续实际验证记录。
+有关既有路线的背景见 胶片引擎说明与[移动分阶段后端](../engineering/mobile-film-rendering.md)。这些文档中的历史状态不替代后续实际验证记录。
 
 ### 冲洗模拟的边界
 

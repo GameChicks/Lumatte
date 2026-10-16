@@ -1,6 +1,6 @@
 # 功能交接给前端
 
-2026-10-12：按本轮用户直接要求，正式四栏 UI 已由 MirrorScreen 接入这些接口。具体界面、设计与证据见 [实现记录](../design/implementation.md) 和 [完整规范](../design/specification.md)。下文较早“三栏 / 字体不加入构建 / 另找前端”的交接描述仅保留历史上下文，以本轮四栏和已接入字体副本为准。接口接入与源码编译不代表设备或照片效果验证。
+2026-10-12：按本轮用户直接要求，正式四栏 UI 已由 MirrorScreen 接入这些接口。具体界面、设计与证据见 实现记录 和 [完整规范](../design/specification.md)。下文较早“三栏 / 字体不加入构建 / 另找前端”的交接描述仅保留历史上下文，以本轮四栏和已接入字体副本为准。接口接入与源码编译不代表设备或照片效果验证。
 
 ## 独立的影像入口
 
@@ -30,7 +30,7 @@
 
 预览返回的位图由前端持有；移出 Compose 绘制后再释放，不能在旧 Image 尚绘制时回收。前端滑杆可用 150～250 ms 合并与 `collectLatest`，避免每一个中间值都计算。调用协程取消完成后，原生任务已结束，处理器内部的输入位图才会回收。预览尺寸与最终尺寸不同，颗粒、空间效果在不同采样网格上不保证逐像素相同。
 
-预览缓存只保留照片效果，画框／文字在其后绘制；原图、配方、表对象及实际照片处理尺寸共同决定失效。仅换签名等且处理尺寸不变时可复用光谱／LUT 结果。缓存位图不借给前端，所有返回图独立持有；8 MiB 不含前端图、临时图和 GPU。正式导出不读取小图缓存。后端、清理及数值证据边界见 [手机优化源码](mobile-processing.md)。
+预览缓存只保留照片效果，画框／文字在其后绘制；原图、配方、表对象及实际照片处理尺寸共同决定失效。仅换签名等且处理尺寸不变时可复用光谱／LUT 结果。缓存位图不借给前端，所有返回图独立持有；8 MiB 不含前端图、临时图和 GPU。正式导出不读取小图缓存。后端、清理及数值证据边界见 手机优化源码。
 
 `clearPreviewCache()` 仅清理位图 LRU。`clearProcessingCaches()` 另排队等待移动原生工作结束，在所属 worker 释放 GLES 上下文／纹理，再丢弃模型缓存引用，不取消导出或破坏当前借用模型。下一次胶片请求按需加载模型／分配资源，私有数值资产保留。该操作可能等待正在渲染的大图，不在主线程阻塞等待，不在每次调整参数后调用。应用后台回调通过 `requestMemoryTrim()` 请求同一路径；后续排入的导出仍会按需重新分配资源，不能将清理当作强制内存上限。
 
@@ -59,7 +59,7 @@ Room 8 已接入不可变导出快照和每项结果，`state.exportRuns/exportR
 
 ## 动效与画框的扩展边界
 
-LUT 图库后端新增 `loadLutGallery(catalogue)`、`setLutSubjects(asset, subjects)` 和 `previewLutCard(source, asset)`。卡片同时返回实际效果 Bitmap 与 Palette 颜色，默认长边 320，调用方负责回收已接收的图。全库 `lutGalleryColours(source, catalogue, onEntry=...)` 按项生成颜色数字、回收临时卡片，不返回图片；用于分析未滚动到的候选后筛选，不能把尚未分析条目当成已证明不匹配。用 `LutGalleryFilter.select` 做搜索、内置／本地、题材、颜色家族和例图近黑白组合筛选。卡片来源明确为用户当前照片，不是创作者上传图片；题材为用户可保存的标签，不从颜色自动判断。字段、来源、缓存与取消约定见 [LUT 图库接口](lut-gallery.md)。正式前端可以使用这些入口，原型 UI 本轮未改。
+LUT 图库后端新增 `loadLutGallery(catalogue)`、`setLutSubjects(asset, subjects)` 和 `previewLutCard(source, asset)`。卡片同时返回实际效果 Bitmap 与 Palette 颜色，默认长边 320，调用方负责回收已接收的图。全库 `lutGalleryColours(source, catalogue, onEntry=...)` 按项生成颜色数字、回收临时卡片，不返回图片；用于分析未滚动到的候选后筛选，不能把尚未分析条目当成已证明不匹配。用 `LutGalleryFilter.select` 做搜索、内置／本地、题材、颜色家族和例图近黑白组合筛选。卡片来源明确为用户当前照片，不是创作者上传图片；题材为用户可保存的标签，不从颜色自动判断。字段、来源、缓存与取消约定见 LUT 图库接口。正式前端可以使用这些入口，原型 UI 本轮未改。
 
 开发／反转视觉只属于前端：一批开启一次，用户跳过仅改变动效状态，不调用 `cancelExport()`；反转是最终正片的呈现，不把导出结果再次反相。建议前端按一次导出会话维护动效状态，结合真实阶段及数量呈现。
 
@@ -69,11 +69,11 @@ LUT 图库后端新增 `loadLutGallery(catalogue)`、`setLutSubjects(asset, subj
 
 本轮已恢复 `app_lang` 11 个配置／值，并加入相同 qualifier 的自身服务语言资源。`LumixLabLanguages.forContext(frontendContext)` 可读取当前配置，`PhotoProcessor.officialLutLanguage()` 使用应用配置；目录和下载的便利入口默认取此值。`nextOffset` 只给继续请求的位置，无总数／下一页存在性保证。获取和下载失败应显示错误，保留内置／本地工作流；不要把网络 DTO 的 `code` 当成本地可渲染 LUT ID。源码尚未编译、请求官方服务器或运行下载，不显示“已连接官方目录”或成功下载。分页／图像限制、原子文件、来源和证据见 [官方目录接口](lumix-lab-catalogue.md)。
 
-`WorkspaceViewModel.officialLuts.state` 新增独立浏览状态：分类、分页、详情、真实例图颜色／分析数量及按条目错误；没有 Bitmap 状态持有。`refreshOfficialLuts()`、浏览协调器的加载／关闭／取消、`downloadOfficialLut()`、`cancelOfficialLutDownload()`、`reloadLutLibrary()` 和 `selectLutSlot(assetId, second)` 已对接源码。下载独立，不自动覆盖槽；`officialLutDownload` 提供阶段和成功 ID／错误。前端可用 `LumixLabGalleryFilter` 对已加载候选做标题／作者／颜色筛选，未加载或未取色的项目保持未知。调用顺序、所有权、取消与证据见 [浏览和工作台交接](lumix-lab-browser.md)。
+`WorkspaceViewModel.officialLuts.state` 新增独立浏览状态：分类、分页、详情、真实例图颜色／分析数量及按条目错误；没有 Bitmap 状态持有。`refreshOfficialLuts()`、浏览协调器的加载／关闭／取消、`downloadOfficialLut()`、`cancelOfficialLutDownload()`、`reloadLutLibrary()` 和 `selectLutSlot(assetId, second)` 已对接源码。下载独立，不自动覆盖槽；`officialLutDownload` 提供阶段和成功 ID／错误。前端可用 `LumixLabGalleryFilter` 对已加载候选做标题／作者／颜色筛选，未加载或未取色的项目保持未知。调用顺序、所有权、取消与证据见 浏览和工作台交接。
 
 `PhotoProcessor.mobileFilmModelsInfo()` 可读取已打入资源目录的移动胶片模型 ID、相纸、正负片、版本、来源提交和缓存信息，不加载全部表或初始化 GPU。缺失／不支持的目录返回 problems，取消正常传播。这个资料入口不是实际渲染后端状态，不展示“已加速”或技术引擎选择；预览／导出已接 GLES 图块和从原图重做的 CPU 后备源码，共用模型与共享画框，尚未运行验证。实现与空间／颗粒近似见 [图像后端](mobile-film-rendering.md)。
 
-黑白目录新增 `lfm_silver_neutral`／`lfm_silver_contrast` 自有风格，`FilmPreset.description` 可供介绍页显示来源说明。模型资料新增 `origin` 区分 spektrafilm 与本项目；自有模型 `sourceCommit` 为 null，前端需按来源处理可空提交。这两项不是品牌胶卷的实测复现。批量、曝光、柔光、Halation、画框和导出接口不变，详见 [黑白功能](monochrome-film.md)。
+黑白目录新增 `lfm_silver_neutral`／`lfm_silver_contrast` 自有风格，`FilmPreset.description` 可供介绍页显示来源说明。模型资料新增 `origin` 区分 spektrafilm 与本项目；自有模型 `sourceCommit` 为 null，前端需按来源处理可空提交。这两项不是品牌胶卷的实测复现。批量、曝光、柔光、Halation、画框和导出接口不变，详见 黑白功能。
 
 ## 设计资料
 

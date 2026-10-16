@@ -22,9 +22,5 @@ target_link_options(lfm_raw_preview PRIVATE
     "-Wl,--exclude-libs,ALL" "-Wl,--no-undefined"
     "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")
 
-option(LFM_BUILD_REFERENCE_FILM "Include full spectral Vulkan developer reference" OFF)
-if(LFM_BUILD_REFERENCE_FILM)
-    add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../film" "${CMAKE_CURRENT_BINARY_DIR}/film")
-endif()
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../lut" "${CMAKE_CURRENT_BINARY_DIR}/lut")
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../mobile-film" "${CMAKE_CURRENT_BINARY_DIR}/mobile-film")

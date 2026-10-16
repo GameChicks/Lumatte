@@ -1,47 +1,49 @@
 # 松映 · Pineframe
 
-面向松下相机的独立第三方 Android 照片传输、胶片模拟、LUT 和画框导出应用。原工程名 Lumix Film Mirror；保留原应用 ID 与存储位置。
+独立第三方 Android 摄影工具：松下相机连接与照片传输、胶片模拟、双 LUT、批量处理和画框导出。工程名 Lumix Film Mirror，包名 `com.lumixfilmmirror.app`。
 
-2026-10-16 更新：0.2.0 包含六款新增胶卷、全部 24 卷独立暗盒、小组件初次配置与编辑修正、扫描时连接、导出动画及预览计算尺寸统一。恢复“进入相册”和“创作记录”原配色，沿用最初图标。见 [本轮修正](docs/engineering/widget-preview-export-fixes-2026-10-16.md)、[暗盒记录](docs/design/generated-cartridges-2026-10-16.md)与[版本记录](docs/releases/CHANGELOG.md)。收藏卡片与材质、静态用量卡片、桌面组件及名称调整的前轮记录见 [10 月 15 日实现](docs/design/pineframe-widgets-and-materials-2026-10-15.md)。设备兼容、色彩观感及性能没有实机验证。
+## 功能与边界
 
-2026-10-12 按本轮需求接入正式四入口 UI：连接、Film、LUT、水印。相机卡、多机手势、圆点用量与记录、胶卷惯性与停留详情、拍立得分类 / 收藏 / 双 LUT、一次显影反转及 11 项含无框的共享画框均已接到现有接口。完整规则见 [设计规范](docs/design/specification.md)，当前证据与运行边界见 [实现记录](docs/design/implementation.md)。源码接入和编译不等于原生图像、动画、性能或相机兼容已运行验证；本轮不运行测试或打包。
+- BLE 配对与 Wi-Fi 连接、相机媒体网格、多选传输和连接日志。相机范围不包含实时取景、遥控拍摄或参数控制。
+- 胶片使用三阶段移动模型及 GLES 3 / 原生 CPU 后备；CineStill 800T、400D 使用 Fotufilm 默认物理光晕，空间取样长边 1536，其他胶卷保持原路径。
+- 双 LUT 独立强度、颗粒、质量和尺寸设置，支持导入 Cube / VLT。
+- RAW 只提取内嵌 JPEG，不解码或显影传感器数据。默认导出有效输入的 100% 尺寸。
+- 批量可逐张调整或继承第一张，整批共享导出画框；EXIF 机型用于 Lumix 水印。
 
-- `docs/product/`：已确认的交互与产品规则。
-- `research/filmtool/`：自有 Film Companion 的来源索引、恢复源码及报告；不加入应用构建。
-- `tools/`：恢复、元数据读取与素材迁移工具；不运行旧会话命令。工具缓存与原始会话摘录不纳入 Git。
-- `core/`：新项目的数据规则与可复用领域代码。
-- `core/media/src/main/assets/frames/`：旧应用画框材料与 OFL 字体副本，附来源及哈希清单；用于导出，不是新 UI。
-- `app/`：Android 应用入口、系统浅／深色轻拟物工作台和传输界面。
-- `app/src/main/assets/luts/`：用户提供的内置 LUT 副本；原始 `lut/` 保留为本机输入目录，不重复加入 Git。
-- `research/third-party-sync/`：第三方 Sync APK 分析记录与协议常量；不加入构建。
-- `research/ui/`：指定字体来源、哈希与前端参考记录；应用使用 core/design 中的独立副本。
-- `third_party/spektralab/`、`native/film/`：固定原生光谱参考、许可与 Android 适配；原型构建记录见 [首包记录](docs/engineering/prototype-package.md)，运行效果未验证。
-- `native/lut/`：原生 CPU 双 LUT 扫描行与取消适配，保持 Kotlin 后备；效果预览 LRU 和后台清理见 [手机优化源码](docs/engineering/mobile-processing.md)，实际速度未测量。
-- `docs/protocol/`：协议依据、范围及逐机型状态。
-- `dist/`：原型 APK、源码编译日志和交付附属文件；已有首包见 [首包记录](docs/engineering/prototype-package.md)。本轮新 UI 没有重新打包。需要模拟器验证时，镜像、AVD 与运行数据安排在 D 盘。
+当前原型为 **0.2.1 / 12**，最低 Android 11（API 30）。[版本记录](docs/releases/CHANGELOG.md)说明已交付内容和验证范围。编译、定向数值检查及 APK 校验不代表所有相机兼容、实拍观感或骁龙 865 的 15 秒导出目标已得到验证；本次光晕验证见[工程记录](docs/engineering/fotufilm-physical-halation-20261017.md)。
 
-批量规则、RAW 内嵌 JPEG、导出尺寸及系统主题见 [产品决策](docs/product/decisions.md)。
+## 构建
 
-相机范围不包含实时取景、遥控拍摄或参数控制。当前实施进展与剩余任务见 [实施状态](docs/engineering/progress.md)。
+使用 JDK 17、Android SDK 36、NDK 28.2.13676358、CMake 3.22.1 与随仓库提供的 Gradle 8.13 Wrapper。详见 [BUILDING.md](BUILDING.md)。构建不依赖本机参考 APK、恢复会话、旧工程、SDK 副本或其他私有文件。
 
-以下为此前各功能接入时的历史记录；其中“未编译”描述当时状态。当前四入口 UI 和源码编译状态以 [实现记录](docs/design/implementation.md) 为准，原型包装以 [首包记录](docs/engineering/prototype-package.md) 为准。运行与机型兼容尚未据本轮验证。
+Windows 手动打包并复制到 `dist/`：
 
-手动连接相机 Wi-Fi 已有 WPA2／WPA3／无密码选项，按类型校验输入并检查手机 SAE 能力。蓝牙连接继续沿用原有默认类型；详见 [安全类型](docs/engineering/wifi-security.md)。源码尚未以设备验证。
+```powershell
+./tools/build_android_prototype.ps1
+```
 
-相机多选也可保存已识别的 MP4／MOV／AVCHD 原视频到 `Movies/LumixFilmMirror`，沿用持久队列和前台通知。视频保持原内容，不进入胶片或 JPG 导出设置；各机型传输与手机播放兼容性尚未验证。
+脚本不自动运行测试、启动模拟器或上传。测试与打包均按项目约定手动触发。
 
-工作台可按需查看、清理已登记传输任务的缓存。仅清理完成或取消任务的中间文件与未发布视频占位记录，保留照片、已保存视频、历史记录和可恢复任务；此功能尚未编译或运行。
+## 目录
 
-JPEG 导出另有编码缓存与未发布 JPG 的整理入口，恢复时处理可识别的残留。发布和工作台成功回调共用提交段，取消保留已发布结果。自选文件夹另有持久创建／写入记录与打开核对面板，不参与批量清理；未知创建窗口、提供者差异与持久导出队列仍需继续，见 [JPEG 生命周期](docs/engineering/jpeg-export-lifecycle.md)、[文件夹记录](docs/engineering/folder-export-records.md)。
+| 路径 | 内容 |
+| --- | --- |
+| `app/` | Android 入口、Compose 界面、小组件和应用资源 |
+| `core/` | model、design、media、camera、storage、transfer 模块 |
+| `native/` | 移动胶片、双 LUT、RAW JPEG 预览 JNI |
+| `third_party/libraw/` | 构建所需的固定 LibRaw 源码、清单及许可 |
+| `research/fotufilm/` | 模型再生产所需的固定输入、原始方程和来源哈希 |
+| `tools/` | 手动构建、模型生产及光晕定向验证工具 |
+| `docs/` | 产品规则、前端接口、技术说明、协议和发布记录 |
+| `gradle/` | 固定版本的 Gradle Wrapper |
+| `dist/` | 本机交付包和附件，生成文件不提交 Git |
 
-RAW 导入先尝试 TIFF／RW2 JPEG 标签，再使用固定 LibRaw 的 JPEG 预览接口补充；仅提取内嵌 JPEG，不显影传感器数据。原生源码和构建配置已接入，尚未编译或以真实 RAW 验证，详见 [RAW 预览记录](docs/engineering/raw-preview.md)。
+原始参考照片/视频、APK 逆向中间结果、恢复会话、重复素材、废弃 Vulkan 参考后端和旧开发记录已移出公开源码树。SDK、JDK、AVD、缓存及签名材料不随源码发布。
 
-蓝牙查找、旧／APS 身份握手、Wi-Fi 资料读取及显式启动传输网络已加入工作台源码。读到的密码只临时用于连接；按实际特征显示蓝牙启动入口，也保留在相机上手动开启 Wi-Fi 后连接。真实配对及机型差异尚未验证，见 [蓝牙连接记录](docs/engineering/bluetooth-connection.md)。
+## 许可与公开分发状态
 
-同路由器 STA 入口支持普通浏览／下载，以及等待相机请求后初始化拍后／选定发送的源码。输入路由器名称，让已保存该网络的相机加入，随后在手机所选 Wi-Fi 上发现相机；后续接收和显式更新发送连接保留此路径。名称已接入中文等完整 UTF-8 编码、32 字节限制和按实际载荷协商长度；不配置路由器密码，多个已有 Wi-Fi 时显式选择并绑定其中一个，见 [同路由器连接](docs/engineering/router-wifi.md)和[已有网络选择](docs/engineering/wifi-network-selection.md)。均未以设备验证。
+应用代码使用 [GPLv3](LICENSE)。第三方代码、模型、字体和图片保留各自许可与署名，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-发送连接另可从 BLE 就绪后的可读特征获取本次相机 IP，绑定所选 Wi-Fi 定点读取设备描述；保留正常 HTTP／模式／UDN 核对。缺少该能力或就绪时走原发现方式，实际地址格式与逐型号时序尚未验证，见 [连接地址记录](docs/engineering/camera-connection-address.md)。
+**部分用户提供的字体、LUT 和恢复画框素材仍待补齐公开再分发授权。** 按维护者要求保留这些运行资源并标明状态，不能用项目 GPL 代替其授权；当前目录整理完成不等于所有素材授权已确认。
 
-待发送会话区分拍后发送与相机选定发送；蓝牙资料页提供等待相机发送请求后启动直连的入口，并核对 HTTP 模式。用户可发起单轮接收，由前台服务逐项保存并独立记录相机确认。已关联的蓝牙发送会话还可开启后续接收：目录清空后等待 BLE 事件，收到新事件继续同一批次，通知栏可暂停或停止。模式切换或资料更新会暂停旧记录，并提供重新读取网络及握手的入口；另一模式可保留独立暂停记录，同相机只允许一条活跃接收。STA 和更多机型差异仍在接入，尚未编译或验证，见 [自动传输记录](docs/engineering/automatic-transfer.md)。
-
-新应用代码采用 [GNU GPLv3](LICENSE)，许可正文来自 [GNU gnulib 的 COPYINGv3](https://github.com/coreutils/gnulib/blob/master/doc/COPYINGv3)。第三方依赖和恢复素材按各自的来源、COPYRIGHT 与许可清单管理，不由应用许可替代。
+首次公开可使用 `git archive` 导出的当前源码快照。不要直接把本机构建目录、`dist/`、原始素材或旧 `.git` 历史整体上传；本地历史保留了开发与恢复记录，普通删除提交不会清除旧历史中的文件。

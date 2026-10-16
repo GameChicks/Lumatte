@@ -1,6 +1,6 @@
 # 移动胶片 GLES／CPU 图像后端（2026-10-11）
 
-> 2026-10-14 更新：默认空间算法已经改为 [空间效果 v2](optical-spatial-v2.md)，同时修复 GLES 着色器保留字。NDK 两种 ABI、着色器和 Kotlin 源码编译已通过；没有照片渲染、设备/性能测试或本轮 APK。下文是 2026-10-11 的实现记录，其中旧亮部阈值、强度下限、空心光晕和旧黑柔混合参数不再是默认源码行为。CPU 后备的四线程与导出诊断优化见后续代码和 v2 文档。
+> 2026-10-14 更新：默认空间算法已经改为 空间效果 v2，同时修复 GLES 着色器保留字。NDK 两种 ABI、着色器和 Kotlin 源码编译已通过；没有照片渲染、设备/性能测试或本轮 APK。下文是 2026-10-11 的实现记录，其中旧亮部阈值、强度下限、空心光晕和旧黑柔混合参数不再是默认源码行为。CPU 后备的四线程与导出诊断优化见后续代码和 v2 文档。
 
 默认源码执行路径现为 `FilmEngine → MobileFilmRenderer → lfm_mobile_film`，优先 GLES 3 图块扫描；GPU 能力／驱动失败时，writer 重新解码未处理的 JPEG，再由同模型原生 CPU 重做。PhotoProcessor 的预览、构图预览和导出均接入此路径。使用已生产的 spektrafilm 三阶段表，统一曝光、Halation、四档黑柔和各张独立种子继续使用既有配方。没有执行 CMake／Gradle、JNI、照片渲染、设备验证、测试或基准；不能称为运行通过或性能达标。
 
@@ -48,8 +48,8 @@ Halation 在镜头处理后的源像素上提取亮部，再将其胶卷响应�
 
 PhotoProcessor 和其 writer 共享一份模型库。`clearProcessingCaches()` 等待预览门、排队等待原生工作结束，在所属 worker 销毁空闲 EGL／GL 资源，再丢弃模型和位图缓存引用；未使用原生库时不为清理而加载。其他新任务可以随后排入，清理不是强制进程峰值限制。`filmBackend()` 返回配置的 `MOBILE_GLES3_WITH_CPU_FALLBACK`，不初始化 GPU，也不是当前设备实际执行后端、速度或可用性证明；不向用户增加引擎选择。
 
-完整 C++／Vulkan 原件、派生适配与 Android `ReferenceFilmEngine` 留在源码，普通构建不再包含 `lfm_film`、桌面数值资源或 glslc 步骤。开发方显式设置 Gradle 属性 `lfm.referenceFilm=true` 才加入参考库和其资源；这不会把默认产品 facade 换回参考引擎，也没有自动构建或测试。仍保留所有原件与许可。
+2026-10-17 开源目录整理：不再被产品调用的 C++／Vulkan 参考引擎、Android `ReferenceFilmEngine`、参考构建开关和桌面资源已移出源码树。普通移动构建保留现有 GLES / CPU 产品链路；LibRaw 与运行模型的来源和许可仍保留。
 
 ## 下一步与证据
 
-GLES 分块、CPU 从原图重做、同 worker 取消和清理已接入源码；两项独立 [自有黑白风格](monochrome-film.md) 已生产并接到相同入口。仍缺着色器／JNI／CMake 实际编译、运行处理及后备证据；空间细节、夜景可见性、三档黑柔辨识、颜色误差、峰值内存和实际速度继续待办。按用户要求，先功能，再在原型接近可用时将交付 APK 放 `dist/`；本轮未编译、测试或打包。
+GLES 分块、CPU 后备、同 worker 取消与清理已接入。后续已有两种 ABI 的编译及原型打包；两款 CineStill 的独立空间数值、CPU/GLES 和模拟器耗时结果见[光晕验证](fotufilm-physical-halation-20261017.md)。这不代表所有胶卷的实拍观感、后备异常注入或真实手机速度已验证。

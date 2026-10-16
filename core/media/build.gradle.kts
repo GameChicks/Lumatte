@@ -2,7 +2,6 @@ plugins {
     id("com.android.library")
     kotlin("android")
 }
-val referenceFilm = providers.gradleProperty("lfm.referenceFilm").map { it.toBooleanStrict() }.orElse(false)
 android {
     namespace = "com.lumixfilmmirror.media"
     compileSdk = 36
@@ -14,7 +13,6 @@ android {
         externalNativeBuild {
             cmake {
                 arguments += "-DANDROID_STL=c++_shared"
-                arguments += "-DLFM_BUILD_REFERENCE_FILM=${if (referenceFilm.get()) "ON" else "OFF"}"
             }
         }
     }
@@ -27,9 +25,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-    if (referenceFilm.get()) {
-        sourceSets.getByName("main").assets.srcDir("../../third_party/spektralab/upstream/engine/resources")
     }
 }
 kotlin { jvmToolchain(17) }
