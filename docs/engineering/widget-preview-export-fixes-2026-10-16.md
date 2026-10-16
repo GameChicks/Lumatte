@@ -32,4 +32,4 @@
 
 - Kotlin / Android 资源编译通过：`compile-widget-flow-20261016.log`、`compile-preview-output-match-20261016.log`，位于 `tools/.cache/android-prototype/`。
 - 最终资源/源码核对编译 `compile-goal-audit-20261016.log` 为 BUILD SUCCESSFUL（1m21s、84 个任务）；包含全部暗盒、退出快照及所选小组件的系统预览。
-- 未运行测试、未打包、未启动模拟器或操作手机；编译不证明启动器、相机、显示色彩或动画已经在设备上验证。
+- 功能收尾后按后续明确请求生成 0.2.0 调试 APK，交付记录在 `docs/releases/0.2.0.md`；没有运行测试、启动模拟器或操作手机。源码和包校验不证明启动器、相机、显示色彩或动画已经在设备上验证。
