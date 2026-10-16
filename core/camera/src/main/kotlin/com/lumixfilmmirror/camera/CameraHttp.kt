@@ -96,7 +96,11 @@ internal class CameraHttp(private val network: Network, val host: String, privat
             }
             try {
                 currentCoroutineContext().ensureActive()
-                require(connection.responseCode == 200) { "缩略图不可用" }
+                val status = connection.responseCode
+                if (status != 200) {
+                    CameraConnectionLog.warn("LFMHttp", "response operation=thumbnail status=$status")
+                    throw CameraProtocolException("HTTP $status")
+                }
                 val expected = connection.contentLengthLong.takeIf { it >= 0 }
                 require(expected == null || expected in 1..limit.toLong()) { "缩略图响应过大或为空" }
                 val output = ByteArrayOutputStream()

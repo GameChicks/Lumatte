@@ -4,6 +4,10 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -74,7 +78,8 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
     BoxWithConstraints(Modifier.fillMaxSize().background(tones.background)) {
     val displayScale = LocalDensity.current.fontScale
     val viewportWidth = maxWidth
-    val cardHeight = ((maxWidth - 40.dp) * .654f + 120.dp * (displayScale - 1f).coerceAtLeast(0f)).coerceIn(218.dp, 340.dp)
+    val cardHeight = ((maxWidth - 40.dp) * .654f).coerceIn(282.dp, 340.dp) +
+        180.dp * (displayScale - 1f).coerceAtLeast(0f)
     Column(Modifier.fillMaxSize().onGloballyPositioned { homeOrigin.value = it.positionInRoot() }
         .drawWithContent { homePixels.record { this@drawWithContent.drawContent() }; drawLayer(homePixels) }) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -93,7 +98,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 ActionAtmosphere("蓝牙\n连接", "连接你的相机", listOf(Color(0xFFFFCF78), Color(0xFFED653B), Color(0xFF428FA6)),
                     Modifier.weight(1f), cardHeight, DotGlyph.BLUETOOTH, "BLUETOOTH\nCONNECT", { onCamera(null) })
-                ActionAtmosphere("进入\n相册", "导入图片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
+                ActionAtmosphere("手机\n相册", "导入手机照片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
                     Modifier.weight(1f), cardHeight, DotGlyph.ALBUM, "IMPORT\nPHOTOS", onAlbum)
             }
         }
@@ -142,6 +147,9 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
     val pager = rememberPagerState(pageCount = { count })
     var mode by rememberSaveable { mutableStateOf("normal") }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
+    var dragDistance by remember { mutableFloatStateOf(0f) }
+    val dragTranslation by animateFloatAsState(if (reduced) 0f else dragDistance * .12f,
+        spring(dampingRatio = .85f, stiffness = 550f), label = "camera-card-drag")
     LaunchedEffect(count) { if (pager.currentPage >= count) pager.scrollToPage(count - 1) }
     LaunchedEffect(camera.device?.udn, camera.connected, personal.cameras) {
         if (camera.connected) personal.cameras.indexOfFirst { it.id == camera.device?.rememberedIdentity() }
@@ -156,27 +164,40 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
             var total = 0f
             val change = awaitTouchSlopOrCancellation(down.id) { pointer, over ->
                 if (abs(over.y) > abs(over.x) * 1.25f) {
-                    vertical = true; total = over.y; pointer.consume()
+                    vertical = true; total = over.y; dragDistance = total; pointer.consume()
                 }
             }
             if (change != null && vertical) {
-                val released = drag(change.id) { pointer -> total += pointer.position.y - pointer.previousPosition.y; pointer.consume() }
+                val released = drag(change.id) { pointer ->
+                    total += pointer.position.y - pointer.previousPosition.y
+                    dragDistance = total.coerceIn(-160.dp.toPx(), 160.dp.toPx()); pointer.consume()
+                }
+                dragDistance = 0f
                 if (released && abs(total) > 64.dp.toPx()) {
                     mode = if (mode != "normal") "normal" else if (total > 0) "add" else "delete"
                 }
             }
         }
     }
-    val colours = when {
+    val targetColours = when {
         mode == "delete" -> listOf(Color(0xFFCEADA6), Color(0xFF9C6670), Color(0xFF4E394C))
         mode == "add" || personal.cameras.isEmpty() -> listOf(Color(0xFFDDD5BC), Color(0xFF779895), Color(0xFF345A65))
         else -> listOf(Color(0xFF82BEE5), Color(0xFFADD6E8), Color(0xFF124863))
     }
+    val colours = targetColours.mapIndexed { index, colour ->
+        val animated by animateColorAsState(colour, tween(if (reduced) 0 else 360), label = "camera-card-colour-$index")
+        animated
+    }
     Atmosphere(modifier.fillMaxWidth().height(cardHeight).then(gesture)
-        .clickable(enabled = mode == "add" || personal.cameras.isEmpty(), role = Role.Button, onClick = { onConnect(null) }), colours,
+        .clickable(enabled = !camera.busy && mode != "delete", role = Role.Button,
+            onClick = { onConnect(if (mode == "normal") currentId else null) }), colours,
         flowing = !reduced && (mode == "add" || personal.cameras.isEmpty())) {
-        AnimatedContent(targetState = mode, label = "camera-card-state", transitionSpec = {
-            fadeIn(tween(if (reduced) 0 else 220)) togetherWith fadeOut(tween(if (reduced) 0 else 160))
+        AnimatedContent(targetState = mode, modifier = Modifier.fillMaxSize().graphicsLayer { translationY = dragTranslation },
+            label = "camera-card-state", transitionSpec = {
+            val direction = if (targetState == "delete" || initialState == "add") -1 else 1
+            ((slideInVertically(tween(if (reduced) 0 else 360)) { it * direction / 5 } + fadeIn(tween(if (reduced) 0 else 260))) togetherWith
+                (slideOutVertically(tween(if (reduced) 0 else 300)) { -it * direction / 5 } + fadeOut(tween(if (reduced) 0 else 180))))
+                .using(SizeTransform(clip = false))
         }) { target ->
             if (target == "add" || personal.cameras.isEmpty()) {
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
@@ -205,7 +226,8 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
                         Spacer(Modifier.weight(1f))
                         HomeDisplayText("Lumix", Modifier.fillMaxWidth().height(30.dp), 30f)
                         HomeDisplayText(saved?.model?.removePrefix("DC-")?.removePrefix("DMC-") ?: "—",
-                            Modifier.fillMaxWidth().height(70.dp), 76f)
+                            Modifier.fillMaxWidth().height(82.dp), 70f)
+                        Spacer(Modifier.height(10.dp))
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Row(Modifier.clip(RoundedCornerShape(22.dp)).background(Color.White.copy(.08f))
                                 .border(.7.dp, Color.White.copy(.26f), RoundedCornerShape(22.dp))

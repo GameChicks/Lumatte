@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,11 +24,11 @@ import com.lumixfilmmirror.camera.CameraMedia
 
 @Composable
 internal fun CameraPhotoThumbnail(entry: CameraMedia, version: Long, loadVersion: Long, enabled: Boolean,
-    workspace: WorkspaceViewModel) {
+    workspace: WorkspaceViewModel, modifier: Modifier = Modifier.size(64.dp)) {
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val active = enabled && lifecycle.isAtLeast(Lifecycle.State.STARTED)
     var bitmap by remember(entry, version) { mutableStateOf<Bitmap?>(null) }
-    var failed by remember(entry, version) { mutableStateOf(false) }
+    var failed by remember(entry, version, loadVersion) { mutableStateOf(false) }
     var loading by remember(entry, version) { mutableStateOf(false) }
     LaunchedEffect(entry, version, loadVersion, active, workspace) {
         if (active && entry.thumbnail != null && bitmap == null && !failed) {
@@ -38,12 +39,12 @@ internal fun CameraPhotoThumbnail(entry: CameraMedia, version: Long, loadVersion
             } finally { loading = false }
         }
     }
-    Box(Modifier.padding(vertical = 4.dp, horizontal = 6.dp).size(64.dp)
+    Box(modifier
         .clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center) {
         val image = bitmap
         if (image != null) Image(image.asImageBitmap(), contentDescription = "${entry.title}预览",
-            modifier = Modifier.size(64.dp), contentScale = ContentScale.Fit)
+            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         else Text(when {
             entry.thumbnail == null -> "无预览"
             failed -> "预览不可用"

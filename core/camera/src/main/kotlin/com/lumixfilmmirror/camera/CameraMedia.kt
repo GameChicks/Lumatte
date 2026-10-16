@@ -114,12 +114,16 @@ data class CameraMediaPage(
     val numberReturned: Int,
     val totalMatches: Int,
     val updateId: String?,
+    val newestFirst: Boolean = false,
 ) {
-    val nextOffset: Int? get() = (offset + numberReturned).takeIf {
+    val nextOffset: Int? get() = if (newestFirst) offset.takeIf { it > 0 } else (offset + numberReturned).takeIf {
         numberReturned > 0 && it < totalMatches
     }
 }
 
 enum class ConnectionStep { REQUESTING_WIFI, DISCOVERING, READING_DEVICE, REQUESTING_ACCESS, WAITING_FOR_CAMERA_APPROVAL, READY }
 
-class CameraProtocolException(val status: String) : java.io.IOException("相机返回：$status")
+class CameraProtocolException(val status: String) : java.io.IOException("相机返回：$status") {
+    val requiresReconnect: Boolean get() = status in setOf("HTTP 401", "HTTP 403", "下载 HTTP 401", "下载 HTTP 403",
+        "err_reject", "err_user_refused", "err_not_connected", "err_session")
+}

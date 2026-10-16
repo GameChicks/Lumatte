@@ -34,6 +34,7 @@ class CameraController(private val application: Application) {
     val cameraState = cameraMutable.asStateFlow()
     val isTransferring: Boolean get() = cameraMutable.value.activeTransferBatch != null
     private var cameraSession: LumixCameraSession? = null
+    private var browsingHeartbeat: Job? = null
     private val thumbnails = CameraThumbnailLoader()
     private var thumbnailVersion = 0L
     private var cameraJob: Job? = null
@@ -104,16 +105,19 @@ class CameraController(private val application: Application) {
                 cameraMutable.value.activeTransferBatch == null))) {
             idleRelease?.cancel()
             idleRelease = scope.launch {
-                delay(500) // Allow an Activity recreation to attach before releasing an idle connection.
+                delay(30_000) // Allow system pickers, sharing and brief app switches without dropping Wi-Fi.
                 if (visibleClients == 0 && !bluetoothConnectionInProgress) {
                     if (cameraMutable.value.bluetoothStep != null || cameraMutable.value.wifiSelection != null)
                         cameraJob?.cancel(CancellationException("已离开连接界面，连接操作已取消"))
                     if (!cameraMutable.value.busy) {
+                        CameraConnectionLog.info("LFMCamera", "sessionRelease=background-grace-expired")
                         bluetoothWifiBinding = null
                         clearBluetoothCredentials()
                         clearCameraSession()
                         wifiConnection?.close()
                         wifiConnection = null
+                        cameraMutable.update { it.copy(step = null,
+                            notice = if (it.device != null) "后台空闲连接已释放，点击重新连接可继续。" else it.notice) }
                     }
                 }
             }
@@ -626,6 +630,7 @@ class CameraController(private val application: Application) {
                 cameraMutable.update { it.copy(step = step) }
             }
             cameraSession = session
+            if (!registrationOnly && !session.accessMode.incoming) startBrowsingHeartbeat(session)
             check(expectedDevice == null || matchesExpected(session.device, expectedDevice)) { "相机身份已变化，未继续旧接收队列" }
             check(expectedMode == null || session.accessMode == expectedMode) {
                 "相机 HTTP 发送模式与蓝牙请求不一致，请重新发起发送连接"
@@ -687,13 +692,53 @@ class CameraController(private val application: Application) {
     }
 
     private fun clearCameraSession() {
+        browsingHeartbeat?.cancel()
+        browsingHeartbeat = null
         invalidateThumbnails()
         watchedNetwork = null
         networkWatch?.close()
         networkWatch = null
         cameraSession?.close()
         cameraSession = null
-        cameraMutable.update { it.copy(connected = false, bluetoothCanFollowIncoming = false) }
+        cameraMutable.update { it.copy(connected = false, step = null, bluetoothCanFollowIncoming = false) }
+    }
+
+    private fun startBrowsingHeartbeat(session: LumixCameraSession) {
+        browsingHeartbeat?.cancel()
+        browsingHeartbeat = scope.launch {
+            CameraConnectionLog.info("LFMCamera", "browseKeepAlive=started intervalMs=1000")
+            var failures = 0
+            var successes = 0
+            while (isActive && cameraSession === session) {
+                try {
+                    // This lane runs beside thumbnails, SOAP and streaming downloads on the selected Network.
+                    val responded = withTimeoutOrNull(5_000) { session.keepBrowsingAlive(); true } == true
+                    if (!responded) throw java.io.IOException("相机保活响应超时")
+                    failures = 0
+                    successes++
+                    if (successes == 1 || successes % 30 == 0)
+                        CameraConnectionLog.info("LFMCamera", "browseKeepAlive=ok count=$successes")
+                } catch (error: CancellationException) { throw error }
+                catch (error: Exception) {
+                    failures++
+                    logOperationFailure("keep-alive-failed", error)
+                    if ((error as? CameraProtocolException)?.requiresReconnect == true || failures >= 3) {
+                        expireCameraSession(session, "相机会话已失效，请重新连接后继续；已选照片和传输记录保留。")
+                        return@launch
+                    }
+                }
+                delay(1_000)
+            }
+        }
+    }
+
+    private fun expireCameraSession(session: LumixCameraSession, message: String) {
+        if (cameraSession !== session) return
+        CameraConnectionLog.warn("LFMCamera", "session=expired action=reconnect-required")
+        stopTransfer(false, message)
+        clearCameraSession()
+        cameraMutable.update { it.copy(connected = false, disconnected = true, step = null,
+            problem = message, notice = null) }
     }
 
     private fun invalidateThumbnails() {
@@ -710,7 +755,11 @@ class CameraController(private val application: Application) {
             throw CancellationException("缩略图加载暂不可用")
         val resources = entry.thumbnailResources
         if (resources.isEmpty()) return null
-        val bitmap = thumbnails.load(session, resources, CameraThumbnailLoader.Key(version, entry))
+        val bitmap = try { thumbnails.load(session, resources, CameraThumbnailLoader.Key(version, entry)) }
+        catch (error: CameraProtocolException) {
+            if (error.requiresReconnect) expireCameraSession(session, "相机授权已失效，请重新连接后继续浏览和传入。")
+            return null
+        }
         val current = cameraMutable.value
         if (cameraSession !== session || !current.connected || current.busy || visibleClients == 0 ||
             current.thumbnailVersion != version || entry !in current.entries)
@@ -736,14 +785,24 @@ class CameraController(private val application: Application) {
     fun refreshCameraPhotos() = cameraOperation { loadCameraFolder() }
 
     fun selectCameraPhoto(id: String) {
-        if (cameraMutable.value.busy || cameraMutable.value.accessMode.incoming) return
+        if (!cameraMutable.value.connected || cameraMutable.value.busy || cameraMutable.value.accessMode.incoming ||
+            cameraMutable.value.entries.none { it.id == id && !it.isFolder && it.transferResource != null }) return
         cameraMutable.update { it.copy(selectedIds = if (id in it.selectedIds) it.selectedIds - id else it.selectedIds + id) }
     }
 
+    fun selectLoadedCameraPhotos(select: Boolean) {
+        val state = cameraMutable.value
+        if (!state.connected || state.busy || state.accessMode.incoming) return
+        val ids = state.entries.filter { !it.isFolder && it.transferResource != null }.map { it.id }.toSet()
+        cameraMutable.update { it.copy(selectedIds = if (select) it.selectedIds + ids else emptySet()) }
+    }
+
     fun importCameraPhotos() = cameraOperation {
+        check(cameraMutable.value.connected) { "连接已断开，请重新连接后传入" }
         val session = cameraSession ?: error("请先连接相机")
         check(!session.accessMode.incoming) { "此模式请使用待发送接收入口" }
         val photos = cameraMutable.value.entries.filter { it.id in cameraMutable.value.selectedIds && it.transferResource != null }
+        check(photos.isNotEmpty()) { "请先选择要传入的照片或视频" }
         val batchId = store.enqueue(session.device, photos)
         cameraMutable.update { it.copy(selectedIds = it.selectedIds - photos.map { photo -> photo.id }.toSet()) }
         requestTransfer(batchId)
@@ -864,9 +923,12 @@ class CameraController(private val application: Application) {
                 cameraMutable.update { it.copy(notice = error.message ?: "传输已暂停") }
                 throw error
             } catch (error: Exception) {
+                logOperationFailure("transfer-failed", error)
                 withContext(NonCancellable) { store.stopBatch(batchId, false, error.message ?: "接收已暂停") }
                 if (error is CameraSendingReconnectionRequired && binding != null && session != null)
                     rememberSendingReconnect(binding.camera, session.device, error.request, binding.routerSsid)
+                if (error is CameraProtocolException && error.requiresReconnect && session != null)
+                    expireCameraSession(session, "相机授权已失效，传输已暂停。重新连接后可继续。")
                 cameraMutable.update { it.copy(problem = error.message ?: "传输失败，请重试队列") }
             } finally {
                 transferJob = null
@@ -908,8 +970,10 @@ class CameraController(private val application: Application) {
                 nextOffset = null, total = 0, updateId = null, incomingCount = 0) }
             return
         }
-        val page = session.browse(folders.last().id, offset)
-        if (append && snapshot.updateId != page.updateId) error("相机照片列表已更新，请刷新后重新选择")
+        val page = if (session.accessMode.incoming) session.browse(folders.last().id, offset)
+            else session.browseNewest(folders.last().id, if (append) offset else null)
+        if (append && (snapshot.updateId != page.updateId || snapshot.total != page.totalMatches))
+            error("相机照片列表已更新，请刷新后重新选择")
         if (!append) invalidateThumbnails()
         cameraMutable.update { it.copy(folders = folders,
             entries = (if (append) it.entries + page.entries else page.entries).distinctBy { entry -> entry.id },
@@ -935,7 +999,10 @@ class CameraController(private val application: Application) {
                 if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
             } catch (error: Exception) {
                 logOperationFailure("failed", error)
-                cameraMutable.update { it.copy(problem = error.message ?: "相机连接或传输失败") }
+                if (error is CameraProtocolException && error.requiresReconnect) cameraSession?.let {
+                    expireCameraSession(it, "相机授权已失效，请重新连接后继续；已选照片和传输记录保留。")
+                }
+                cameraMutable.update { if (it.disconnected) it else it.copy(problem = error.message ?: "相机连接或传输失败") }
                 if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
             } finally {
                 cameraMutable.update { it.copy(operationRunning = false, cacheBusy = false, bluetoothStep = null,
@@ -947,7 +1014,7 @@ class CameraController(private val application: Application) {
 
     private fun logOperationFailure(result: String, error: Exception) {
         val state = cameraMutable.value
-        val status = (error as? CameraProtocolException)?.status?.takeIf {
+        val status = (error as? CameraProtocolException)?.status?.removePrefix("下载 ")?.takeIf {
             it.matches(Regex("(?:err_[a-z0-9_]{1,48}|HTTP [0-9]{3})"))
         }.orEmpty()
         val origin = error.stackTrace.firstOrNull { it.className.startsWith("com.lumixfilmmirror.") }

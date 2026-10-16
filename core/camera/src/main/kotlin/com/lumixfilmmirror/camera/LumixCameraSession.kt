@@ -78,6 +78,13 @@ class LumixCameraSession private constructor(
         CameraXml.requireOk(commandReply("getstate", "type" to "keep_alive"))
     }
 
+    /** Browsing needs the same one-second keep-alive as Sync's service. Never wait for a file GET's lock. */
+    suspend fun keepBrowsingAlive() {
+        check(accessMode == CameraAccessMode.BROWSING)
+        val status = CameraXml.result(http.command("getstate", "type" to "keep_alive"))
+        if (status != "ok" && status != "err_busy") throw CameraProtocolException(status)
+    }
+
     /** One attempt only: a lost directory-level confirmation response must never be blindly retried. */
     suspend fun confirmSavedIncoming(directory: CameraIncomingDirectory, saved: CameraMedia): Boolean = commands.withLock {
         requireIncomingDirectory(directory)
@@ -96,6 +103,22 @@ class LumixCameraSession private constructor(
 
     suspend fun browse(objectId: String = "0", offset: Int = 0, count: Int = 50): CameraMediaPage =
         commands.withLock { browseLocked(objectId, offset, count) }
+
+    /** Panasonic's directory is oldest first. Page from its tail, not just reverse the first old page. */
+    suspend fun browseNewest(objectId: String, beforeOffset: Int? = null, count: Int = 50): CameraMediaPage = commands.withLock {
+        check(accessMode == CameraAccessMode.BROWSING)
+        require(count in 1..100 && (beforeOffset == null || beforeOffset > 0))
+        val summary = browseLocked(objectId, 0, 1)
+        val end = beforeOffset ?: summary.totalMatches
+        require(end <= summary.totalMatches) { "相机照片列表已更新，请刷新后重新选择" }
+        if (end == 0) return@withLock summary.copy(newestFirst = true)
+        val start = (end - count).coerceAtLeast(0)
+        val page = browseLocked(objectId, start, end - start)
+        require(page.updateId == summary.updateId && page.totalMatches == summary.totalMatches &&
+            page.numberReturned == end - start) { "相机照片列表已更新，请刷新后重新选择" }
+        CameraConnectionLog.info("LFMCamera", "directoryOrder=newest-first start=$start end=$end total=${page.totalMatches}")
+        page.copy(entries = page.entries.asReversed(), newestFirst = true)
+    }
 
     private suspend fun browseLocked(objectId: String, offset: Int, count: Int): CameraMediaPage {
         require(offset >= 0 && count in 1..100)

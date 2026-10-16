@@ -137,6 +137,11 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
                     withContext(Dispatchers.IO) { finished.delete() }
                 } catch (error: CancellationException) { throw error }
                 catch (error: Exception) {
+                    if (error is CameraProtocolException && error.requiresReconnect) {
+                        store.checkpoint(task, TransferState.PAUSED, received, "相机授权已失效，重新连接后继续")
+                        store.stopBatch(batchId, false, "相机授权已失效，重新连接后继续")
+                        throw error // Stop the batch; do not mark every following photo as failed.
+                    }
                     store.checkpoint(task, TransferState.FAILED, received, error.message ?: "传输或保存失败")
                     failed++
                 }

@@ -77,7 +77,7 @@ internal fun CameraConnectionLogControls() {
         }
         Text("记录连接步骤和错误，不记录密码、网络名称或身份数据。最多保留 8 份，重启后可查看。",
             style = MaterialTheme.typography.labelSmall)
-        Row {
+        FlowRow {
             TextButton(enabled = log.ready, onClick = { viewing = true }) { Text("查看日志") }
             TextButton(enabled = log.files.isNotEmpty() && !saving && pendingExport == null,
                 onClick = { export(log.activeFile ?: log.files.firstOrNull()?.name) }) { Text(if (saving) "正在导出" else "导出最新日志") }

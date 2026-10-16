@@ -58,7 +58,7 @@ fun CameraConnectControls(busy: Boolean, workspace: WorkspaceViewModel) {
         Text("开启相机的 Wi-Fi 传输功能，然后连接相机显示的网络。",
             style = MaterialTheme.typography.bodySmall)
         MirrorButton(enabled = !busy, onClick = { showWifi = true }) { Text("连接相机 Wi-Fi") }
-        Row {
+        FlowRow {
             TextButton(enabled = !busy, onClick = workspace::connectCamera) { Text("已连 Wi-Fi · 查找相机") }
             TextButton(enabled = !busy, onClick = {
                 runCatching { context.startActivity(Intent(Settings.Panel.ACTION_WIFI)) }
@@ -77,7 +77,7 @@ fun CameraConnectControls(busy: Boolean, workspace: WorkspaceViewModel) {
                 OutlinedTextField(value = ssid, onValueChange = { ssid = it }, label = { Text("Wi-Fi 名称") },
                     singleLine = true, isError = ssidError != null,
                     supportingText = { Text(ssidError ?: "${ssid.toByteArray(Charsets.UTF_8).size}/32 字节 · 按原名称输入") })
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (type in CameraWifiSecurity.entries) MirrorChoice(selected = security == type,
                         enabled = !busy && (type != CameraWifiSecurity.WPA3_PERSONAL || wpa3Available),
                         onClick = { security = type; if (type == CameraWifiSecurity.OPEN) password = "" },

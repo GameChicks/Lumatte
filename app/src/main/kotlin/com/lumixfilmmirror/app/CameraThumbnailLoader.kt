@@ -5,6 +5,7 @@ import android.util.LruCache
 import com.lumixfilmmirror.camera.CameraResource
 import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.LumixCameraSession
+import com.lumixfilmmirror.camera.CameraProtocolException
 import com.lumixfilmmirror.media.JpegThumbnailDecoder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
@@ -44,7 +45,8 @@ internal class CameraThumbnailLoader {
                         cache.put(key, bitmap)
                         return@withPermit bitmap
                     } catch (error: CancellationException) { throw error }
-                    catch (_: Exception) {
+                    catch (error: Exception) {
+                        if (error is CameraProtocolException && error.requiresReconnect) throw error
                         // Try only the other advertised thumbnail, never an original resource.
                         currentCoroutineContext().ensureActive()
                     }

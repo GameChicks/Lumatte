@@ -67,6 +67,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
     var importRequest by rememberSaveable { mutableStateOf<String?>(null) }
     var importCreatesBatch by rememberSaveable { mutableStateOf(true) }
     var importSources by rememberSaveable { mutableStateOf(false) }
+    var showImportedPhotos by rememberSaveable { mutableStateOf(false) }
     var pendingFilm by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingLut by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingLutSecond by rememberSaveable { mutableStateOf(false) }
@@ -104,6 +105,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
             importAccepted = false
             importRequest = java.util.UUID.randomUUID().toString()
             importCreatesBatch = pane != "editor" && pane != "export"
+            showImportedPhotos = pane == null && tab == 0
             selectedImportTreatment = treatment.name
             importSources = true
         }
@@ -161,12 +163,13 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
             // Room may publish the new batch after the import coroutine finishes.
             if (state.processingBatchId != result.batchId || result.imported.any { id -> state.photos.none { it.id == id } })
                 return@LaunchedEffect
-            val proceedToEditor = pendingFilm != null || pendingLut != null
+            val proceedToEditor = pendingFilm != null || pendingLut != null || showImportedPhotos
             val treatment = PhotoTreatment.valueOf(requireNotNull(selectedImportTreatment))
             workspace.treatment(treatment)
             pendingFilm?.let { workspace.updateFilm(FilmParameters(presetId = it)) }
             pendingLut?.let { workspace.selectLutSlot(it, pendingLutSecond) }
             selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importAccepted = false; importRequest = null
+            showImportedPhotos = false
             // Import from a tab stays in selection. A chosen stock/LUT proceeds to its preview.
             if (proceedToEditor) pane = "editor"
         }
@@ -222,15 +225,15 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                     "camera" -> Column(Modifier.fillMaxSize()) {
                         Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                             RoundAction("返回连接页", DotGlyph.LEFT, onClick = { pane = null })
-                            Text("相机与相册", Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
+                            Text("相机相册", Modifier.padding(start = 12.dp), style = MaterialTheme.typography.titleLarge)
                         }
-                        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            item { CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null,
+                        CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null,
                                 onImport = { transferChoice = if (camera.accessMode.incoming) "receive" else "import" },
                                 onFollow = { startTransfer("follow") }, workspace, initialMethod = cameraEntry,
-                                requestedCamera = personal.cameras.firstOrNull { it.id == requestedCameraId }) }
-                            if (incoming.isNotEmpty()) item { IncomingQueuePanel(incoming, transfers, state, workspace, startTransfer) }
-                            if (transfers.isNotEmpty()) item { TransferQueuePanel(transfers, state, workspace, startTransfer) }
+                                requestedCamera = personal.cameras.firstOrNull { it.id == requestedCameraId },
+                                modifier = Modifier.weight(1f).padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
+                            if (incoming.isNotEmpty()) IncomingQueuePanel(incoming, transfers, state, workspace, startTransfer)
+                            if (transfers.isNotEmpty()) TransferQueuePanel(transfers, state, workspace, startTransfer)
                         }
                     }
                     "editor" -> MirrorEditor(state, workspace, onBack = { pane = null },
@@ -260,7 +263,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                         when (shownTab) {
                             0 -> MirrorHome(state, camera, personal, transfers, workspace,
                                 onCamera = { id -> requestedCameraId = id; cameraEntry = "bluetooth"; pane = "camera" },
-                                onAlbum = { requestedCameraId = null; cameraEntry = "wifi"; pane = "camera" }, onSettings = { pane = "settings" })
+                                onAlbum = { importPhotos(PhotoTreatment.ORIGINAL) }, onSettings = { pane = "settings" })
                             1 -> MirrorFilm(state, workspace, { importPhotos(PhotoTreatment.FILM) }, chooseFilm) { if (shownTab == tab) fullscreen = it }
                             2 -> MirrorLuts(state, workspace, personal, { importPhotos(PhotoTreatment.LUT) },
                                 { luts.launch(arrayOf("*/*")) }, chooseLut, initialSecond = editingLutSecond) { if (shownTab == tab) fullscreen = it }
