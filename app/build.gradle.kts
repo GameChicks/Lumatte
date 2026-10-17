@@ -23,6 +23,7 @@ android {
 }
 kotlin { jvmToolchain(17) }
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     implementation(project(":core:model"))
     implementation(project(":core:design"))
     implementation(project(":core:media"))

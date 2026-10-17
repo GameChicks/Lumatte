@@ -112,7 +112,9 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
                 if (bluetoothPermissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED })
                     workspace.scanBluetoothCameras()
                 else bluetoothLauncher.launch(bluetoothPermissions)
-            }) { Text("查找蓝牙相机") }
+            }) { Text(if (camera.bluetoothStep == BluetoothConnectionStep.SCANNING) "正在查找相机…" else "查找蓝牙相机") }
+            if (camera.bluetoothStep == BluetoothConnectionStep.SCANNING)
+                Text("发现相机后可直接点连接，无需等查找结束。", style = MaterialTheme.typography.bodySmall)
             TextButton(enabled = !busy, onClick = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }) {
                 Text("打开系统蓝牙设置 →")
             }

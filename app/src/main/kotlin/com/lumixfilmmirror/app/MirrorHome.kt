@@ -45,6 +45,7 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.TransformOrigin
@@ -78,8 +79,8 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
     BoxWithConstraints(Modifier.fillMaxSize().background(tones.background)) {
     val displayScale = LocalDensity.current.fontScale
     val viewportWidth = maxWidth
-    val cardHeight = ((maxWidth - 40.dp) * .654f).coerceIn(282.dp, 340.dp) +
-        180.dp * (displayScale - 1f).coerceAtLeast(0f)
+    val cardHeight = ((maxWidth - 40.dp) * .76f).coerceIn(320.dp, 360.dp) +
+        180.dp * (displayScale - 1f).coerceAtLeast(0f) + if (personal.cameras.size > 1) 48.dp else 0.dp
     Column(Modifier.fillMaxSize().onGloballyPositioned { homeOrigin.value = it.positionInRoot() }
         .drawWithContent { homePixels.record { this@drawWithContent.drawContent() }; drawLayer(homePixels) }) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -148,6 +149,7 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
     var mode by rememberSaveable { mutableStateOf("normal") }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     var dragDistance by remember { mutableFloatStateOf(0f) }
+    var travelDirection by remember { mutableIntStateOf(-1) }
     val dragTranslation by animateFloatAsState(if (reduced) 0f else dragDistance * .12f,
         spring(dampingRatio = .85f, stiffness = 550f), label = "camera-card-drag")
     LaunchedEffect(count) { if (pager.currentPage >= count) pager.scrollToPage(count - 1) }
@@ -174,6 +176,7 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
                 }
                 dragDistance = 0f
                 if (released && abs(total) > 64.dp.toPx()) {
+                    travelDirection = if (total > 0) 1 else -1
                     mode = if (mode != "normal") "normal" else if (total > 0) "add" else "delete"
                 }
             }
@@ -194,9 +197,10 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
         flowing = !reduced && (mode == "add" || personal.cameras.isEmpty())) {
         AnimatedContent(targetState = mode, modifier = Modifier.fillMaxSize().graphicsLayer { translationY = dragTranslation },
             label = "camera-card-state", transitionSpec = {
-            val direction = if (targetState == "delete" || initialState == "add") -1 else 1
-            ((slideInVertically(tween(if (reduced) 0 else 360)) { it * direction / 5 } + fadeIn(tween(if (reduced) 0 else 260))) togetherWith
-                (slideOutVertically(tween(if (reduced) 0 else 300)) { -it * direction / 5 } + fadeOut(tween(if (reduced) 0 else 180))))
+            // Old content follows the finger; the next surface enters from the opposite edge.
+            val direction = travelDirection
+            ((slideInVertically(tween(if (reduced) 0 else 360)) { -it * direction / 3 } + fadeIn(tween(if (reduced) 0 else 260))) togetherWith
+                (slideOutVertically(tween(if (reduced) 0 else 300)) { it * direction / 3 } + fadeOut(tween(if (reduced) 0 else 180))))
                 .using(SizeTransform(clip = false))
         }) { target ->
             if (target == "add" || personal.cameras.isEmpty()) {
@@ -204,7 +208,7 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     HomeDisplayText("新增你的\n松下相机", Modifier.fillMaxWidth().weight(1f), 72f, centered = true)
                     TextButton(enabled = !camera.busy, onClick = { onConnect(null) }) { Text("点按开始连接 →", color = Color.White.copy(.75f)) }
-                    if (personal.cameras.isNotEmpty()) TextButton(onClick = { mode = "normal" }) { Text("返回已有相机", color = Color.White) }
+                    if (personal.cameras.isNotEmpty()) TextButton(onClick = { travelDirection = -1; mode = "normal" }) { Text("返回已有相机", color = Color.White, fontSize = 16.sp) }
                 }
             } else if (target == "delete") {
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -213,18 +217,25 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
                     Text("移除本机记录，已传入的照片会保留。", color = Color.White)
                     Row {
                         TextButton(enabled = !camera.busy && currentId != null, onClick = { deleting = currentId }) { Text("移除记录", color = Color.White) }
-                        TextButton(onClick = { mode = "normal" }) { Text("返回", color = Color.White) }
+                        TextButton(onClick = { travelDirection = 1; mode = "normal" }) { Text("返回", color = Color.White, fontSize = 16.sp) }
                     }
                 }
             } else {
                 HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { index ->
                     val saved = personal.cameras.getOrNull(index)
                     val connected = camera.connected && saved?.id == camera.device?.rememberedIdentity()
-                    Column(Modifier.fillMaxSize().padding(20.dp)) {
-                        Text("你的", color = Color.White, fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
-                        Text("松下相机", color = Color.White.copy(.6f), fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
+                    Column(Modifier.fillMaxSize().padding(24.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                            Column(Modifier.weight(1f)) {
+                                Text("你的", color = Color.White, fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
+                                Text("松下相机", color = Color.White.copy(.6f), fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
+                            }
+                            TextButton(onClick = { travelDirection = 1; mode = "add" }) {
+                                Text("＋ 新增", color = Color.White, fontSize = 16.sp, lineHeight = 20.sp)
+                            }
+                        }
                         Spacer(Modifier.weight(1f))
-                        HomeDisplayText("Lumix", Modifier.fillMaxWidth().height(30.dp), 30f)
+                        HomeDisplayText("Lumix", Modifier.fillMaxWidth().height(36.dp), 30f)
                         HomeDisplayText(saved?.model?.removePrefix("DC-")?.removePrefix("DMC-") ?: "—",
                             Modifier.fillMaxWidth().height(82.dp), 70f)
                         Spacer(Modifier.height(10.dp))
@@ -234,32 +245,26 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
                                 .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Canvas(Modifier.size(6.dp)) { drawCircle(if (connected) Color(0xFF5BEB9B) else Color(0xFFD9CBA4)) }
-                                Text(if (connected) "已连接" else "未连接", color = Color.White, fontSize = 11.sp, lineHeight = 14.sp)
+                                Text(if (connected) "已连接" else "未连接", color = Color.White, fontSize = 13.sp, lineHeight = 18.sp)
                             }
                             Spacer(Modifier.weight(1f))
                             TextButton(enabled = !camera.busy, onClick = { onConnect(saved?.id) }) {
-                                Text(if (connected) "浏览相册 →" else "连接 →", color = Color.White, fontSize = 12.sp, lineHeight = 16.sp)
+                                Text(if (connected) "浏览相册 →" else "连接 →", color = Color.White, fontSize = 16.sp, lineHeight = 20.sp)
                             }
+                        }
+                        if (count > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center) {
+                            IconButton(onClick = { scope.launch { val page = (pager.currentPage - 1 + count) % count
+                                if (reduced) pager.scrollToPage(page) else pager.animateScrollToPage(page) } },
+                                modifier = Modifier.semantics { contentDescription = "上一台相机" }) { DotIcon(DotGlyph.LEFT, tint = Color.White) }
+                            Text("${index + 1} / $count", color = Color.White, fontSize = 12.sp)
+                            IconButton(onClick = { scope.launch { val page = (pager.currentPage + 1) % count
+                                if (reduced) pager.scrollToPage(page) else pager.animateScrollToPage(page) } },
+                                modifier = Modifier.semantics { contentDescription = "下一台相机" }) { DotIcon(DotGlyph.RIGHT, tint = Color.White) }
                         }
                     }
                 }
             }
-        }
-        if (personal.cameras.size > 1 && mode == "normal") Row(Modifier.align(Alignment.TopEnd).padding(14.dp)) {
-            IconButton(onClick = { scope.launch { val page = (pager.currentPage - 1 + count) % count
-                if (reduced) pager.scrollToPage(page) else pager.animateScrollToPage(page) } },
-                modifier = Modifier.semantics { contentDescription = "上一台相机" }) {
-                DotIcon(DotGlyph.LEFT, tint = Color.White)
-            }
-            IconButton(onClick = { scope.launch { val page = (pager.currentPage + 1) % count
-                if (reduced) pager.scrollToPage(page) else pager.animateScrollToPage(page) } },
-                modifier = Modifier.semantics { contentDescription = "下一台相机" }) {
-                DotIcon(DotGlyph.RIGHT, tint = Color.White)
-            }
-        }
-        if (mode == "normal" && personal.cameras.isNotEmpty()) TextButton(onClick = { mode = "add" },
-            modifier = Modifier.align(Alignment.TopEnd).padding(top = if (count > 1) 54.dp else 12.dp)) {
-            Text("＋ 新增", color = Color.White, fontSize = 12.sp)
         }
     }
     deleting?.let { id -> MirrorDialog("删除本机记录？", onDismiss = { deleting = null }) { close ->
@@ -335,6 +340,8 @@ private fun ActionAtmosphere(title: String, subtitle: String, colours: List<Colo
 private fun HomeDisplayText(text: String, modifier: Modifier, preferredSize: Float, centered: Boolean = false) {
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
+    val context = LocalContext.current
+    val typeface = remember(context) { ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.jinzi_tongyuan_ui) }
     BoxWithConstraints(modifier) {
         val width = with(density) { maxWidth.roundToPx() }
         val height = with(density) { maxHeight.roundToPx() }
@@ -343,15 +350,24 @@ private fun HomeDisplayText(text: String, modifier: Modifier, preferredSize: Flo
             var candidate = preferredSize
             while (candidate > 14f) {
                 val result = measurer.measure(AnnotatedString(text),
-                    style = TextStyle(fontFamily = MirrorFonts.Dots, fontSize = candidate.sp, lineHeight = (candidate * 1.15f).sp),
+                    style = TextStyle(fontFamily = MirrorFonts.Dots, fontSize = candidate.sp, lineHeight = (candidate * 1.15f).sp,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false)),
                     softWrap = true, maxLines = lines, constraints = Constraints(maxWidth = width))
                 if (!result.hasVisualOverflow && result.size.height <= height) break
                 candidate -= 1f
             }
             candidate
         }
-        Text(text, modifier = Modifier.align(if (centered) Alignment.Center else Alignment.TopStart),
-            style = TextStyle(fontFamily = MirrorFonts.Dots, fontSize = size.sp, lineHeight = (size * 1.15f).sp),
+        val leftBearing = remember(text, size, density.fontScale, density.density, typeface) {
+            val paint = android.graphics.Paint().apply { this.typeface = typeface; textSize = with(density) { size.sp.toPx() } }
+            text.lines().filter { it.isNotBlank() }.minOfOrNull { line ->
+                val bounds = android.graphics.Rect(); paint.getTextBounds(line, 0, line.length, bounds); bounds.left.toFloat()
+            } ?: 0f
+        }
+        Text(text, modifier = Modifier.align(if (centered) Alignment.Center else Alignment.TopStart)
+            .graphicsLayer { if (!centered) translationX = -leftBearing },
+            style = TextStyle(fontFamily = MirrorFonts.Dots, fontSize = size.sp, lineHeight = (size * 1.15f).sp,
+                platformStyle = PlatformTextStyle(includeFontPadding = false)),
             color = Color.White, softWrap = true, maxLines = lines,
             textAlign = if (centered) androidx.compose.ui.text.style.TextAlign.Center else androidx.compose.ui.text.style.TextAlign.Start,
             overflow = if (lines > 1) TextOverflow.Clip else TextOverflow.Ellipsis)

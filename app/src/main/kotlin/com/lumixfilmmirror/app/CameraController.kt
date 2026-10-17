@@ -166,6 +166,9 @@ class CameraController(private val application: Application) {
             if (!selection.stop.isCompleted) {
                 selection.camera = candidate
                 selection.startTransfer = startTransfer
+                cameraMutable.update { it.copy(bluetoothStep = BluetoothConnectionStep.CONNECTING,
+                    bluetoothSelectedCamera = candidate, notice = "已选择 ${candidate.name}，正在停止查找并连接…") }
+                CameraConnectionLog.info("LFMCamera", "scanSelection=accepted action=stop-scan-and-connect")
                 selection.stop.complete(Unit)
             }
             return

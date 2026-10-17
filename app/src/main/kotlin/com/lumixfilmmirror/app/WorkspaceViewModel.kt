@@ -31,6 +31,7 @@ import com.lumixfilmmirror.model.BatchExportOptions
 import com.lumixfilmmirror.model.PhotoId
 import com.lumixfilmmirror.camera.CameraMedia
 import com.lumixfilmmirror.camera.CameraWifiSecurity
+import com.lumixfilmmirror.camera.BluetoothConnectionStep
 import com.lumixfilmmirror.storage.WorkspaceStore
 import com.lumixfilmmirror.storage.WorkspacePreferences
 import com.lumixfilmmirror.storage.TransferTask
@@ -102,8 +103,13 @@ data class WorkspaceState(
     val current: SourceImage? get() = photos.firstOrNull { it.id == selected }
     val processingBatch: ProcessingBatch? get() = processingBatches.firstOrNull { it.id == processingBatchId }
     val exportOptions: BatchExportOptions get() = BatchExportOptions(output, frame)
-    val busy: Boolean get() = importing || lutImporting || exporting || exportCacheBusy || cameraBusy || batchBusy || recovering || storageFailure != null
+    val localBusy: Boolean get() = importing || lutImporting || exporting || exportCacheBusy || batchBusy || recovering || storageFailure != null
+    val busy: Boolean get() = localBusy || cameraBusy
 }
+
+/** Answering the running scan belongs to that operation; other camera work remains exclusive. */
+internal fun WorkspaceState.canSelectBluetoothCamera(camera: CameraWorkspaceState): Boolean =
+    !localBusy && (!camera.busy || (camera.bluetoothStep == BluetoothConnectionStep.SCANNING && camera.activeTransferBatch == null))
 
 private fun WorkspaceState.showBatch(batches: List<ProcessingBatch>, id: String?): WorkspaceState {
     val batch = batches.firstOrNull { it.id == id }
@@ -599,7 +605,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun connectCameraWifi(ssid: String, password: String, security: CameraWifiSecurity) =
         withCamera { camera.connectCameraWifi(ssid, password, security) }
     fun scanBluetoothCameras() = withCamera(camera::scanBluetoothCameras)
-    fun readBluetoothCamera(address: String, startTransfer: Boolean = true) = withCamera { camera.readBluetoothCamera(address, startTransfer) }
+    fun readBluetoothCamera(address: String, startTransfer: Boolean = true) {
+        if (mutable.value.canSelectBluetoothCamera(camera.cameraState.value)) camera.readBluetoothCamera(address, startTransfer)
+        else notice("当前任务尚未结束，请稍后连接相机")
+    }
     fun connectBluetoothWifi(startOnCamera: Boolean = false) = withCamera { camera.connectBluetoothWifi(startOnCamera) }
     fun connectBluetoothSendingWifi() = withCamera(camera::connectBluetoothSendingWifi)
     fun connectBluetoothRouterWifi(ssid: String) = withCamera { camera.connectBluetoothRouterWifi(ssid) }
