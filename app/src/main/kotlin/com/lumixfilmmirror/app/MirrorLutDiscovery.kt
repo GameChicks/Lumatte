@@ -32,6 +32,9 @@ import com.lumixfilmmirror.design.*
 import com.lumixfilmmirror.media.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -46,21 +49,59 @@ internal fun MirrorColorExplorer(cards:List<MirrorLutCard>,state:WorkspaceState,
     val density=LocalDensity.current
     val reduced=LocalMirrorReducedMotion.current
     var panX by rememberSaveable { mutableFloatStateOf(-158f) }
-    var panY by rememberSaveable { mutableFloatStateOf(205f) }
+    var panY by rememberSaveable { mutableFloatStateOf(280f) }
     var zoom by rememberSaveable { mutableFloatStateOf(1f) }
     var paletteOpen by rememberSaveable { mutableStateOf(false) }
     var hue by rememberSaveable { mutableStateOf<Float?>(null) }
     var saturation by rememberSaveable { mutableFloatStateOf(.44f) }
     var mono by rememberSaveable { mutableStateOf(false) }
+    var online by rememberSaveable { mutableStateOf(true) }
+    var nameQuery by rememberSaveable { mutableStateOf("") }
+    var onlineRevision by remember { mutableIntStateOf(0) }
+    var remoteCards by remember { mutableStateOf<List<MirrorLutCard>>(emptyList()) }
+    var onlineLoading by remember { mutableStateOf(false) }
+    var indexComplete by remember { mutableStateOf(false) }
+    var onlineProblem by remember { mutableStateOf<String?>(null) }
     val palettes=remember(state.current?.id) { mutableStateMapOf<String,LutExampleColours>() }
+    val allCards=remember(cards,remoteCards,online) {
+        (if(online)remoteCards+cards.map { if(it.official!=null)it.copy(photoPreview=false) else it } else cards.filter { it.local!=null })
+            .distinctBy { it.key }
+    }
+    LaunchedEffect(online,paletteOpen,onlineRevision,state.current?.id) {
+        if(!online)return@LaunchedEffect
+        onlineLoading=true;onlineProblem=null
+        try {
+            val index=workspace.processor.officialLutExplorer.index(workspace.processor.officialLutLanguage()) { snapshot ->
+                remoteCards=snapshot.items.map { item -> MirrorLutCard(state.luts.firstOrNull { it.lumixLabSource?.code==item.code },item) }
+                indexComplete=snapshot.complete
+                if(paletteOpen) {
+                    snapshot.items.filter { "official:${it.code}" !in palettes && it.thumbnail!=null }.chunked(2).forEach { pair ->
+                        val analysed=coroutineScope { pair.map { item -> async {
+                            try { item to workspace.processor.officialLutExplorer.colours(item) }
+                            catch(error:CancellationException) { throw error }
+                            catch(_:Exception) { item to null }
+                        } }.awaitAll() }
+                        analysed.forEach { (item,colours) ->
+                            if(colours!=null)palettes["official:${item.code}"]=colours
+                            else onlineProblem="部分例图未能分析，当前颜色结果不包含这些款式。"
+                        }
+                    }
+                }
+            }
+            indexComplete=index.complete
+            index.problem?.let { onlineProblem=it }
+        } catch(error:CancellationException) { throw error }
+        catch(_:Exception) { onlineProblem="Lab 暂时无法读取，可重试；已显示的卡片仍可浏览。" }
+        finally { onlineLoading=false }
+    }
     var scanning by remember { mutableStateOf(false) }
     var scanProblem by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(paletteOpen,state.current?.id,cards.map { it.local?.id }) {
+    LaunchedEffect(paletteOpen,state.current?.id,online,cards.map { it.local?.id }) {
         val source=state.current
         if(!paletteOpen || source==null)return@LaunchedEffect
         scanning=true;scanProblem=null
         try {
-            val assets=cards.mapNotNull { it.local }.distinctBy { it.id }
+            val assets=cards.filter { !online || it.official==null }.mapNotNull { it.local }.distinctBy { it.id }
             val snapshot=workspace.processor.lutGalleryColours(source,ProcessingCatalogue(assets,emptyList(),emptyList()),longEdge=128) { entry ->
                 cards.firstOrNull { it.local?.id==entry.lutId }?.let { palettes[it.key]=entry.colours }
             }
@@ -81,8 +122,9 @@ internal fun MirrorColorExplorer(cards:List<MirrorLutCard>,state:WorkspaceState,
         } ?: 720f
     }
     val colourSnapshot=palettes.toMap()
-    val ranked=remember(cards,hue,saturation,mono,colourSnapshot) {
-        if(hue!=null || mono)cards.sortedWith(compareBy<MirrorLutCard>{distance(it)}.thenBy{it.key}) else cards
+    val ranked=remember(allCards,nameQuery,hue,saturation,mono,colourSnapshot) {
+        val matching=allCards.filter { nameQuery.isBlank() || it.title.contains(nameQuery.trim(),true) || it.creator?.contains(nameQuery.trim(),true)==true }
+        if(hue!=null || mono)matching.sortedWith(compareBy<MirrorLutCard>{distance(it)}.thenBy{it.key}) else matching
     }
     val sceneInk=if(dark)Color(0xFFEDEFE0) else Color(0xFF293347)
     BoxWithConstraints(Modifier.fillMaxSize().clip(RoundedCornerShape(0.dp))
@@ -105,7 +147,7 @@ internal fun MirrorColorExplorer(cards:List<MirrorLutCard>,state:WorkspaceState,
             panY=viewHeight/2-(viewHeight/2-panY)*ratio
             zoom=fitted
         }
-        fun centerCards() { panX=-158f*zoom;panY=205f }
+        fun centerCards() { panX=-158f*zoom;panY=280f }
         Canvas(Modifier.fillMaxSize()) {
             val step=20.dp.toPx()*zoom
             val sx=((panX*density.density)%step+step)%step
@@ -136,8 +178,16 @@ internal fun MirrorColorExplorer(cards:List<MirrorLutCard>,state:WorkspaceState,
                     Text("拖动画布 · 双指缩放 · 点按查看",fontSize=11.sp,color=sceneInk.copy(.7f))
                 }
             }
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                MirrorChoice(online,{online=true},label={Text("整个 Lab")})
+                MirrorChoice(!online,{online=false},label={Text("本地 LUT")})
+                if(online && !onlineLoading)MirrorTextAction("重试取色",{onlineRevision++})
+            }
+            MirrorTextField(nameQuery,{nameQuery=it.take(120)},"搜索名称或作者")
+            if(online)Text("Lab 已检索 ${remoteCards.size} 款 · 已取色 ${palettes.keys.count { it.startsWith("official:") }} 款"+
+                if(onlineLoading)" · 正在继续" else if(indexComplete)" · 目录已读完" else " · 未覆盖全库",fontSize=10.sp,color=sceneInk.copy(.8f))
         }
-        if(cards.isEmpty())Text("这里还没有 LUT。返回列表，导入或下载后再来探索。",Modifier.align(Alignment.Center).padding(32.dp),color=sceneInk)
+        if(allCards.isEmpty() && !onlineLoading)Text(if(online)"Lab 暂无结果，可重试或切换本地 LUT。" else "这里还没有本地 LUT。",Modifier.align(Alignment.Center).padding(32.dp),color=sceneInk)
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Row(Modifier.align(Alignment.End).clip(RoundedCornerShape(24.dp)).background(tones.paper.copy(.94f)).padding(horizontal=6.dp),verticalAlignment=Alignment.CenterVertically) {
                 MirrorTextAction("−",{changeZoom(zoom/1.2f)},Modifier.widthIn(min=48.dp).semantics { contentDescription="缩小画布" },enabled=zoom>.55f)
@@ -163,9 +213,10 @@ internal fun MirrorColorExplorer(cards:List<MirrorLutCard>,state:WorkspaceState,
                             .semantics { contentDescription="色相 ${swatchHue.toInt()} 度" })
                     } }
                 }
-                Text("依据例图或当前照片预览的颜色排列，不代表 LUT 的固定适用范围。",fontSize=10.sp,color=tones.secondaryInk)
-                if(scanning)LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text(if(online)"全 Lab 逐页查找，按创作者小例图取色；不下载 LUT 文件，不代表实际试套效果。" else "依据当前照片预览的颜色排列，不代表 LUT 的固定适用范围。",fontSize=10.sp,color=tones.secondaryInk)
+                if(scanning || onlineLoading)LinearProgressIndicator(Modifier.fillMaxWidth())
                 scanProblem?.let { Text(it,fontSize=10.sp,color=tones.secondaryInk) }
+                if(online)onlineProblem?.let { Text(it,fontSize=10.sp,color=tones.secondaryInk) }
                 if(palettes.isEmpty())Text("拖动浏览时会读取可见卡片的颜色。",fontSize=10.sp,color=tones.secondaryInk)
             }
             }

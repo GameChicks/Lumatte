@@ -60,6 +60,9 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
                     SettingsToggle("触感反馈", "胶卷滚动、收藏和拍立得切换时轻触振动。", personal.haptics) { value ->
                         workspace.updatePersonal { it.copy(haptics = value) }
                     }
+                    SettingsToggle("交互音效", "切换胶卷、拍立得和收藏时播放轻提示音；独立于震动，遵循系统静音与提示音音量。", personal.soundEffects) { value ->
+                        workspace.updatePersonal { it.copy(soundEffects = value) }
+                    }
                     SettingsToggle("胶卷自动展开", "滚动停留后展开介绍；关闭后点按查看。", personal.automaticFilmDetails) { value ->
                         workspace.updatePersonal { it.copy(automaticFilmDetails = value) }
                     }

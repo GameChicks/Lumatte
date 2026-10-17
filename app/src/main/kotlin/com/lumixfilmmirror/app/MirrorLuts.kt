@@ -89,6 +89,10 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     var official by rememberSaveable { mutableStateOf(true) }
     var expanded by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
+    var searchedOfficial by remember { mutableStateOf<List<LumixLabLut>>(emptyList()) }
+    var globalSearching by remember { mutableStateOf(false) }
+    var globalSearchProblem by remember { mutableStateOf<String?>(null) }
+    var globalSearchComplete by remember { mutableStateOf(false) }
     var searchEditing by rememberSaveable { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     var choosingSecond by rememberSaveable { mutableStateOf(false) }
@@ -122,6 +126,18 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     val duration = if (LocalMirrorReducedMotion.current) 0 else 420
     val columns = if (LocalConfiguration.current.screenWidthDp < 340 || LocalDensity.current.fontScale > 1.3f) 2 else 3
     val scope = rememberCoroutineScope()
+    LaunchedEffect(official,query.trim()) {
+        if(!official || query.isBlank()) { globalSearching=false;return@LaunchedEffect }
+        delay(350);globalSearching=true;globalSearchProblem=null
+        try {
+            val index=workspace.processor.officialLutExplorer.index(workspace.processor.officialLutLanguage()) {
+                searchedOfficial=it.items;globalSearchComplete=it.complete
+            }
+            globalSearchComplete=index.complete;globalSearchProblem=index.problem
+        } catch(error:CancellationException) { throw error }
+        catch(_:Exception) { globalSearchProblem="Lab 全库检索暂不可用，当前结果可能不完整。" }
+        finally { globalSearching=false }
+    }
     LaunchedEffect(discovery) { if(discovery!=null) { searchEditing=false;focusManager.clearFocus() } }
     LaunchedEffect(state.luts, subjectRevision) {
         try {
@@ -160,7 +176,8 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
         else LutSubject.entries.forEachIndexed { i, subject -> add(GalleryCategory(subject.name, subject.label, categoryColour(i))) }
     }
     fun cardsFor(category: String): List<MirrorLutCard> = (if (official)
-        (pages[category]?.takeIf { it.isNotEmpty() } ?: browser.categoryPreviews[category].orEmpty()).map { item ->
+        (if(query.isNotBlank()) { if(category=="all")searchedOfficial else emptyList() }
+            else pages[category]?.takeIf { it.isNotEmpty() } ?: browser.categoryPreviews[category].orEmpty()).map { item ->
         MirrorLutCard(state.luts.firstOrNull { it.lumixLabSource?.code == item.code }, item)
     } else localCards.filter { category == "all" || localSubjects[it.local?.id].orEmpty().any { subject -> subject.name == category } })
         .filter { it.title.contains(query.trim(), true) || it.creator?.contains(query.trim(), true) == true }
@@ -277,7 +294,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                         val daily = (if (official) cardsFor("all") else localCards).let { cards ->
                             if (cards.isEmpty()) null else cards[Math.floorMod(java.time.LocalDate.now().toEpochDay(), cards.size.toLong()).toInt()]
                         }
-                        if (daily != null && expanded == null) item {
+                        if (daily != null && expanded == null && query.isBlank()) item {
                             Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                                 Text("今日推荐", fontFamily = MirrorFonts.ChineseEditorial, fontSize = 26.sp)
                                 Polaroid(daily, "daily:${daily.key}", state, workspace, personal, shared, visibility,
@@ -294,9 +311,16 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                             }
                         }
                         if (official && browser.pageLoading) item { LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) }
-                        categories.forEach { category ->
+                        if(official && query.isNotBlank())item {
+                            Column(Modifier.padding(horizontal=20.dp,vertical=10.dp)) {
+                                Text("全 Lab 检索 · 已读 ${searchedOfficial.size} 款"+if(globalSearching)" · 正在继续" else if(globalSearchComplete)" · 目录已读完" else " · 未覆盖全库",style=MaterialTheme.typography.bodySmall)
+                                if(globalSearching)LinearProgressIndicator(Modifier.fillMaxWidth())
+                                globalSearchProblem?.let { Text(it,color=tones.secondaryInk) }
+                            }
+                        }
+                        categories.filter { !official || query.isBlank() || it.key=="all" }.forEach { category ->
                             val focus = expanded == category.key
-                            val showCards = expanded == null || focus
+                            val showCards = query.isNotBlank() || expanded == null || focus
                             val cards = cardsFor(category.key)
                             val bandColour = bandColours.getValue(category.key)
                             item(key = "heading:${category.key}") {
@@ -335,7 +359,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                                             repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                                         }
                                     }
-                                if (official && focus && browser.query?.genreCode == category.key.takeUnless { it == "all" } && browser.nextOffset != null)
+                                if (official && query.isBlank() && focus && browser.query?.genreCode == category.key.takeUnless { it == "all" } && browser.nextOffset != null)
                                     item(key = "more:${category.key}") {
                                         TextButton(modifier = Modifier.fillMaxWidth().background(category.colour), enabled = !browser.pageLoading,
                                             onClick = workspace.officialLuts::loadMore) { Text("加载更多作品") }
@@ -509,13 +533,12 @@ internal fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState
 private fun FavouriteAction(selected: Boolean, title: String, ink: Color, onClick: () -> Unit,
     modifier: Modifier = Modifier, compact: Boolean = false) {
     val scope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
-    val hapticsEnabled = LocalMirrorHaptics.current
+    val feedback = rememberMirrorTick()
     val reduced = LocalMirrorReducedMotion.current
     val scale = remember { Animatable(1f) }
     val colour by animateColorAsState(if (selected) Color(0xFFF5CC70) else ink.copy(.07f), tween(if (reduced) 0 else 180), label = "favourite-colour")
     Box(modifier = modifier.size(48.dp).clickable(role = Role.Button, onClick = {
-        onClick(); if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        onClick(); feedback()
         if (!reduced) scope.launch { scale.snapTo(.82f); scale.animateTo(1.12f, spring(dampingRatio = .48f)); scale.animateTo(1f, tween(160)) }
     }).semantics {
             contentDescription = if (selected) "已收藏 $title，点击取消" else "收藏 $title"
@@ -662,11 +685,10 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
                 LaunchedEffect(cards.map { it.key }) {
                     if (pager.currentPage > cards.lastIndex) pager.scrollToPage(cards.lastIndex)
                 }
-                val haptics = LocalHapticFeedback.current
-                val hapticsEnabled = LocalMirrorHaptics.current
+                val feedback = rememberMirrorTick()
                 var last by remember { mutableIntStateOf(pager.currentPage) }
                 LaunchedEffect(pager.currentPage) {
-                    if (last != pager.currentPage && hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (last != pager.currentPage) feedback()
                     last = pager.currentPage
                     onPage(pager.currentPage)
                 }

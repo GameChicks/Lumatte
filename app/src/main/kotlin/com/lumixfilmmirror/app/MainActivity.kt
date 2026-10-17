@@ -15,7 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.DisposableEffect
 import androidx.core.view.WindowCompat
 
-class MainActivity : ComponentActivity() {
+open class MainActivity : ComponentActivity() {
     private val camera get() = (application as FilmMirrorApplication).camera
     private var widgetRequest by mutableStateOf<WidgetLaunch?>(null)
 

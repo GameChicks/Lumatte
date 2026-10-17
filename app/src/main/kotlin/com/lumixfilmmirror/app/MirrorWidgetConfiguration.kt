@@ -16,12 +16,11 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.lumixfilmmirror.design.FilmMirrorTheme
 import com.lumixfilmmirror.design.LocalFilmMaterials
 import com.lumixfilmmirror.media.FilmCatalogue
@@ -107,16 +106,21 @@ private fun WidgetConfiguration(initial: MirrorWidgetConfig,choices: WidgetChoic
             }
             MirrorTextField(title,{title=it.take(60)},if(camera)"机型或显示名称" else "胶卷显示名称")
             Text("背景颜色",style=MaterialTheme.typography.titleMedium)
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                widgetPalettes.take(3).forEach { palette ->
-                    MirrorChoice(hex==palette.hex,{hex=palette.hex;customHex=hex},Modifier.weight(1f),label={Text(palette.title)})
+            widgetPalettes.chunked(3).forEach { row ->
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    row.forEach { palette ->
+                        val swatch=remember(initial.style,palette.hex) { MirrorWidgets.background(config.copy(hex=palette.hex,title="",footer=""),120,64) }
+                        DisposableEffect(swatch) { onDispose { swatch.recycle() } }
+                        MirrorChoice(hex.equals(palette.hex,true),{hex=palette.hex;customHex=hex},Modifier.weight(1f),label={
+                            Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                                Image(swatch.asImageBitmap(),null,Modifier.fillMaxWidth().height(24.dp))
+                                Text(palette.title)
+                            }
+                        })
+                    }
                 }
             }
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                widgetPalettes.drop(3).forEach { palette ->
-                    MirrorChoice(hex==palette.hex,{hex=palette.hex;customHex=hex},Modifier.weight(1f),label={Text(palette.title)})
-                }
-            }
+            if(!hex.equals("4EADD8",true) && !hex.equals("F2AB54",true))Text("配色参考 Color Hunt；渐变与文字颜色已针对小组件调整。",style=MaterialTheme.typography.bodySmall,color=LocalFilmMaterials.current.secondaryInk)
             MirrorTextField(customHex,{ value ->
                 customHex=value.removePrefix("#").take(6)
                 if(customHex.matches(Regex("[0-9a-fA-F]{6}")))hex=customHex.uppercase()
@@ -131,16 +135,13 @@ private fun WidgetConfiguration(initial: MirrorWidgetConfig,choices: WidgetChoic
 
 @Composable
 internal fun WidgetCardPreview(config: MirrorWidgetConfig,modifier: Modifier=Modifier) {
-    val bitmap=remember(config.style,config.hex) { MirrorWidgets.background(config) }
+    val fontScale=LocalDensity.current.fontScale
+    val bitmap=remember(config,fontScale) { MirrorWidgets.background(config,fontScale=fontScale) }
     DisposableEffect(bitmap) { onDispose { bitmap.recycle() } }
-    BoxWithConstraints(modifier) {
-        val padding=maxWidth*.10f
-        val titleSize=(maxWidth.value*.088f).coerceIn(10f,21f).sp
-        val footerSize=(maxWidth.value*.055f).coerceIn(8f,13f).sp
-        Image(bitmap.asImageBitmap(),null,Modifier.fillMaxSize())
-        Text(config.title,Modifier.align(Alignment.TopStart).padding(padding),fontSize=titleSize,color=Color.White,fontWeight=FontWeight.Medium,maxLines=2)
-        Text(config.footer,Modifier.align(Alignment.BottomEnd).padding(padding),fontSize=footerSize,
-            color=if(config.style==WidgetStyle.BANDS)Color(0xFF76513B) else Color(0xFFDDEEF6))
+    Box(modifier) {
+        Image(bitmap.asImageBitmap(),config.title+"，"+config.footer,Modifier.fillMaxSize())
+        if(config.style!=WidgetStyle.CAMERA)Image(painterResource(R.drawable.widget_edit),null,
+            Modifier.align(Alignment.TopEnd).padding(8.dp).size(48.dp).padding(14.dp))
     }
 }
 
@@ -158,7 +159,7 @@ internal fun DesktopWidgetsDialog(onDismiss: () -> Unit) {
     }
     val installed=remember(refresh) { WidgetStyle.entries.flatMap { manager.getAppWidgetIds(MirrorWidgets.component(context,it)).toList() }.distinct() }
     MirrorDialog("桌面小组件",onDismiss=onDismiss) { close ->
-        Text("先选择胶卷、机型与颜色，再添加到桌面。已添加的小组件可点右上角的编辑按钮修改。")
+        Text("先选择胶卷、机型与颜色，再添加到桌面。胶卷组件可点右上角编辑；相机组件在下方已添加列表中编辑。")
         WidgetStyle.entries.forEach { style ->
             val config=if(style==WidgetStyle.CAMERA)MirrorWidgetConfig(style,title="松下相机",footer="连接相机 →",hex="F2AB54") else MirrorWidgetConfig(style)
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {

@@ -212,7 +212,11 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
     BackHandler(pane != null) {
         pane = when (pane) { "export" -> "editor"; "reveal" -> "editor"; else -> null }
     }
+    val feedbackContext=androidx.compose.ui.platform.LocalContext.current
+    val feedbackPlayer=remember(feedbackContext.applicationContext) { MirrorFeedbackPlayer(feedbackContext.applicationContext) }
+    DisposableEffect(feedbackPlayer) { onDispose { feedbackPlayer.release() } }
     CompositionLocalProvider(LocalMirrorReducedMotion provides reduced, LocalMirrorHaptics provides personal.haptics,
+        LocalMirrorSoundEffects provides personal.soundEffects,LocalMirrorFeedbackPlayer provides feedbackPlayer,
         LocalMirrorAutomaticFilmDetails provides personal.automaticFilmDetails) {
         Column(Modifier.fillMaxSize().background(tones.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
             MirrorTaskProgress(state, camera, workspace, transferHidden) { transferHidden = it }

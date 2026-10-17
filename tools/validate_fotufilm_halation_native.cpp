@@ -34,6 +34,8 @@ int main(int argc,char** argv)try {
         e.fotu_sigma_mm[c]=v[38+c];
         for(int j=0;j<3;++j) {e.fotu_weights[c][j]=v[41+c*3+j];e.fotu_matrix[c][j]=v[50+c*3+j];}
     }
+    // Existing 59-float fixtures replay the original physical path; a tail float opts into the JPEG look.
+    if(controls.peek()!=std::char_traits<char>::eof())read(controls,&e.remjet_look);
     if(argc==4) {
         if(std::string(argv[3])!="off")throw std::runtime_error("Unknown halation switch");
         e.halation=false;

@@ -55,7 +55,7 @@ lfm::mobile::Model read_model(JNIEnv* env, jobjectArray tables, jintArray sizes,
     return {stage(0), stage(1), stage(2)};
 }
 lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
-    const auto values = copy(env, controls, 59);
+    const auto values = copy(env, controls, 60);
     if ((values[0] != 0 && values[0] != .125f && values[0] != .25f && values[0] != .5f) ||
         (values[1] != 0 && values[1] != 1) || values[2] < -3 || values[2] > 3 ||
         (values[3] != 0 && values[3] != 1) || values[4] < .0001f || values[4] > 10 || values[23] < 10 || values[23] > 100)
@@ -68,6 +68,9 @@ lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
         values[25] != std::floor(values[25]) || values[26] < 0 || values[26] > 1 || values[27] < 0 || values[27] > 40)
         throw std::invalid_argument("Mobile spatial profile invalid");
     result.cinestill = values[24] == 1; result.halation_bounces = int(values[25]);
+    if(values[59]<0 || values[59]>2 || (!result.cinestill && values[59]!=0))
+        throw std::invalid_argument("Invalid CineStill JPEG halation look");
+    result.remjet_look=values[59];
     if (result.cinestill) {
         for (int c = 0; c < 3; ++c) {
             result.fotu_sigma_mm[c] = values[38+c];

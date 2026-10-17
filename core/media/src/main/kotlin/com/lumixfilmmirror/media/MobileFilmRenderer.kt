@@ -54,7 +54,7 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
             if (index % 6 < 3) stage.minimum[index % 6] else stage.maximum[index % 6 - 3]
         }
         val effect = model.effects
-        // Only the two dedicated CineStill profiles carry Fotufilm's physical default kernel.
+        // Only the two CineStill profiles carry the physical kernel plus the JPEG highlight look.
         // All other models retain supplied strength, channel balance and bounce defaults.
         val cineStill = plan.preset.id == "cinestill_800t" || plan.preset.id == "cinestill_400d"
         val physical = effect.fotufilmHalation
@@ -67,7 +67,8 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
             if (cineStill) 1f else 0f, effect.halationBounces.toFloat(), effect.halationDecay, effect.grainSpacingUm,
             effect.scatterAmount, *effect.scatterCoreUm, *effect.scatterTailUm, *effect.scatterTailWeight,
             *(physical?.sigmaMm ?: FloatArray(3)), *(physical?.weights ?: FloatArray(9)),
-            *(physical?.matrix ?: FloatArray(9)))
+            *(physical?.matrix ?: FloatArray(9)),
+            when (plan.preset.id) { "cinestill_800t" -> 1.4f; "cinestill_400d" -> 1f; else -> 0f })
         val modelKey = "${model.info.modelVersion}:${model.info.sourceCommit}:${model.info.stockId}:${model.info.printId}"
         val task = NativeMobileFilmBridge.createTask()
         check(task != 0L) { "无法建立移动胶片任务" }

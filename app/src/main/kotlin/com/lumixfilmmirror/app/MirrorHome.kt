@@ -105,21 +105,8 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
         }
         item { UsageCard(state, transfers, cardHeight) }
         item {
-            Atmosphere(Modifier.fillMaxWidth().height(cardHeight).clickable(role = Role.Button) {
+            HomeJournalCard(personal, Modifier.fillMaxWidth(), cardHeight) {
                 note = personal.journal; noteEditing = true
-            }, listOf(Color(0xFFAEA891), Color(0xFF777967), Color(0xFF414D43))) {
-                Text("“", Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = if (personal.journal.isBlank()) 20.dp else 54.dp),
-                    fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
-                Text("”", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 20.dp),
-                    fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
-                if (personal.journal.isBlank()) Text("创作记录", Modifier.align(Alignment.Center).padding(horizontal = 24.dp),
-                    fontFamily = MirrorFonts.Dots, fontSize = 38.sp, lineHeight = 46.sp, color = Color.White)
-                else Column(Modifier.fillMaxSize().padding(24.dp)) {
-                    Text("创作记录", fontFamily = MirrorFonts.Dots, fontSize = 32.sp, lineHeight = 40.sp, color = Color.White)
-                    Spacer(Modifier.height(20.dp))
-                    Text(personal.journal, Modifier.weight(1f).padding(horizontal = 12.dp),
-                        maxLines = 4, lineHeight = 24.sp, overflow = TextOverflow.Ellipsis, color = Color.White, fontSize = 16.sp)
-                }
             }
         }
     }
@@ -140,7 +127,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
 }
 
 @Composable
-private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalState,
+internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalState,
     workspace: WorkspaceViewModel, onConnect: (String?) -> Unit, modifier: Modifier, cardHeight: Dp) {
     val scope = rememberCoroutineScope()
     val reduced = LocalMirrorReducedMotion.current
@@ -314,7 +301,7 @@ internal fun Atmosphere(modifier: Modifier, colours: List<Color>, flowing: Boole
 }
 
 @Composable
-private fun ActionAtmosphere(title: String, subtitle: String, colours: List<Color>, modifier: Modifier, height: Dp,
+internal fun ActionAtmosphere(title: String, subtitle: String, colours: List<Color>, modifier: Modifier, height: Dp,
     glyph: DotGlyph, footnote: String, onClick: () -> Unit) {
     Atmosphere(modifier.height(height).clickable(role = Role.Button, onClick = onClick), colours) {
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -375,7 +362,7 @@ private fun HomeDisplayText(text: String, modifier: Modifier, preferredSize: Flo
 }
 
 @Composable
-private fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>, height: Dp) {
+internal fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>, height: Dp) {
     val month = YearMonth.now()
     val captures = remember(state.captureDays) {
         state.captureDays.mapNotNull { (day, count) -> runCatching { LocalDate.parse(day) to count }.getOrNull() }.toMap()
@@ -418,6 +405,26 @@ private fun UsageCard(state: WorkspaceState, transfers: List<TransferTask>, heig
                 Text("本月拍摄 $total 张", fontSize = 14.sp, color = Color.White)
                 Text("传入 $imported 项", fontSize = 14.sp, color = Color.White.copy(.75f))
             }
+        }
+    }
+}
+
+/** Shared by the home page and manual PNG capture; same content and layout. */
+@Composable
+internal fun HomeJournalCard(personal: MirrorPersonalState, modifier: Modifier, height: Dp, onClick: () -> Unit) {
+    Atmosphere(modifier.height(height).clickable(role = Role.Button, onClick = onClick),
+        listOf(Color(0xFFAEA891), Color(0xFF777967), Color(0xFF414D43))) {
+        Text("“", Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = if (personal.journal.isBlank()) 20.dp else 54.dp),
+            fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
+        Text("”", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 20.dp),
+            fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
+        if (personal.journal.isBlank()) Text("创作记录", Modifier.align(Alignment.Center).padding(horizontal = 24.dp),
+            fontFamily = MirrorFonts.Dots, fontSize = 38.sp, lineHeight = 46.sp, color = Color.White)
+        else Column(Modifier.fillMaxSize().padding(24.dp)) {
+            Text("创作记录", fontFamily = MirrorFonts.Dots, fontSize = 32.sp, lineHeight = 40.sp, color = Color.White)
+            Spacer(Modifier.height(20.dp))
+            Text(personal.journal, Modifier.weight(1f).padding(horizontal = 12.dp),
+                maxLines = 4, lineHeight = 24.sp, overflow = TextOverflow.Ellipsis, color = Color.White, fontSize = 16.sp)
         }
     }
 }

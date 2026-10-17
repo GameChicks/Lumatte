@@ -6,6 +6,7 @@ precision highp sampler3D;
 uniform sampler2D uInput;
 uniform sampler2D uLens;
 uniform sampler2D uHalo;
+uniform sampler2D uRemjet;
 uniform sampler3D uResponse;
 uniform sampler3D uDevelopment;
 uniform sampler3D uScan;
@@ -13,6 +14,7 @@ uniform vec3 uResponseLow, uResponseHigh, uDevelopmentLow, uDevelopmentHigh, uSc
 uniform ivec2 uOrigin, uImageSize, uSourceSize;
 uniform float uSoftness, uExposureGain, uPixelArea, uParticleArea;
 uniform float uGrainSpacing;
+uniform float uRemjetAmount;
 uniform bool uHalation, uGrain;
 uniform vec3 uParticleScale, uFloor, uUniformity, uDensityMaximum;
 uniform vec3 uHalationMix;
@@ -51,6 +53,11 @@ vec3 field(sampler2D data, ivec2 globalPixel) {
 }
 float decode(float v) { return v <= .04045 ? v / 12.92 : pow((v + .055) / 1.055, 2.4); }
 float encode(float v) { return v <= .0031308 ? v * 12.92 : 1.055 * pow(v, 1.0 / 2.4) - .055; }
+float remjetSeed(vec3 linear) {
+    float peak=max(linear.r,max(linear.g*.85,linear.b*.65))*uExposureGain;
+    float t=clamp((peak-.55)/.40,0.0,1.0);
+    return t*t*(3.0-2.0*t)*clamp((peak-.35)/.65,0.0,3.0);
+}
 uint hash32(uint value) {
     value = (value ^ (value >> 16)) * 0x85ebca6bu;
     value = (value ^ (value >> 13)) * 0xc2b2ae35u;
@@ -102,6 +109,14 @@ void main() {
     }
     if (invalid(density)) { failure(inputPixel.a); return; }
     vec3 rgb = cube(uScan, density, uScanLow, uScanHigh);
+    if (invalid(rgb)) { failure(inputPixel.a); return; }
+    if(uRemjetAmount>0.0) {
+        vec3 source=vec3(decode(inputPixel.r),decode(inputPixel.g),decode(inputPixel.b));
+        float rim=max(0.0,dot(field(uRemjet,globalPixel),vec3(.25,.65,.10))-remjetSeed(source))*uRemjetAmount;
+        vec3 base=clamp(rgb,0.0,1.0);
+        vec3 linear=vec3(decode(base.r),decode(base.g),decode(base.b))+vec3(.65,.014,.001)*rim;
+        rgb=vec3(encode(linear.r),encode(linear.g),encode(linear.b));
+    }
     if (invalid(rgb)) { failure(inputPixel.a); return; }
     outColour = vec4(clamp(rgb, 0.0, 1.0), inputPixel.a);
 }

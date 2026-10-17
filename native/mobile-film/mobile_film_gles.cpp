@@ -48,8 +48,8 @@ class Device {
     EGLContext context = EGL_NO_CONTEXT;
     EGLSurface surface = EGL_NO_SURFACE;
     GLuint program = 0, vao = 0, framebuffer = 0, vertex_buffer = 0;
-    // Input, response, development, scan, lens, halo, output. Only this device owns these names.
-    std::array<GLuint, 7> textures{};
+    // Input, response, development, scan, lens, halo, JPEG look, output.
+    std::array<GLuint, 8> textures{};
     int tile_edge = 0, max_3d = 0;
     std::string loaded_model;
     bool bound = false;
@@ -100,8 +100,8 @@ class Device {
         glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &max_3d);
         glGetShaderPrecisionFormat(GL_FRAGMENT_SHADER, GL_HIGH_FLOAT, range, &precision);
         gl_check("Query film GPU limits");
-        if (version < 3 || units < 6 || precision < 23 || range[0] < 127 || range[1] < 127)
-            throw GlesError("Film requires GLES3 with float32 fragment precision and six samplers");
+        if (version < 3 || units < 7 || precision < 23 || range[0] < 127 || range[1] < 127)
+            throw GlesError("Film requires GLES3 with float32 fragment precision and seven samplers");
         tile_edge = std::min({1024, max_texture, viewport[0], viewport[1]});
         if (tile_edge <= 0 || max_texture < 512) throw GlesError("Insufficient film texture/viewport limits");
         GLuint vertex = compile(GL_VERTEX_SHADER, shaders::vertex), fragment = 0;
@@ -125,14 +125,14 @@ class Device {
         constexpr float positions[]{-1.f,-1.f,3.f,-1.f,-1.f,3.f};
         glBufferData(GL_ARRAY_BUFFER,sizeof(positions),positions,GL_STATIC_DRAW);
         glEnableVertexAttribArray(0); glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,0,nullptr);
-        constexpr const char* samplers[]{"uInput", "uResponse", "uDevelopment", "uScan", "uLens", "uHalo"};
-        for (int i = 0; i < 6; ++i) glUniform1i(uniform(samplers[i]), i);
+        constexpr const char* samplers[]{"uInput", "uResponse", "uDevelopment", "uScan", "uLens", "uHalo", "uRemjet"};
+        for (int i = 0; i < 7; ++i) glUniform1i(uniform(samplers[i]), i);
         bind_texture(0, GL_TEXTURE_2D, 0); texture_parameters(GL_TEXTURE_2D);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tile_edge, tile_edge, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        bind_texture(0, GL_TEXTURE_2D, 6); texture_parameters(GL_TEXTURE_2D);
+        bind_texture(0, GL_TEXTURE_2D, 7); texture_parameters(GL_TEXTURE_2D);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tile_edge, tile_edge, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textures[6], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textures[7], 0);
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) throw GlesError("Film RGBA8 framebuffer incomplete");
         glDisable(GL_BLEND); glDisable(GL_DITHER); glDisable(GL_DEPTH_TEST); glDisable(GL_SCISSOR_TEST);
         glPixelStorei(GL_PACK_ALIGNMENT, 1); glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -187,6 +187,7 @@ public:
             loaded_model = key;
         } else for (int unit = 1; unit <= 3; ++unit) bind_texture(unit, GL_TEXTURE_3D, unit);
         upload_field(4, spatial.lens); check(); upload_field(5, spatial.halation);
+        check(); upload_field(6,spatial.remjet);
         glUseProgram(program); glBindVertexArray(vao); glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         triple("uResponseLow", model.response.minimum); triple("uResponseHigh", model.response.maximum);
         triple("uDevelopmentLow", model.development.minimum); triple("uDevelopmentHigh", model.development.maximum);
@@ -205,6 +206,7 @@ public:
         const float spacing = effects.grain_spacing_um > 0 ? std::max(.7f,
             effects.grain_spacing_um * std::max(source_width, source_height) / (effects.format_mm * 1000)) : 1.4f;
         glUniform1f(uniform("uGrainSpacing"), spacing);
+        glUniform1f(uniform("uRemjetAmount"),spatial.remjet.values.empty()?0.f:effects.remjet_look);
         glUniform1i(uniform("uHalation"), !spatial.halation.values.empty()); glUniform1i(uniform("uGrain"), effects.grain);
         glUniform1ui(uniform("uSeed"), uint32_t(seed) ^ hash(uint32_t(seed >> 32)));
         gl_check("Configure film GPU");

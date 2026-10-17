@@ -10,8 +10,8 @@ android {
         applicationId = "com.lumixfilmmirror.app"
         minSdk = 30
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.2.1"
+        versionCode = 13
+        versionName = "0.2.2"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
     buildFeatures { compose = true }

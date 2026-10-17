@@ -37,6 +37,7 @@ class PhotoProcessor(context: Context) {
     val filmProfileDrafts = FilmProfileDraftLibrary(context)
     /** Explicit Internet requests only. Local catalogue/preview/export do not contact Lumix Lab. */
     val officialLutCatalogue by lazy { LumixLabCatalogueClient() }
+    val officialLutExplorer by lazy { OfficialLutExplorer(officialLutCatalogue) }
     private val officialLutRecommender by lazy { OfficialLutRecommender(officialLutCatalogue) }
     private val mobileFilmModels = MobileFilmModelLibrary(context)
     private val previewGate = Semaphore(1)

@@ -128,6 +128,7 @@ struct Effects {
     Colour scatter_core_um, scatter_tail_um, scatter_tail_weight;
     Colour fotu_sigma_mm;
     std::array<Colour, 3> fotu_weights, fotu_matrix;
+    float remjet_look = 0;
 };
 
 inline float decode(float value) { return value <= .04045f ? value / 12.92f : std::pow((value + .055f) / 1.055f, 2.4f); }
@@ -240,7 +241,7 @@ inline Field scatter_gaussian(const Field& source, Colour sigmas, const Check& c
 }
 
 struct Spatial {
-    Field lens, halation;
+    Field lens, halation, remjet;
     float softness = 0;
     Colour halation_mix{};
     bool spectral_return = false;
@@ -253,6 +254,48 @@ inline Colour lens_colour(Colour linear, const Colour& glow, float softness) {
 inline Colour film_response(const Model& model, Colour linear) {
     for (float& c : linear) c = std::clamp(encode(c), 0.f, 1.f);
     return model.response.sample(linear);
+}
+
+/** JPEG highlight surrogate, not reconstructed HDR radiance. Weak blue-only highlights contribute less. */
+inline float remjet_seed(const Colour& linear, float gain) {
+    const float peak = std::max({linear[0], linear[1]*.85f, linear[2]*.65f}) * gain;
+    const float t = std::clamp((peak-.55f)/.40f,0.f,1.f);
+    return t*t*(3-2*t) * std::clamp((peak-.35f)/.65f,0.f,3.f);
+}
+
+/** Three box passes approximate narrow/body/tail Gaussian components in O(pixels), independent of radius. */
+inline Field remjet_spread(Field source, Colour sigmas, const Check& check) {
+    int radius[3];
+    for (int c=0;c<3;++c) radius[c]=std::max(1,int((std::sqrt(4*sigmas[c]*sigmas[c]+1)-1)*.5f+.5f));
+    for (int pass=0;pass<6;++pass) {
+        const bool horizontal=(pass&1)==0;
+        Field output(source.width,source.height);
+        const uint32_t lines=horizontal?source.height:source.width, length=horizontal?source.width:source.height;
+        parallel_rows(lines,uint64_t(length)*3,check,[&](uint32_t line) {
+            auto index=[&](int position,int c) {
+                const uint32_t p=uint32_t(std::clamp(position,0,int(length)-1));
+                return (horizontal?(size_t(line)*source.width+p):(size_t(p)*source.width+line))*3+c;
+            };
+            for(int c=0;c<3;++c) {
+                const int r=radius[c]; double sum=0;
+                for(int k=-r;k<=r;++k)sum+=source.values[index(k,c)];
+                for(uint32_t p=0;p<length;++p) {
+                    if((p&1023u)==0)check();
+                    output.values[index(int(p),c)]=float(sum/(2*r+1));
+                    sum+=double(source.values[index(int(p)+r+1,c)])-source.values[index(int(p)-r,c)];
+                }
+            }
+        });
+        source=std::move(output);
+    }
+    return source;
+}
+
+inline Colour apply_remjet_look(Colour scanned,const Colour& spread,float direct,float amount) {
+    const float rim=std::max(0.f,.25f*spread[0]+.65f*spread[1]+.10f*spread[2]-direct)*amount;
+    constexpr Colour tint{.65f,.014f,.001f};
+    for(int c=0;c<3;++c)scanned[c]=encode(std::max(0.f,decode(std::clamp(scanned[c],0.f,1.f)))+tint[c]*rim);
+    return scanned;
 }
 
 /** Fotufilm default halation's decimated, collapsed three-box convolution.
@@ -341,7 +384,9 @@ inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const 
     const double scale=std::min(1.0,double(edge)/std::max(image.width,image.height));
     const uint32_t w=std::min(edge,std::max(1u,uint32_t(std::ceil(image.width*scale))));
     const uint32_t h=std::min(edge,std::max(1u,uint32_t(std::ceil(image.height*scale))));
-    Field light,response;
+    Field light,response,emission;
+    const bool remjet=effects.halation && effects.remjet_look>0;
+    if(remjet)emission=Field(w,h);
     if(effects.diffusion>0)light=Field(w,h);
     const ByteResponseSampler byte_response(model.response);
     if(effects.halation)response=Field(w,h);
@@ -350,13 +395,14 @@ inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const 
         const uint32_t y0=uint32_t(uint64_t(gy)*image.height/h),y1=uint32_t(uint64_t(gy+1)*image.height/h);
         for(uint32_t gx=0;gx<w;++gx) {
             const uint32_t x0=uint32_t(uint64_t(gx)*image.width/w),x1=uint32_t(uint64_t(gx+1)*image.width/w);
-            double sum[3]{},raw_sum[3]{};
+            double sum[3]{},raw_sum[3]{},seed_sum=0;
             for(uint32_t y=y0;y<y1;++y)for(uint32_t x=x0;x<x1;++x) {
                 if((x&1023u)==0)check();
                 const uint8_t* pixel=image.pixels+size_t(y)*image.stride+size_t(x)*4;
-                if(effects.diffusion>0) {
+                if(effects.diffusion>0 || remjet) {
                     const Colour rgb=read_linear(pixel,decode_lut);
-                    for(int c=0;c<3;++c)sum[c]+=rgb[c];
+                    if(effects.diffusion>0)for(int c=0;c<3;++c)sum[c]+=rgb[c];
+                    if(remjet)seed_sum+=remjet_seed(rgb,effects.exposure_gain);
                 }
                 if(effects.halation && effects.diffusion==0) {
                     const Colour raw=byte_response.sample(pixel);
@@ -367,6 +413,7 @@ inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const 
             for(int c=0;c<3;++c) {
                 if(effects.diffusion>0)light.values[(size_t(gy)*w+gx)*3+c]=float(sum[c]/count);
                 if(effects.halation && effects.diffusion==0)response.values[(size_t(gy)*w+gx)*3+c]=float(raw_sum[c]/count);
+                if(remjet)emission.values[(size_t(gy)*w+gx)*3+c]=float(seed_sum/count);
             }
         }
     });
@@ -415,6 +462,12 @@ inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const 
         for(uint32_t x=0;x<w;++x)for(int c=0;c<3;++c)for(int j=0;j<3;++j)
             spatial.halation.values[(size_t(y)*w+x)*3+c]+=effects.fotu_matrix[c][j]*scattered.values[(size_t(y)*w+x)*3+j];
     });
+    if(remjet) {
+        response={}; scattered={}; // Reuse their memory budget for the bounded JPEG look field.
+        // Spread the main red body visibly beyond the light, with a short soft falloff.
+        // Keep most energy here rather than a large, low-contrast coloured bloom tail.
+        spatial.remjet=remjet_spread(std::move(emission),{.10f*px_per_mm,.18f*px_per_mm,.28f*px_per_mm},check);
+    }
     return spatial;
 }
 
@@ -606,7 +659,10 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
             Colour density = model.development.sample(raw);
             const double gx = (double(x) + .5) * source_width / image.width - .5;
             apply_grain(density, effects, gx, gy, pixel_um * pixel_um, seed, grain_spacing);
-            const Colour result = model.scan.sample(density);
+            Colour result = model.scan.sample(density);
+            for(float c:result)if(!std::isfinite(c))throw std::runtime_error("Non-finite mobile film output");
+            if(!spatial.remjet.values.empty())result=apply_remjet_look(result,spatial.remjet.sample(x,y,image),
+                remjet_seed(read_linear(pixel,decode_lut),effects.exposure_gain),effects.remjet_look);
             for (int c = 0; c < 3; ++c) {
                 if (!std::isfinite(result[c])) throw std::runtime_error("Non-finite mobile film output");
                 pixel[c] = uint8_t(std::lround(std::clamp(result[c], 0.f, 1.f) * 255));

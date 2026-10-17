@@ -126,8 +126,7 @@ internal fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initi
     val dark=LocalFilmDark.current
     val count=films.size
     val pager=rememberPagerState(initialPage=if(count==0)0 else count*100+initial.coerceIn(0,count-1),pageCount={count*201})
-    val haptics=LocalHapticFeedback.current
-    val hapticsEnabled=LocalMirrorHaptics.current
+    val feedback=rememberMirrorTick()
     val automatic=LocalMirrorAutomaticFilmDetails.current
     val scope=rememberCoroutineScope()
     val roll=filmObjectRotation(visibility,-74f,arrivalAngle,departureAngle)
@@ -139,7 +138,7 @@ internal fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initi
     LaunchedEffect(pager.settledPage) { if(count>0)onPage(pager.settledPage%count) }
     var previous by remember { mutableIntStateOf(pager.currentPage) }
     LaunchedEffect(pager.currentPage) {
-        if(previous!=pager.currentPage && hapticsEnabled)haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        if(previous!=pager.currentPage)feedback()
         previous=pager.currentPage
     }
     LaunchedEffect(pager.settledPage,pager.isScrollInProgress,armed,entered,count,automatic,reduced) {
