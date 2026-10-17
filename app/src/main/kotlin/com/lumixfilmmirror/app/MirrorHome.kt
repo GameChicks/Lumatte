@@ -278,7 +278,7 @@ private fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSta
 private fun WelcomePerspective(modifier: Modifier) {
     val context = LocalContext.current
     val dark = com.lumixfilmmirror.design.LocalFilmDark.current
-    val font = remember { ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.nhl_minnesota) }
+    val font = remember { ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.bebas_neue) }
     val paint = remember { android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG) }
     Canvas(modifier.semantics { contentDescription = "Welcome" }) {
         paint.typeface = font; paint.textSize = 100f

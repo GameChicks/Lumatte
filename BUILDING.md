@@ -41,6 +41,22 @@ Android Studio 可直接打开根目录的 Gradle 工程。两种原生 ABI 为 
 
 光晕验证为独立的 Python / Android native 工具，需 NumPy、SciPy、Pillow、NDK 及指定模拟器，详见[光晕记录](docs/engineering/fotufilm-physical-halation-20261017.md)。它不挂接 Gradle，不自动运行；没有把单次模拟器检查当成物理手机或相机兼容证明。
 
+维护者明确要求检查后端时，手动运行 JVM 测试，不生成 APK：
+
+```powershell
+./gradlew.bat :core:model:test :core:camera:testDebugUnitTest :core:media:testDebugUnitTest :core:storage:testDebugUnitTest
+```
+
+测试使用 JUnit 与真实 JVM `org.json` 实现，避免 Android mock jar 将 JSON 方法变成空操作。范围涵盖纯协议、LUT、推荐调度和持久化编解码；不替代 Room 数据库迁移、SAF/MediaStore、Android Bitmap、GPU、真实相机或手机性能验证。
+
+UI 字体的手动再生产（不是构建前提）：
+
+```powershell
+python tools/prepare_ui_fonts.py --work D:/PineframeFontInputs --download
+```
+
+需要 Python `fontTools`。输入下载到项目外并验证 SHA-256；OPPO 与 Bebas 保留原始字体，统圆体按界面字符做 OFL 子集并改名。更新主页字符后可重跑此命令，审核字符清单与署名后提交。
+
 ## 首次公开源码
 
 ```sh

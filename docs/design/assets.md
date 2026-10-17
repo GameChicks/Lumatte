@@ -5,13 +5,17 @@
 | 位置 | 用途 |
 | --- | --- |
 | `core/design/src/main/res/font/` | UI 正文、标题、点阵和艺术字字体 |
-| `core/design/src/main/assets/licenses/` | OFL 字体许可原文 |
+| `core/design/src/main/assets/licenses/` | OFL 与 OPPO 各自的完整字体许可 |
 | `core/media/src/main/assets/frames/` | 画框、胶卷装饰、导出字体和原始来源/哈希清单 |
 | `app/src/main/res/drawable-nodpi/` | 暗盒、图标及维护者提供的设置资源 |
 | `app/src/main/assets/luts/` | 用户提供的 10 款内置 LUT，保留原作者注释 |
 
 Cormorant Garamond、Dancing Script、Great Vibes、Instrument Serif、Playfair Display、Source Han Serif 及画框 OFL 字体随各自许可保留。暗盒中包含维护者授权生成的视觉资源和其自有旧 APK 中恢复的图像，不能把参考照片或第三方软件图标的授权自动归入本项目。
 
-OPPO Sans、NHL Minnesota、波点字体、华康中文手写字体、用户 LUT 及恢复图片的公开再分发许可仍待维护者补充。2026-10-17 维护者明确选择先保留素材并标明待确认，未要求替换它们。[第三方清单](../../THIRD_PARTY_NOTICES.md)记录具体范围；本项目 GPL 不重新授权这些文件。
+欢迎标题使用 Bebas Neue（OFL），正文使用官方 OPPO Sans 4.0 原始可变字体。点阵使用金字社统圆体的 OFL 字符子集，派生家族改名 Pineframe Tongyuan UI；只保留当前主页及机型字母/数字所需的 181 个码点，轮廓和字宽不变，约 70 KiB。旧 NHL、AaSpot 和旧 OPPO 三字重已移出源码树。完整来源、哈希与字符表见 [font-sources.json](font-sources.json)。手动更新命令见 `tools/prepare_ui_fonts.py --help`，输入保存在项目外。
+
+华康中文手写字体、用户 LUT 及恢复图片的公开再分发许可仍待维护者补充。按维护者要求保留并标明待确认。[第三方清单](../../THIRD_PARTY_NOTICES.md)记录具体范围；本项目 GPL 不重新授权这些文件。
+
+宣传用原始透明图标为 `app/src/main/res/drawable-nodpi/launcher_film_mirror_v1.png`：1254×1254 RGBA PNG，包含全透明像素。Android 自适应图标通过 `launcher_foreground.xml` 引用它；宣传页面直接使用 PNG 即可。
 
 Palette 色彩和 LUT 预览使用用户导入照片。官方 LUT 作者图片/头像只保留官方元数据对应的 HTTPS 引用，运行时由用户明确发起下载，不将参考演示视频中的照片打入应用。

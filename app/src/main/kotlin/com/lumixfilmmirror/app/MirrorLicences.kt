@@ -39,7 +39,10 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
             LicenceEntry("画框字体", "Playfair Display、Julius Sans One、Cutive Mono、Abril Fatface、Dancing Script、Great Vibes · SIL OFL 1.1",
                 listOf("frames/licenses/playfairdisplay-OFL.txt", "frames/licenses/juliussansone-OFL.txt", "frames/licenses/cutivemono-OFL.txt",
                     "frames/licenses/abrilfatface-OFL.txt", "frames/licenses/dancingscript-OFL.txt", "frames/licenses/greatvibes-OFL.txt")),
-            LicenceEntry("指定本机字体与参考资产", "OPPO Sans、NHL Minnesota、AaSpot 点阵来自用户指定本机字体。具体版本的公开嵌入条款仍需补齐，不能将其统称为 OFL。恢复资产来源见项目 docs/design/assets.md。", emptyList()),
+            LicenceEntry("OPPO Sans 4.0", "本应用使用 OPPO Sans 4.0 字体。© 2024 Guangdong OPPO Mobile Telecommunications Corp., Ltd. 原始字体未修改，按随官方字体包附带的 OPPO Sans Fonts License Agreement 捆绑。", listOf("licenses/oppo-sans-4-license.txt")),
+            LicenceEntry("Bebas Neue", "Bebas Neue Project Authors · SIL OFL 1.1 · 欢迎标题", listOf("licenses/bebas-neue-OFL.txt")),
+            LicenceEntry("金字社统圆体", "金留庆 / Roman Czyborra / Paul Hardy · SIL OFL 1.1；界面字符子集改名为 Pineframe Tongyuan UI，字形轮廓未修改。", listOf("licenses/jinzi-tongyuan-OFL.txt")),
+            LicenceEntry("恢复画框与胶卷图片", "来自维护者自有旧 APK，公开再分发记录待补充。来源与文件哈希见项目 docs/design/assets.md。", emptyList()),
             LicenceEntry("Lut2Photo 算法参考", "qh7574/Lut2Photo-Android（MPL 2.0）。参考其 Bayer 抖动及亮度颗粒思路；本应用实现独立编写，没有打包该项目源码或二进制。", emptyList()),
             LicenceEntry("LUT 与创作者例图", "内置和下载的 LUT、例图与头像保留各自创作者权利；不由以上软件许可统一授权。捐赠二维码由开发者提供。", emptyList())
         )

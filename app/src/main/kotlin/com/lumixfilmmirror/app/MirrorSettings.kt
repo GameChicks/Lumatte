@@ -95,6 +95,7 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
                 MirrorControlSection("关于") {
                     val version = remember(context) { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() }
                     Text("松映 · Pineframe · $version")
+                    Text("本应用使用 OPPO Sans 4.0 字体", style = MaterialTheme.typography.bodySmall)
                     Text("为松下相机而作的独立第三方胶片暗房。",color=tones.secondaryInk)
                     MirrorTextAction("桌面小组件 →",{widgets=true},Modifier.fillMaxWidth())
                     MirrorTextAction("开源组件与许可 →", { licences = true }, Modifier.fillMaxWidth())

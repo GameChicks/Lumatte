@@ -139,11 +139,12 @@ class LumixLabCatalogueClient {
         require(url.scheme == "https" && url.host == HOST && url.port == 443 &&
             url.username.isEmpty() && url.password.isEmpty() && url.fragment == null &&
             (path.startsWith("/") || path.startsWith("https://"))) { "头像不属于官方 HTTPS 来源" }
-        return exampleGate.withPermit {
+        var produced: Bitmap? = null
+        try { return exampleGate.withPermit {
             val bytes = responseBytes(Request.Builder().url(url).header("Accept", "image/*").get().build(),
                 MAX_IMAGE, ResponseKind.IMAGE)
-            withContext(Dispatchers.Default) { LutExampleDecoder.decode(bytes, 96) }
-        }
+            withContext(Dispatchers.Default) { LutExampleDecoder.decode(bytes, 96).also { produced = it } }
+        } } catch (error: Throwable) { produced?.recycle(); throw error }
     }
 
     /** Only the confirmed grid17 download. ZIP decoding never writes server-selected file paths. */

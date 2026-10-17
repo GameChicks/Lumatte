@@ -260,7 +260,25 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
     var loading by remember { mutableStateOf(false) }
     var problem by remember { mutableStateOf<String?>(null) }
     var result by remember { mutableStateOf<LutRecommendationResult?>(null) }
+    var discoverOnline by rememberSaveable { mutableStateOf(true) }
+    var official by remember { mutableStateOf<OfficialLutSuggestions?>(null) }
+    var discovering by remember { mutableStateOf(false) }
+    var onlineProblem by remember { mutableStateOf<String?>(null) }
+    var previousOnlineRetry by remember { mutableIntStateOf(0) }
     val photo=state.current
+    LaunchedEffect(photo?.id,state.luts.mapNotNull { it.lumixLabSource?.code },style,discoverOnline,retry) {
+        official=null;onlineProblem=null
+        if(photo==null || !discoverOnline) { discovering=false;return@LaunchedEffect }
+        discovering=true
+        try {
+            val styles=if(style=="all")LutRecommendationStyle.entries.toSet() else setOf(LutRecommendationStyle.valueOf(style))
+            val refresh=retry!=previousOnlineRetry
+            previousOnlineRetry=retry
+            official=workspace.processor.discoverOfficialLuts(photo,state.luts,styles,refresh=refresh)
+        } catch(error:CancellationException) { throw error }
+        catch(_:Exception) { onlineProblem="官方风格发现暂不可用，仍可使用本地试套推荐。" }
+        finally { discovering=false }
+    }
     LaunchedEffect(photo?.id,state.luts,style,includeUnknown,retry) {
         result=null;problem=null
         if(photo==null)return@LaunchedEffect
@@ -280,8 +298,18 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
         (0 until 5).flatMap { index -> LutRecommendationStyle.entries.mapNotNull { byStyle[it]?.getOrNull(index) } }
             .distinctBy { info -> state.luts.firstOrNull { it.id==info.id }?.lumixLabSource?.code ?: info.id }.take(5)
     }
-    val cards=recommendations.mapNotNull { info -> state.luts.firstOrNull { it.id==info.id }?.let { MirrorLutCard(local=it,photoPreview=true) } }
+    val choices=remember(recommendations,official,state.luts) {
+        val local=recommendations.mapNotNull { info -> state.luts.firstOrNull { it.id==info.id }?.let {
+            Triple(MirrorLutCard(local=it,photoPreview=true),info.reasons,info.warnings)
+        } }
+        val remote=official?.suggestions.orEmpty().map { Triple(MirrorLutCard(official=it.lut),it.reasons,it.warnings) }
+        (0 until maxOf(local.size,remote.size)).flatMap { index -> listOfNotNull(local.getOrNull(index),remote.getOrNull(index)) }
+            .distinctBy { it.first.key }.take(5)
+    }
+    val cards=choices.map { it.first }
     var selected by rememberSaveable { mutableIntStateOf(0) }
+    var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedCard=cards.firstOrNull { it.key==selectedKey } ?: cards.getOrNull(selected.coerceAtLeast(0))
     Column(Modifier.fillMaxSize().background(tones.background)) {
         Box(Modifier.weight(1f)) {
             CollectionBackdrop(Modifier.fillMaxSize(),dark)
@@ -290,21 +318,29 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
                     RoundAction("返回 LUT 列表",DotGlyph.LEFT,onClick=onBack)
                     Column(Modifier.weight(1f)) {
                         MirrorLayeredTitle("Color","Suggestions",tones.ink,if(dark)Color(0xFFBDD5E7) else Color(0xFF405E73),compact=true)
-                        Text("智能推荐 · 本地色彩分析",fontSize=11.sp,color=tones.secondaryInk)
+                        Text("智能推荐 · 试套与风格发现",fontSize=11.sp,color=tones.secondaryInk)
                     }
                 }
-                if(photo==null)EmptyImport("从这张照片出发。","先导入照片，再从本地与已下载的 LUT 中推荐。",onImport)
+                if(photo==null)EmptyImport("从这张照片出发。","导入照片后，可试套本地 LUT，也能发现尚未下载的官方风格。",onImport)
                 else {
                     Column(Modifier.padding(horizontal=20.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                         Text(photo.name,fontSize=12.sp,color=tones.secondaryInk)
                         LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                             listOf("all" to "多种方向", "NATURAL" to "自然", "WARM" to "暖调", "COOL" to "冷调", "MONOCHROME" to "黑白").forEach { option -> item {
-                                MirrorChoice(style==option.first,{style=option.first;selected=0},label={Text(option.second,fontSize=11.sp)})
+                                MirrorChoice(style==option.first,{style=option.first;selected=0;selectedKey=null},label={Text(option.second,fontSize=11.sp)})
                             } }
                         }
                         Row(verticalAlignment=Alignment.CenterVertically) {
+                            Text("发现未下载的官方 LUT",Modifier.weight(1f),fontSize=11.sp)
+                            MirrorToggle(discoverOnline,"发现未下载的官方 LUT") {discoverOnline=it;selected=0;selectedKey=null}
+                        }
+                        if(discovering)Text("正在读取官方目录与小尺寸例图…",fontSize=11.sp,color=tones.secondaryInk)
+                        (official?.problems.orEmpty()+listOfNotNull(onlineProblem)).distinct().forEach {
+                            Text(it,fontSize=11.sp,color=tones.secondaryInk)
+                        }
+                        Row(verticalAlignment=Alignment.CenterVertically) {
                             Text("包含未标注输入的 LUT",Modifier.weight(1f),fontSize=11.sp)
-                            MirrorToggle(includeUnknown,"包含未标注输入的 LUT") {includeUnknown=it;selected=0}
+                            MirrorToggle(includeUnknown,"包含未标注输入的 LUT") {includeUnknown=it;selected=0;selectedKey=null}
                         }
                     }
                     if(loading)Column(Modifier.fillMaxWidth().height(250.dp),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally) {
@@ -314,7 +350,9 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
                         BoxWithConstraints(Modifier.fillMaxWidth()) {
                             val width=(maxWidth*.53f).coerceIn(160.dp,230.dp)
                             val pager=rememberPagerState(initialPage=selected.coerceIn(0,cards.lastIndex),pageCount={cards.size})
-                            LaunchedEffect(pager.settledPage) { selected=pager.settledPage }
+                            LaunchedEffect(pager.settledPage) {
+                                selected=pager.settledPage;selectedKey=cards.getOrNull(selected)?.key
+                            }
                             HorizontalPager(pager,Modifier.fillMaxWidth().height(width+116.dp),pageSize=PageSize.Fixed(width),
                                 contentPadding=PaddingValues(horizontal=(maxWidth-width)/2),pageSpacing=-width*.14f,beyondViewportPageCount=1,
                                 key={cards.getOrNull(it)?.key ?: "recommendation-removed:$it"}) { index ->
@@ -328,20 +366,22 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
                                     onClick={onOpen(card,"recommendation:${card.key}")},onFavourite={onFavourite(card)})
                             }
                         }
-                        val info=recommendations.getOrNull(selected)
+                        val activeIndex=cards.indexOfFirst { it.key==selectedCard?.key }.coerceAtLeast(0)
+                        val info=choices.getOrNull(activeIndex)
                         Column(Modifier.padding(horizontal=26.dp),verticalArrangement=Arrangement.spacedBy(9.dp)) {
-                            Text("${selected+1} / ${cards.size} · 左右滑动，点按查看",fontSize=11.sp,color=tones.secondaryInk)
+                            Text("${activeIndex+1} / ${cards.size} · 左右滑动，点按查看",fontSize=11.sp,color=tones.secondaryInk)
                             info?.let {
-                                Text(it.reasons.joinToString(" · "),fontSize=13.sp)
-                                if(it.warnings.isNotEmpty())Text(it.warnings.joinToString("\n"),fontSize=11.sp,color=tones.secondaryInk)
+                                Text(it.second.joinToString(" · "),fontSize=13.sp)
+                                if(it.third.isNotEmpty())Text(it.third.joinToString("\n"),fontSize=11.sp,color=tones.secondaryInk)
                             }
                         }
                     } else Column(Modifier.fillMaxWidth().padding(28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                        Text(problem ?: "暂无符合当前输入条件的本地 LUT。可下载或导入 LUT，或者调整上面的输入选项。",fontSize=14.sp)
+                        Text(problem ?: if(discovering) "本地暂无合适候选，正在发现官方风格…" else "暂无符合当前条件的候选。可调整色调或输入选项，也可到官方目录浏览。",fontSize=14.sp)
                         MirrorTextAction("重新推荐",{retry++})
                     }
                     Column(Modifier.padding(horizontal=24.dp,vertical=16.dp)) {
-                        Text("推荐基于这张照片的试套效果，不会上传照片。",fontSize=10.sp,color=tones.secondaryInk)
+                        Text("本地 LUT 用照片小图试套；未下载的 LUT 依据创作者例图发现风格。照片不会上传，仅选用时下载 LUT 文件。",fontSize=10.sp,color=tones.secondaryInk)
+                        official?.let { Text("本次目录候选 ${it.catalogueCandidates} 款，分析例图 ${it.analysedExamples} 张；未遍历整个官方库。",fontSize=10.sp,color=tones.secondaryInk) }
                         if(state.luts.size>256)Text("本次分析前 256 款本地 LUT。",fontSize=10.sp,color=tones.secondaryInk)
                         MirrorTextAction("换一张照片 →",onImport,enabled=!state.busy)
                         if(state.photos.size>1)PhotoStrip(state,workspace)
@@ -350,7 +390,9 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
             }
         }
         MirrorButton(modifier=Modifier.fillMaxWidth().padding(20.dp).heightIn(min=56.dp),
-            enabled=cards.getOrNull(selected)?.local!=null && !state.busy && !loading,
-            onClick={cards.getOrNull(selected)?.local?.let(onChoose)}) { Text("使用这款 LUT →") }
+            enabled=selectedCard!=null && !state.busy && !loading,
+            onClick={selectedCard?.let { card ->
+                card.local?.let(onChoose) ?: onOpen(card,"recommendation:${card.key}")
+            }}) { Text(if(selectedCard?.local!=null) "使用这款 LUT →" else "查看并下载这款 LUT →") }
     }
 }

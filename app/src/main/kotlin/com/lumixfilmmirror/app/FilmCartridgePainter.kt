@@ -208,7 +208,7 @@ private fun makeLabel(context: Context, film: FilmPreset): Bitmap {
     val background = if (film.id.contains("portra")) 0xFFE6DAC2.toInt() else info.accent.toArgb()
     canvas.drawColor(background)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color=0xFF171714.toInt(); typeface=Typeface.create(ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.oppo_sans_bold),Typeface.BOLD)
+        color=0xFF171714.toInt(); typeface=Typeface.create(ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.oppo_sans_4),700,false)
     }
     paint.textSize=27f; canvas.drawText(film.name.substringBefore(' ').uppercase(),28f,48f,paint)
     paint.textSize=76f

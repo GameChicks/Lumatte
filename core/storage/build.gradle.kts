@@ -16,6 +16,8 @@ android {
 kotlin { jvmToolchain(17) }
 room { schemaDirectory("$projectDir/schemas") }
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     api(project(":core:media"))
     api(project(":core:camera"))
     implementation("androidx.room:room-runtime:2.8.5")

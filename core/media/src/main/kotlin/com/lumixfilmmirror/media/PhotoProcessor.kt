@@ -37,6 +37,7 @@ class PhotoProcessor(context: Context) {
     val filmProfileDrafts = FilmProfileDraftLibrary(context)
     /** Explicit Internet requests only. Local catalogue/preview/export do not contact Lumix Lab. */
     val officialLutCatalogue by lazy { LumixLabCatalogueClient() }
+    private val officialLutRecommender by lazy { OfficialLutRecommender(officialLutCatalogue) }
     private val mobileFilmModels = MobileFilmModelLibrary(context)
     private val previewGate = Semaphore(1)
     private val previewCache = EffectPreviewCache()
@@ -52,18 +53,38 @@ class PhotoProcessor(context: Context) {
     suspend fun importLut(uri: Uri): LutAsset = luts.import(uri)
     /** Frontend-independent suggestions. Uses at most a 256 px JPEG and bounded colour samples. */
     suspend fun recommendLuts(source: SourceImage, assets: List<LutAsset>,
-        options: LutRecommendationOptions = LutRecommendationOptions()): LutRecommendationResult = withContext(Dispatchers.Default) {
-        previewGate.withPermit {
+        options: LutRecommendationOptions = LutRecommendationOptions()): LutRecommendationResult {
+        require(assets.size <= 256) { "请分组推荐，每次最多 256 个 LUT" }
+        val snapshot = assets.toList()
+        val settings = options.copy(styles = options.styles.toSet(), inputOverrides = options.inputOverrides.toMap())
+        return withContext(Dispatchers.Default) { previewGate.withPermit {
             val scale = minOf(1.0, 256.0 / maxOf(source.size.width, source.size.height))
             val size = PixelSize(maxOf(1, (source.size.width * scale).toInt()), maxOf(1, (source.size.height * scale).toInt()))
             val current = coroutineContext
             val pixels = writer.previewPixels(source, size, null, null) { current.ensureActive() }
-            try { lutRecommender.recommend(pixels, assets, options) { current.ensureActive() } }
+            try { lutRecommender.recommend(pixels, snapshot, settings) { current.ensureActive() } }
             finally { pixels.recycle() }
-        }
+        } }
     }
     /** Explicit download action; returns a normal offline asset usable in either LUT slot. */
     fun officialLutLanguage(): String = LumixLabLanguages.forContext(applicationContext)
+
+    /** Internet discovery uses creator thumbnails only; the user's photo stays on this device. */
+    suspend fun discoverOfficialLuts(source: SourceImage, assets: List<LutAsset>,
+        styles: Set<LutRecommendationStyle> = LutRecommendationStyle.entries.toSet(),
+        refresh: Boolean = false): OfficialLutSuggestions {
+        val excluded = assets.mapNotNull { it.lumixLabSource?.code }.toSet()
+        val selectedStyles = styles.toSet()
+        val photo = withContext(Dispatchers.Default) { previewGate.withPermit {
+            val scale = minOf(1.0, 128.0 / maxOf(source.size.width, source.size.height))
+            val size = PixelSize(maxOf(1, (source.size.width * scale).toInt()), maxOf(1, (source.size.height * scale).toInt()))
+            val current = coroutineContext
+            val pixels = writer.previewPixels(source, size, null, null) { current.ensureActive() }
+            try { LutGalleryColours.analyse(pixels, LutColourOrigin.PHOTO_PREVIEW, source.id.value) }
+            finally { pixels.recycle() }
+        } }
+        return officialLutRecommender.recommend(photo, officialLutLanguage(), selectedStyles, excluded, refresh)
+    }
 
     suspend fun downloadOfficialLut(code: String, language: String = officialLutLanguage(),
         onStage: suspend (OfficialLutDownloadStage) -> Unit = {}): LutAsset {

@@ -5,12 +5,18 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
+import androidx.compose.ui.text.ExperimentalTextApi
 
+@OptIn(ExperimentalTextApi::class)
 object MirrorFonts {
-    val Body = FontFamily(Font(R.font.oppo_sans_regular), Font(R.font.oppo_sans_medium, FontWeight.Medium),
-        Font(R.font.oppo_sans_bold, FontWeight.Bold))
-    val Welcome = FontFamily(Font(R.font.nhl_minnesota))
-    val Dots = FontFamily(Font(R.font.dotmatrix_chinese))
+    // Use the original variable font; weight instances are runtime settings, not edited files.
+    val Body = FontFamily(listOf(FontWeight.Light, FontWeight.Normal, FontWeight.Medium,
+        FontWeight.SemiBold, FontWeight.Bold).map { weight ->
+        Font(R.font.oppo_sans_4, weight, variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)))
+    })
+    val Welcome = FontFamily(Font(R.font.bebas_neue))
+    val Dots = FontFamily(Font(R.font.jinzi_tongyuan_ui))
     // Variable font resources carry real normal/italic faces and 300–700 weights.
     val Editorial = FontFamily(listOf(FontWeight.Light, FontWeight.Normal, FontWeight.Medium,
         FontWeight.SemiBold, FontWeight.Bold).flatMap { weight -> listOf(

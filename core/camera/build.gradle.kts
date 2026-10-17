@@ -13,6 +13,7 @@ android {
 }
 kotlin { jvmToolchain(17) }
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     api(project(":core:model"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
