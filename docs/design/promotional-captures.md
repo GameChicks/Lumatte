@@ -11,6 +11,8 @@
 
 完整页面截图、独立透明 PNG、实际页面索引及压缩附件放在 `dist/`。用户照片、例图缓存和宣传附件不提交到 Git。截图中的 S5 状态是指定的组件展示状态，不能当作实体相机连接验证证据。
 
+0.2.3 的交付索引位于 `dist/promo-0.2.3/index.html`，清单与图片哈希在同目录 `manifest.json`。页面包含真实导出完成、收藏与拍立得展开、全 Lab 色彩探索及搜索、设置与维护弹窗。相机实物配对和媒体网格尚无硬件截图，索引明确列出，不提供虚构替代图。原生系统图标通过临时模拟器设置隐藏，结束后恢复；截图未涂抹、拼接或拉伸。
+
 手动进入无系统栏页面：`adb shell am start -n com.lumixfilmmirror.app/.PromoScreenActivity`。
 
 手动导出相机卡片：`adb shell am start -n com.lumixfilmmirror.app/.PromoCaptureActivity --es card camera --ez connected-s5 true`。入口只支持固定类型和应用自己的输出位置，不接受任意路径。

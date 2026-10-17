@@ -1,10 +1,14 @@
 # 本机交付目录
 
-当前 APK：`lumix-film-mirror-prototype-0.2.1-20261017-064901-debug.apk`，版本 0.2.1 / 12，225,819,548 字节。
+当前 APK：`lumix-film-mirror-prototype-0.2.3-20261018-002557-debug.apk`，版本 0.2.3 / 14，223,305,431 字节。
 
-SHA-256：`d5dd9ac66f933f9e24f0b4e5251616787f4f9c919506b99bd04decb4ff9812a4`。
+SHA-256：`a223409b807dafed8d6ef5e61e3a9771414aa1b0a1bf943421a847bf864d146b`。
 
-签名、版本、ZIP / ELF 16KiB 对齐通过；调试证书与上一版一致。构建日志和校验附件位于 `release-0.2.1-20261017-064901/`，实际验证范围见 [发布记录](../docs/releases/0.2.1.md)。
+签名、版本、ZIP / ELF 16KiB 对齐通过；调试证书与上一版一致。校验附件位于 `release-0.2.3-20261018-002557/`，实际验证范围见 [发布记录](../docs/releases/0.2.3.md)。
+
+宣传素材：`lumatte-0.2.3-promo.zip` 包含原生页面截图、透明卡片、小组件、图标与索引。`lumatte-0.2.3-transparent-cards.zip` 只含透明卡片，方便单独取用。解压后打开 `index.html` 浏览目录；未压缩版本位于 `promo-0.2.3/`。页面为 1080×2340，卡片使用恢复后的原比例。S5 已连接是明确指定的组件截图状态，不代表实体相机验证。
+
+旧候选交付已可恢复地迁至项目外 `D:\AndroidBuild\Pineframe\work\20261018-superseded-deliveries`。`0.2.2-20261017-234949` 当前被其他进程占用，暂时保留，勿作为最新版使用。
 
 `pineframe-0.2.1-source.zip` 是目录整理后由当前 Git 提交导出的源码快照；首次公开可解压后新建仓库，避免携带本地旧开发历史。素材授权待补充事项见 [第三方清单](../THIRD_PARTY_NOTICES.md)，当前保留素材不等于所有公开再分发授权已确认。
 
