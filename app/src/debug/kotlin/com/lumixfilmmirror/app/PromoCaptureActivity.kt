@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lumixfilmmirror.design.FilmMirrorTheme
@@ -40,9 +41,11 @@ class PromoCaptureActivity : ComponentActivity() {
             FilmMirrorTheme(dark=false) {
                 CompositionLocalProvider(LocalMirrorReducedMotion provides true,LocalMirrorDotArt provides true) {
                     val layer=rememberGraphicsLayer()
-                    val height=if(kind=="camera")360.dp else 312.dp
-                    Box(Modifier.fillMaxSize().background(Color(0xFF17191A)),contentAlignment=Alignment.Center) {
-                        Box(Modifier.width(360.dp).height(height).drawWithContent {
+                    val fontScale=LocalDensity.current.fontScale
+                    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF17191A)),contentAlignment=Alignment.Center) {
+                        val height=homeCardHeight(maxWidth,fontScale)
+                        val width=if(kind in setOf("bluetooth","phone"))(maxWidth-56.dp)/2 else maxWidth-40.dp
+                        Box(Modifier.width(width).height(height).drawWithContent {
                             layer.record { this@drawWithContent.drawContent() };drawLayer(layer)
                         }) {
                             when(kind) {

@@ -189,7 +189,7 @@ internal fun MirrorColorExplorer(cards:List<MirrorLutCard>,state:WorkspaceState,
         }
         if(allCards.isEmpty() && !onlineLoading)Text(if(online)"Lab 暂无结果，可重试或切换本地 LUT。" else "这里还没有本地 LUT。",Modifier.align(Alignment.Center).padding(32.dp),color=sceneInk)
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.align(Alignment.End).clip(RoundedCornerShape(24.dp)).background(tones.paper.copy(.94f)).padding(horizontal=6.dp),verticalAlignment=Alignment.CenterVertically) {
+            if(!paletteOpen)Row(Modifier.align(Alignment.End).clip(RoundedCornerShape(24.dp)).background(tones.paper.copy(.94f)).padding(horizontal=6.dp),verticalAlignment=Alignment.CenterVertically) {
                 MirrorTextAction("−",{changeZoom(zoom/1.2f)},Modifier.widthIn(min=48.dp).semantics { contentDescription="缩小画布" },enabled=zoom>.55f)
                 MirrorTextAction("${(zoom*100).roundToInt()}%",{changeZoom(1f)},Modifier.semantics { contentDescription="恢复画布原始比例" })
                 MirrorTextAction("+",{changeZoom(zoom*1.2f)},Modifier.widthIn(min=48.dp).semantics { contentDescription="放大画布" },enabled=zoom<2.4f)

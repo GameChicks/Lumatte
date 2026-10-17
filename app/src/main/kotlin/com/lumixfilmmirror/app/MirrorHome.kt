@@ -79,8 +79,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
     BoxWithConstraints(Modifier.fillMaxSize().background(tones.background)) {
     val displayScale = LocalDensity.current.fontScale
     val viewportWidth = maxWidth
-    val cardHeight = ((maxWidth - 40.dp) * .76f).coerceIn(320.dp, 360.dp) +
-        180.dp * (displayScale - 1f).coerceAtLeast(0f) + if (personal.cameras.size > 1) 48.dp else 0.dp
+    val cardHeight = homeCardHeight(maxWidth, displayScale)
     Column(Modifier.fillMaxSize().onGloballyPositioned { homeOrigin.value = it.positionInRoot() }
         .drawWithContent { homePixels.record { this@drawWithContent.drawContent() }; drawLayer(homePixels) }) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -125,6 +124,11 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
         }
     }
 }
+
+/** Original home sizing, shared with PNG capture so exported cards keep the product proportions. */
+internal fun homeCardHeight(viewportWidth: Dp, fontScale: Float): Dp =
+    ((viewportWidth - 40.dp) * .654f).coerceIn(282.dp, 340.dp) +
+        180.dp * (fontScale - 1f).coerceAtLeast(0f)
 
 @Composable
 internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalState,
