@@ -1,8 +1,8 @@
 # 本机交付目录
 
-当前 APK：`lumix-film-mirror-prototype-1.0.0-20261018-101812-debug.apk`，版本 1.0.0 / 16，211,693,432 字节。
+当前 APK：`lumix-film-mirror-prototype-1.0.0-20261018-110054-debug.apk`，版本 1.0.0 / 16，215,062,018 字节。
 
-SHA-256：`4a7f1be02caf34db535020eb8966a0eef5a2fd7352a3bd5fab075ac2506157b1`。
+SHA-256：`7a86b791a6d47cbb3f178d812e63089c1a431a2378abbe5a24cd8da0bd9da5d`。
 
 签名、版本、ZIP / ELF 16 KiB 对齐通过。验证边界见 [1.0.0 发布记录](../docs/releases/1.0.0.md)。
 

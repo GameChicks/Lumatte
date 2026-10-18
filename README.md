@@ -4,7 +4,7 @@
 
 本项目由社区独立开发，与 Panasonic / 松下没有隶属关系。最低支持 Android 11（API 30），应用 ID 为 `com.lumixfilmmirror.app`。
 
-[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-101812-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
+[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-110054-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
 
 ## 项目想解决什么
 
@@ -134,10 +134,10 @@ RAW 导入先读取文件中可用的 JPEG 预览。松下 RW2/TIFF 元数据路
 
 当前公开版本为 **1.0.0**（versionCode `16`），最低 Android 版本为 Android 11（API 30）。GitHub Release 当前附带一个 APK：
 
-- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-101812-debug.apk)
+- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-110054-debug.apk)
 - [Release 页面与完整校验信息](https://github.com/GameChicks/Lumatte/releases/tag/v1.0.0)
 
-该 APK 使用 Android debug 证书签名，适用于体验和验证，不是应用商店签名包。发布记录中的 APK SHA-256 为 `4A7F1BE02CAF34DB535020EB8966A0EEF5A2FD7352A3BD5FAB075AC2506157B1`。1.0.0 的 Gradle 打包、v2 APK 签名检查和 16 KiB 对齐检查已记录；没有据此宣称完成手机、相机、全量回归或性能验证。
+该 APK 使用 Android debug 证书签名，适用于体验和验证，不是应用商店签名包。当前 APK 的 SHA-256 为 `7A86B791A6D47CBB3F178D812E63089C1A431A2378ABBE5A524CD8DA0BD9DA5D`。本次 `assembleDebug`、版本信息、v2 APK 签名、ZIP 16 KiB 对齐及两种 ABI 原生库 LOAD 段 16 KiB 对齐检查均通过；没有据此宣称完成手机、相机、自动化测试或性能验证。
 
 ## 从源码构建
 
