@@ -439,7 +439,7 @@ final class FilmRenderer {
         guard let texture = device.makeTexture(descriptor: descriptor) else {
             throw FilmRenderError.texture("输入纹理")
         }
-        try bytes.withUnsafeBytes { raw in
+        bytes.withUnsafeBytes { raw in
             texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0,
                             withBytes: raw.baseAddress!, bytesPerRow: width * 4)
         }
