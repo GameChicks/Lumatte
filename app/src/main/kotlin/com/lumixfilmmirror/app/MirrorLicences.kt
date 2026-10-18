@@ -34,7 +34,7 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
             LicenceEntry("Instrument Serif", "Instrument Serif Project Authors · SIL OFL 1.1 · 窄衬线斜体",
                 listOf("licenses/instrument-serif-OFL.txt")),
             LicenceEntry("Great Vibes / Dancing Script", "SIL OFL 1.1", listOf("licenses/great-vibes-OFL.txt", "licenses/dancingscript-OFL.txt")),
-            LicenceEntry("华康翩翩体 W5-A", "用户提供的本机字体副本；仅用于包含中文的 LUT 名称。未附公开分发许可文本。", emptyList()),
+            LicenceEntry("栗壳坚坚体（LikeJianJianTi）", "栗壳字库 · 用户提供的本机字体副本，用于中文 LUT 名称。作者页面说明免费商用；字体文件不属于 GPLv3。", listOf("licenses/likejianjianti-notice.txt")),
             LicenceEntry("Source Han Serif / Source Han Sans", "Adobe · SIL OFL 1.1", listOf("licenses/source-han-serif-OFL.txt", "frames/licenses/SourceHanSans-OFL.txt")),
             LicenceEntry("画框字体", "Playfair Display、Julius Sans One、Cutive Mono、Abril Fatface、Dancing Script、Great Vibes · SIL OFL 1.1",
                 listOf("frames/licenses/playfairdisplay-OFL.txt", "frames/licenses/juliussansone-OFL.txt", "frames/licenses/cutivemono-OFL.txt",
@@ -43,9 +43,9 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
             LicenceEntry("Teko", "Teko Project Authors · SIL OFL 1.1 · 欢迎标题使用 Bold 700，原始可变字体未修改。", listOf("licenses/teko-OFL.txt")),
             LicenceEntry("Bebas Neue", "Bebas Neue Project Authors · SIL OFL 1.1 · 原欢迎标题字体，保留原始来源记录。", listOf("licenses/bebas-neue-OFL.txt")),
             LicenceEntry("金字社统圆体", "金留庆 / Roman Czyborra / Paul Hardy · SIL OFL 1.1；界面字符子集改名为 Pineframe Tongyuan UI，字形轮廓未修改。", listOf("licenses/jinzi-tongyuan-OFL.txt")),
-            LicenceEntry("恢复画框与胶卷图片", "来自维护者自有旧 APK，公开再分发记录待补充。来源与文件哈希见项目 docs/design/assets.md。", emptyList()),
+            LicenceEntry("恢复画框与胶卷图片", "来自维护者自有旧 APK；维护者于 2026-10-18 授权随本项目公开再分发。来源与文件哈希见项目 docs/design/assets.md。", emptyList()),
             LicenceEntry("Lut2Photo 算法参考", "qh7574/Lut2Photo-Android（MPL 2.0）。参考其 Bayer 抖动及亮度颗粒思路；本应用实现独立编写，没有打包该项目源码或二进制。", emptyList()),
-            LicenceEntry("LUT 与创作者例图", "内置和下载的 LUT、例图与头像保留各自创作者权利；不由以上软件许可统一授权。捐赠二维码由开发者提供。", emptyList())
+            LicenceEntry("LUT 与创作者例图", "内置 10 款用户提供 LUT 已获维护者授权，可随项目和 APK 发布到 GameChicks/lumix-film-mirror；下载的例图与头像保留各自创作者权利，不由 GPLv3 统一授权。", emptyList())
         )
     }
     var selected by rememberSaveable { mutableStateOf<Int?>(null) }
