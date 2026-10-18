@@ -1,4 +1,4 @@
-# 松映 · Pineframe
+# 松映 · Lumatte
 
 把松下相机里的照片传到手机，选一卷胶片风格，或者叠两款 LUT，最后加上喜欢的画框。松映是一个仍在开发的 Android 摄影工具，希望让这几步能在同一个应用里完成。
 
@@ -13,7 +13,7 @@
 - RAW 只提取内嵌 JPEG，不解码或显影传感器数据。默认导出有效输入的 100% 尺寸。
 - 批量可逐张调整或继承第一张，整批共享导出画框；EXIF 机型用于 Lumix 水印。
 
-最近交付的原型为 **0.2.1 / 12**，最低 Android 11（API 30）。仓库还有 APK 之后的字体与推荐改动，见[版本记录](docs/releases/CHANGELOG.md)。胶片观感、相机兼容和耗时都需要实拍与设备反馈，目前不能保证所有机型表现一致。光晕的具体对照结果见[工程记录](docs/engineering/fotufilm-physical-halation-20261017.md)，后端检查范围见[本次检查记录](docs/engineering/public-readiness-20261017.md)。
+最新原型为 **0.2.4 / 15**，最低 Android 11（API 30）。详细变更和验证边界见[版本记录](docs/releases/CHANGELOG.md)与[0.2.4 发布记录](docs/releases/0.2.4.md)。胶片观感、相机兼容和耗时都需要实拍与设备反馈，目前不能保证所有机型表现一致。
 
 ## 构建
 

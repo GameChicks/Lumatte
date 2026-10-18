@@ -124,7 +124,7 @@ class PhotoExportService : Service() {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_transfer_notification)
-            .setContentTitle("松映 · Pineframe · 照片导出")
+            .setContentTitle("松映 · Lumatte · 照片导出")
             .setContentText("$caption · 已保存 ${run?.saved ?: 0} / $total · 失败 ${run?.failed ?: 0} · 待核对 ${run?.reviews ?: 0}")
             .setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_PROGRESS).setVisibility(Notification.VISIBILITY_PRIVATE)

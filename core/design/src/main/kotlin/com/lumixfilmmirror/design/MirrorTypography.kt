@@ -15,7 +15,8 @@ object MirrorFonts {
         FontWeight.SemiBold, FontWeight.Bold).map { weight ->
         Font(R.font.oppo_sans_4, weight, variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)))
     })
-    val Welcome = FontFamily(Font(R.font.bebas_neue))
+    val Welcome = FontFamily(Font(R.font.teko, FontWeight.Bold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(700))))
     val Dots = FontFamily(Font(R.font.jinzi_tongyuan_ui))
     // Variable font resources carry real normal/italic faces and 300–700 weights.
     val Editorial = FontFamily(listOf(FontWeight.Light, FontWeight.Normal, FontWeight.Medium,

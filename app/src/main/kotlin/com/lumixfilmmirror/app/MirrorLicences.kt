@@ -17,7 +17,7 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val entries = remember {
         listOf(
-            LicenceEntry("松映 · Pineframe", "本项目新应用代码 · GNU GPLv3；第三方组件与素材继续采用各自许可。", listOf("licenses/LumixFilmMirror-GPL-3.0.txt")),
+            LicenceEntry("松映 · Lumatte", "本项目新应用代码 · GNU GPLv3；第三方组件与素材继续采用各自许可。", listOf("licenses/LumixFilmMirror-GPL-3.0.txt")),
             LicenceEntry("AndroidX / Jetpack Compose / Room", "Android Open Source Project · Apache 2.0", listOf("licenses/Apache-2.0.txt")),
             LicenceEntry("Kotlin / kotlinx.coroutines", "JetBrains · Apache 2.0", listOf("licenses/Apache-2.0.txt")),
             LicenceEntry("OkHttp / Okio", "Square · Apache 2.0", listOf("licenses/Apache-2.0.txt")),
@@ -40,7 +40,8 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
                 listOf("frames/licenses/playfairdisplay-OFL.txt", "frames/licenses/juliussansone-OFL.txt", "frames/licenses/cutivemono-OFL.txt",
                     "frames/licenses/abrilfatface-OFL.txt", "frames/licenses/dancingscript-OFL.txt", "frames/licenses/greatvibes-OFL.txt")),
             LicenceEntry("OPPO Sans 4.0", "本应用使用 OPPO Sans 4.0 字体。© 2024 Guangdong OPPO Mobile Telecommunications Corp., Ltd. 原始字体未修改，按随官方字体包附带的 OPPO Sans Fonts License Agreement 捆绑。", listOf("licenses/oppo-sans-4-license.txt")),
-            LicenceEntry("Bebas Neue", "Bebas Neue Project Authors · SIL OFL 1.1 · 欢迎标题", listOf("licenses/bebas-neue-OFL.txt")),
+            LicenceEntry("Teko", "Teko Project Authors · SIL OFL 1.1 · 欢迎标题使用 Bold 700，原始可变字体未修改。", listOf("licenses/teko-OFL.txt")),
+            LicenceEntry("Bebas Neue", "Bebas Neue Project Authors · SIL OFL 1.1 · 原欢迎标题字体，保留原始来源记录。", listOf("licenses/bebas-neue-OFL.txt")),
             LicenceEntry("金字社统圆体", "金留庆 / Roman Czyborra / Paul Hardy · SIL OFL 1.1；界面字符子集改名为 Pineframe Tongyuan UI，字形轮廓未修改。", listOf("licenses/jinzi-tongyuan-OFL.txt")),
             LicenceEntry("恢复画框与胶卷图片", "来自维护者自有旧 APK，公开再分发记录待补充。来源与文件哈希见项目 docs/design/assets.md。", emptyList()),
             LicenceEntry("Lut2Photo 算法参考", "qh7574/Lut2Photo-Android（MPL 2.0）。参考其 Bayer 抖动及亮度颗粒思路；本应用实现独立编写，没有打包该项目源码或二进制。", emptyList()),

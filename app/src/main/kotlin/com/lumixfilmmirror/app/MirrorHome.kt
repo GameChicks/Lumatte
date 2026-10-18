@@ -84,7 +84,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
     Column(Modifier.fillMaxSize().onGloballyPositioned { homeOrigin.value = it.positionInRoot() }
         .drawWithContent { homePixels.record { this@drawWithContent.drawContent() }; drawLayer(homePixels) }) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) { MirrorLayeredTitle("Pine","frame",tones.ink,tones.amber,compact=true) }
+                Column(Modifier.weight(1f)) { MirrorLayeredTitle("Lumatte","Darkroom",tones.ink,tones.amber,compact=true) }
                 Spacer(Modifier.size(52.dp))
             }
     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 170.dp),
@@ -280,20 +280,22 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
 private fun WelcomePerspective(modifier: Modifier) {
     val context = LocalContext.current
     val dark = com.lumixfilmmirror.design.LocalFilmDark.current
-    val font = remember { ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.bebas_neue) }
+    val font = remember(context) { android.graphics.Typeface.create(
+        ResourcesCompat.getFont(context, com.lumixfilmmirror.design.R.font.teko), 700, false) }
     val paint = remember { android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG) }
     Canvas(modifier.semantics { contentDescription = "Welcome" }) {
-        paint.typeface = font; paint.textSize = 100f
-        paint.textSize *= size.width / paint.measureText("WELCOME")
-        val fm = paint.fontMetrics
-        val naturalHeight = fm.bottom - fm.top
+        paint.typeface = font; paint.textSize = 1000f
+        // Project visible capital outlines, excluding the font's ascender/descender padding.
+        val bounds = android.graphics.Rect()
+        paint.getTextBounds("WELCOME", 0, 7, bounds)
         val matrix = android.graphics.Matrix()
-        matrix.setPolyToPoly(floatArrayOf(0f, 0f, size.width, 0f, size.width, naturalHeight, 0f, naturalHeight), 0,
+        matrix.setPolyToPoly(floatArrayOf(bounds.left.toFloat(), bounds.top.toFloat(), bounds.right.toFloat(), bounds.top.toFloat(),
+            bounds.right.toFloat(), bounds.bottom.toFloat(), bounds.left.toFloat(), bounds.bottom.toFloat()), 0,
             floatArrayOf(0f, 0f, size.width, size.height * .23f, size.width, size.height, 0f, size.height), 0, 4)
-        paint.shader = android.graphics.LinearGradient(0f, 0f, 0f, naturalHeight,
+        paint.shader = android.graphics.LinearGradient(0f, bounds.top.toFloat(), 0f, bounds.bottom.toFloat(),
             if (dark) intArrayOf(0xFFF6F3E9.toInt(), 0xFFE8EAE6.toInt(), 0xFF659EC0.toInt())
             else intArrayOf(0xFF222A2E.toInt(), 0xFF294459.toInt(), 0xFF5D8FA8.toInt()), floatArrayOf(0f, .62f, 1f), android.graphics.Shader.TileMode.CLAMP)
-        drawContext.canvas.nativeCanvas.apply { save(); concat(matrix); drawText("WELCOME", 0f, -fm.top, paint); restore() }
+        drawContext.canvas.nativeCanvas.apply { save(); concat(matrix); drawText("WELCOME", 0f, 0f, paint); restore() }
     }
 }
 

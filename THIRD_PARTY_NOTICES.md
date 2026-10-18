@@ -9,7 +9,8 @@
 | Fotufilm 参数、公开 demo 表与派生表 | Fotufilm / MUAStudio Inc.；CC BY-SA 4.0，`research/fotufilm/licenses/` 和运行资产 NOTICE 保留署名、哈希与修改说明 |
 | Fotufilm 光晕方程适配 | Apache-2.0，固定原始源码与 NOTICE 位于 `research/fotufilm/`；不声明完整引擎逐像素一致 |
 | OFL 字体 | Cormorant Garamond、Dancing Script、Great Vibes、Instrument Serif、Playfair Display、Source Han Serif，以及画框字体；原 OFL 保存在 `core/design/src/main/assets/licenses/` / `core/media/src/main/assets/frames/licenses/` |
-| Bebas Neue | 欢迎标题，取自 Google Fonts；SIL OFL 1.1，原字体未修改；`core/design/src/main/assets/licenses/bebas-neue-OFL.txt` |
+| Teko | 当前欢迎标题使用 Bold 700，取自 Google Fonts；SIL OFL 1.1，原始可变字体未修改；`core/design/src/main/assets/licenses/teko-OFL.txt` |
+| Bebas Neue | 原欢迎标题字体，保留原始资源与来源记录；SIL OFL 1.1；`core/design/src/main/assets/licenses/bebas-neue-OFL.txt` |
 | 金字社统圆体 | 金留庆 / Roman Czyborra / Paul Hardy；SIL OFL 1.1。按界面字符做子集，改名为 Pineframe Tongyuan UI，轮廓与字宽未修改；保留原字体版权和 OFL。来源为[猫啃下载页](https://www.maoken.com/freefonts/20033.html)及[作者项目页](https://www.typeface.cn/index.php?title=Project:金字社统圆体) |
 | OPPO Sans 4.0 | 来自 [OPPO 官方页面](https://www.coloros.com/article/A00000074/)所链接的原始 ZIP；原字体逐字节保留。按包内 OPPO Sans Fonts License Agreement 随应用捆绑，保留完整协议，并在设置与许可页标明使用。不是 OFL；不修改、不单独作为字体分发 |
 | 原生 JPEG 预览、LUT 与移动后端适配 | 项目代码；依赖的原始版权说明随来源保留 |

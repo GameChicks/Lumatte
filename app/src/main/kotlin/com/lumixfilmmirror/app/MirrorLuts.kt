@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -100,7 +101,6 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     var favourites by rememberSaveable { mutableStateOf(false) }
     var discovery by rememberSaveable { mutableStateOf<String?>(null) }
     val discoveryState=rememberSaveableStateHolder()
-    var favouriteClosing by rememberSaveable { mutableStateOf(false) }
     var detailKey by rememberSaveable { mutableStateOf<String?>(null) }
     var detailSnapshot by rememberSaveable { mutableStateOf<String?>(null) }
     val detailOpen = detailKey != null
@@ -187,7 +187,6 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
             savedLuts = card.official?.let { item -> (current.savedLuts + item).distinctBy { it.code } } ?: current.savedLuts) }
     }
     fun open(card: MirrorLutCard, location: String) {
-        if (favouriteClosing) return
         searchEditing = false; focusManager.clearFocus()
         lastDetailCard = card
         if (favourites) favouriteRevealPlayed = true
@@ -205,14 +204,8 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
         }
     }
     fun closeDetail() { detailKey = null; requestedSelection = null; workspace.officialLuts.closeDetail() }
-    BackHandler(detailOpen || favourites || discovery!=null) { if (detailOpen) closeDetail() else if(discovery!=null)discovery=null else favouriteClosing = true }
+    BackHandler(detailOpen || favourites || discovery!=null) { if (detailOpen) closeDetail() else if(discovery!=null)discovery=null else favourites = false }
     BackHandler(searchEditing && !detailOpen && !favourites) { searchEditing = false; focusManager.clearFocus() }
-    LaunchedEffect(favouriteClosing) {
-        if (favouriteClosing) {
-            delay(if (duration == 0) 0 else 480)
-            favourites = false; favouriteClosing = false
-        }
-    }
     LaunchedEffect(detailOpen, favourites, searchEditing,discovery) { onFullscreen(detailOpen || favourites || searchEditing || discovery!=null) }
     DisposableEffect(Unit) { onDispose { onFullscreen(false) } }
     val storedOfficialCards = personal.savedLuts.map { item ->
@@ -221,14 +214,15 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     val favouriteCards = (storedOfficialCards + localCards).distinctBy { it.key }.filter { it.key in personal.favourites }
     SharedTransitionLayout {
         val shared = this
-        AnimatedContent(targetState = when { detailOpen -> "detail"; discovery!=null -> discovery!!; favourites && !favouriteClosing -> "favourites"; else -> "gallery" },
+        AnimatedContent(targetState = when { detailOpen -> "detail"; discovery!=null -> discovery!!; favourites -> "favourites"; else -> "gallery" },
             transitionSpec = {
                 val circle = (initialState == "gallery" && targetState == "favourites") ||
                     (initialState == "favourites" && targetState == "gallery")
                 if (circle) {
-                    val layerOrder = if (targetState == "favourites") 1f else -1f
-                    (fadeIn(tween(0)) togetherWith fadeOut(tween(0, delayMillis = if (duration == 0) 0 else 520)))
-                        .apply { targetContentZIndex = layerOrder }
+                    // Keep the collection above the gallery in both directions.
+                    // Its visibility transition owns the circular clip and its lifetime.
+                    (fadeIn(tween(0)) togetherWith fadeOut(tween(0, delayMillis = if (duration == 0) 0 else 480)))
+                        .apply { targetContentZIndex = if (targetState == "favourites") 1f else 0f }
                 } else fadeIn(tween(duration)) togetherWith fadeOut(tween(if (duration == 0) 0 else 280))
             }, label = "lut-morph") { page ->
             val visibility = this
@@ -261,7 +255,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                 "favourites" -> FavouriteFan(favouriteCards, state, workspace, personal, shared, visibility,
                     initialPage = favouriteIndex, onPage = { favouriteIndex = it },
                     reveal = !favouriteRevealPlayed, onReveal = { favouriteRevealPlayed = true },
-                    closing = favouriteClosing || !favourites, onClose = { favouriteClosing = true },
+                    closing = !favourites, onClose = { favourites = false },
                     onOpen = ::open, onFavourite = ::toggle)
                 else -> Box(Modifier.fillMaxSize()) {
                     val galleryPixels = rememberGraphicsLayer()
@@ -396,7 +390,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                     if (!searchEditing) {
                     RoundAction("查看收藏", DotGlyph.STAR, Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = 136.dp)
                         .clip(CircleShape).frostedBackdrop(galleryPixels, !LocalMirrorReducedMotion.current, galleryOrigin), glass = true,
-                        onClick = { favouriteRevealPlayed = false; favouriteClosing = false; favourites = true })
+                        onClick = { favouriteRevealPlayed = false; favourites = true })
                     RoundAction("导入或下载 LUT", DotGlyph.PLUS, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 136.dp)
                         .clip(CircleShape).frostedBackdrop(galleryPixels, !LocalMirrorReducedMotion.current, galleryOrigin), glass = true,
                         onClick = { importMenu = true })
@@ -639,10 +633,21 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
     closing: Boolean,
     onClose: () -> Unit, onOpen: (MirrorLutCard, String) -> Unit, onFavourite: (MirrorLutCard) -> Unit) {
     val tones = LocalFilmMaterials.current
-    var entered by remember { mutableStateOf(!reveal) }
-    LaunchedEffect(Unit) { entered = true; onReveal() }
-    val progress = animateFloatAsState(if (entered && !closing) 1f else 0f,
-        tween(if (LocalMirrorReducedMotion.current) 0 else 480, easing = MirrorEase), label = "favourites-circle")
+    val revealOnEntry = remember { reveal }
+    LaunchedEffect(Unit) { onReveal() }
+    // Register with AnimatedContent, so an outgoing collection stays composed until
+    // its clip has closed. Returning from card details does not replay the reveal.
+    val reducedMotion = LocalMirrorReducedMotion.current
+    val progress = visibility.transition.animateFloat(
+        transitionSpec = { tween(if (reducedMotion) 0 else 480, easing = MirrorEase) },
+        label = "favourites-circle"
+    ) { phase ->
+        when (phase) {
+            EnterExitState.PreEnter -> if (revealOnEntry) 0f else 1f
+            EnterExitState.Visible -> 1f
+            EnterExitState.PostExit -> if (closing) 0f else 1f
+        }
+    }
     val originPadding = with(LocalDensity.current) { 46.dp.toPx() }
     val originBottom = with(LocalDensity.current) { 162.dp.toPx() }
     val dark = com.lumixfilmmirror.design.LocalFilmDark.current

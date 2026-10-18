@@ -7,6 +7,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import com.lumixfilmmirror.media.BitmapOrientation
+import com.lumixfilmmirror.media.FilmCartridgeArtwork
 import com.lumixfilmmirror.model.PixelSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -40,19 +41,15 @@ class FrameAssets(context: Context) {
     internal fun bundledFont(name: String): Typeface = Typeface.createFromAsset(context.assets, "frames/fonts/$name")
     internal fun cover(stockId: String?): Bitmap? {
         if (stockId == null) return null
-        val key = when (stockId) {
-            "kodak_gold_200" -> "film_gold_200_image2"
-            "kodak_ektar_100" -> "film_ektar_100"
-            "kodak_ultramax_400" -> "film_ultramax_400"
-            "fujifilm_c200" -> "film_pkg_fuji_c200"
-            "fujifilm_provia_100f" -> "film_pkg_fuji_provia100f"
-            "fujifilm_velvia_100" -> "film_pkg_fuji_velvia100"
-            "fujifilm_xtra_400" -> "film_pkg_fuji_superia400"
-            "kodak_ektachrome_100" -> "film_pkg_kodak_e100"
-            else -> "film_pkg_$stockId"
-        }
-        if ("$key.png" !in context.assets.list("frames/art").orEmpty()) return null
-        return bundled("$key.png")
+        val resource = FilmCartridgeArtwork.resource(stockId) ?: return null
+        // Caption icons are small; bound decoding without altering the source artwork.
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true; inScaled = false }
+        BitmapFactory.decodeResource(context.resources, resource, bounds)
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2L) >= 256) sample *= 2
+        return BitmapFactory.decodeResource(context.resources, resource, BitmapFactory.Options().apply {
+            inScaled = false; inSampleSize = sample; inPreferredConfig = Bitmap.Config.ARGB_8888
+        })
     }
 
     suspend fun importFont(uri: Uri): String = withContext(Dispatchers.IO) {

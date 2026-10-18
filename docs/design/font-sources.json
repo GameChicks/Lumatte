@@ -16,6 +16,14 @@
     "BebasNeue-OFL.txt": {
       "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/bebasneue/OFL.txt",
       "sha256": "72082f6cb4d04be2ecf7cc7d9e1e7d73787f0af8a5a278a47cade70c16b78341"
+    },
+    "Teko[wght].ttf": {
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/teko/Teko%5Bwght%5D.ttf",
+      "sha256": "d1321889f262bbbff632e7976349853399cd097b6f382d4b19790c915c13c1ae"
+    },
+    "Teko-OFL.txt": {
+      "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/teko/OFL.txt",
+      "sha256": "4a193c54e911c1e8194d4db657423f2527f54a1239f24cb67ecb09128dc9f065"
     }
   },
   "oppo": {
@@ -225,6 +233,16 @@
   "bebas": {
     "family": "Bebas Neue",
     "license": "OFL-1.1",
+    "modified": false
+  },
+  "teko": {
+    "family": "Teko",
+    "license": "OFL-1.1",
+    "variableWeight": [
+      300,
+      700
+    ],
+    "selectedWeight": 700,
     "modified": false
   }
 }

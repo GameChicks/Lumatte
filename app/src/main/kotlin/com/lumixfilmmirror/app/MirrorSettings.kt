@@ -86,7 +86,7 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
                 }
             }
             item {
-                MirrorControlSection("支持开发", "感谢你支持 松映 · Pineframe 的持续开发。") {
+                MirrorControlSection("支持开发", "感谢你支持 松映 · Lumatte 的持续开发。") {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         MirrorChoice(false, { donation = "alipay" }, Modifier.weight(1f), label = { Text("支付宝") })
                         MirrorChoice(false, { donation = "wechat" }, Modifier.weight(1f), label = { Text("微信") })
@@ -97,7 +97,7 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
             item {
                 MirrorControlSection("关于") {
                     val version = remember(context) { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() }
-                    Text("松映 · Pineframe · $version")
+                    Text("松映 · Lumatte · $version")
                     Text("本应用使用 OPPO Sans 4.0 字体", style = MaterialTheme.typography.bodySmall)
                     Text("为松下相机而作的独立第三方胶片暗房。",color=tones.secondaryInk)
                     MirrorTextAction("桌面小组件 →",{widgets=true},Modifier.fillMaxWidth())
