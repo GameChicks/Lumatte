@@ -44,14 +44,16 @@ class JpegExportCache(context: Context) {
     internal val galleryPath = "${Environment.DIRECTORY_PICTURES}/LumixFilmMirror/"
     private val rawDirectory = File(this.context.cacheDir, "jpeg-export")
     private val uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-    private val temporaryName = Regex("output-(?:$uuid|-?[0-9]+)\\.jpg")
-    private val outputName = Regex("LFM-[0-9]{8}-[0-9]{6}-[0-9]{3}-(?:$uuid|[0-9a-f]{8})\\.jpg")
-    private data class Pending(val uri: Uri, val name: String, val path: String, val bytes: Long?)
+    private val temporaryName = Regex("output-(?:$uuid|-?[0-9]+)\\.(?:jpg|png)")
+    private val outputName = Regex("LFM-[0-9]{8}-[0-9]{6}-[0-9]{3}-(?:$uuid|[0-9a-f]{8})\\.(?:jpg|png)")
+    private val imageMime = setOf("image/jpeg", "image/png")
+    private data class Pending(val uri: Uri, val name: String, val path: String, val bytes: Long?, val mimeType: String)
 
-    internal fun newTemporaryFile(): File {
-        val directory = directory(create = true) ?: error("无法创建 JPEG 中间目录")
-        return File(directory, "output-${UUID.randomUUID()}.jpg").also {
-            check(it.createNewFile()) { "无法创建 JPEG 中间文件" }
+    internal fun newTemporaryFile(extension: String = "jpg"): File {
+        require(extension in setOf("jpg", "png"))
+        val directory = directory(create = true) ?: error("无法创建导出中间目录")
+        return File(directory, "output-${UUID.randomUUID()}.$extension").also {
+            check(it.createNewFile()) { "无法创建导出中间文件" }
         }
     }
 
@@ -75,9 +77,9 @@ class JpegExportCache(context: Context) {
             try {
                 for (row in pendingRows(problems)) {
                     coroutineContext.ensureActive()
-                    try { imagesRemoved += discardPending(row.uri, row.name, row.path) }
+                    try { imagesRemoved += discardPending(row.uri, row.name, row.path, row.mimeType) }
                     catch (error: CancellationException) { throw error }
-                    catch (error: Exception) { problems += "未发布 JPG 未清理：${error.message.orEmpty()}" }
+                    catch (error: Exception) { problems += "未发布图片未清理：${error.message.orEmpty()}" }
                 }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { problems += "无法整理未发布 JPG：${error.message.orEmpty()}" }
@@ -86,8 +88,10 @@ class JpegExportCache(context: Context) {
     }
 
     /** Also used on live publication failure; predicates prevent deleting a row already made visible. */
-    internal fun discardPending(uri: Uri, name: String, path: String = galleryPath): Int {
+    internal fun discardPending(uri: Uri, name: String, path: String = galleryPath,
+        mimeType: String = "image/jpeg"): Int {
         require(outputName.matches(name) && path in setOf(galleryPath, galleryPath.dropLast(1)))
+        require(mimeType in imageMime)
         require(uri.authority == collection.authority && uri.scheme == collection.scheme &&
             uri.pathSegments.dropLast(1) == collection.pathSegments && uri.lastPathSegment?.toLongOrNull()?.let { it > 0 } == true &&
             uri.query == null && uri.fragment == null)
@@ -95,8 +99,8 @@ class JpegExportCache(context: Context) {
             "${MediaStore.MediaColumns.IS_PENDING} = 1 AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME} = ? AND " +
                 "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND " +
                 "${MediaStore.MediaColumns.MIME_TYPE} = ?",
-            arrayOf(context.packageName, name, path, "image/jpeg"))
-        check(removed in 0..1) { "未发布 JPG 清理结果异常" }
+            arrayOf(context.packageName, name, path, mimeType))
+        check(removed in 0..1) { "未发布图片清理结果异常" }
         return removed
     }
 
@@ -154,9 +158,9 @@ class JpegExportCache(context: Context) {
             putString(ContentResolver.QUERY_ARG_SQL_SELECTION,
                 "${MediaStore.MediaColumns.IS_PENDING} = 1 AND ${MediaStore.MediaColumns.OWNER_PACKAGE_NAME} = ? AND " +
                     "(${MediaStore.MediaColumns.RELATIVE_PATH} = ? OR ${MediaStore.MediaColumns.RELATIVE_PATH} = ?) AND " +
-                    "${MediaStore.MediaColumns.MIME_TYPE} = ?")
+                    "${MediaStore.MediaColumns.MIME_TYPE} IN (?, ?)")
             putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,
-                arrayOf(context.packageName, galleryPath, galleryPath.dropLast(1), "image/jpeg"))
+                arrayOf(context.packageName, galleryPath, galleryPath.dropLast(1), "image/jpeg", "image/png"))
         }
         val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.RELATIVE_PATH, MediaStore.MediaColumns.OWNER_PACKAGE_NAME,
@@ -167,15 +171,16 @@ class JpegExportCache(context: Context) {
                     coroutineContext.ensureActive()
                     val name = cursor.getString(1).orEmpty()
                     val path = cursor.getString(2).orEmpty()
+                    val mime = cursor.getString(5).orEmpty()
                     check(cursor.getString(3) == context.packageName && cursor.getInt(4) == 1 &&
-                        cursor.getString(5) == "image/jpeg" && path in setOf(galleryPath, galleryPath.dropLast(1))) {
-                        "未发布 JPG 范围不匹配，未清理"
+                        mime in imageMime && path in setOf(galleryPath, galleryPath.dropLast(1))) {
+                        "未发布图片范围不匹配，未清理"
                     }
-                    if (!outputName.matches(name)) { problems += "相册中存在未识别的未发布 JPG，已保留"; continue }
+                    if (!outputName.matches(name)) { problems += "相册中存在未识别的未发布图片，已保留"; continue }
                     val uri = ContentUris.withAppendedId(collection, cursor.getLong(0))
                     val bytes = try { resolver.openFileDescriptor(uri, "r")?.use { it.statSize }?.takeIf { it >= 0 } }
                         catch (_: Exception) { null }
-                    add(Pending(uri, name, path, bytes))
+                    add(Pending(uri, name, path, bytes, mime))
                 }
             }
         } ?: error("无法读取相册 JPG 记录")

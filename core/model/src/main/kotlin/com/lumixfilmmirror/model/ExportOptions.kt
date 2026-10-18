@@ -6,10 +6,17 @@ data class PixelSize(val width: Int, val height: Int) {
     init { require(width > 0 && height > 0) }
 }
 
+/** JPEG keeps the original byte/EXIF contract. PNG is lossless and can carry frame transparency. */
+enum class ExportFormat(val title: String) {
+    JPEG("JPEG"),
+    PNG("PNG · 透明底"),
+}
+
 /** Percentage scales image content. Frame layout then determines the final canvas dimensions. */
 data class JpegOutput(
     val dimensionPercent: Int = 100,
     val compressionQuality: Int = 95,
+    val format: ExportFormat = ExportFormat.JPEG,
 ) {
     init {
         require(dimensionPercent in 1..100)

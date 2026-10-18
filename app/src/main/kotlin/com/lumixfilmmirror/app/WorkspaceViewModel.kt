@@ -266,7 +266,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 val folderExports = writer.inspectFolderExports()
                 val cleanupProblems = (cleanup.problems + cleanup.remaining.problems).distinct()
                 val cleanupNotice = if (cleanup.temporaryFilesRemoved + cleanup.pendingImagesRemoved > 0)
-                    "已整理上次导出的 ${cleanup.temporaryFilesRemoved} 个中间文件、${cleanup.pendingImagesRemoved} 个未发布 JPG" else null
+                    "已整理上次导出的 ${cleanup.temporaryFilesRemoved} 个中间文件、${cleanup.pendingImagesRemoved} 个未发布图片" else null
                 mutable.update { previous ->
                     val batchId = exportExecution.value.run?.batchId?.takeIf { exportExecution.value.active }
                         ?: previous.activeTransferBatch
@@ -665,7 +665,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                     val result = writer.cleanCache()
                     mutable.update { it.copy(exportCache = result.remaining.copy(
                         problems = (result.problems + result.remaining.problems).distinct()),
-                        notice = "已整理 ${result.temporaryFilesRemoved} 个导出中间文件、${result.pendingImagesRemoved} 个未发布 JPG") }
+                        notice = "已整理 ${result.temporaryFilesRemoved} 个导出中间文件、${result.pendingImagesRemoved} 个未发布图片") }
                 } else {
                     val result = writer.inspectCache()
                     mutable.update { it.copy(exportCache = result) }

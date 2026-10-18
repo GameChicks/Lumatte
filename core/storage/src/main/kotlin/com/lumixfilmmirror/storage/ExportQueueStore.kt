@@ -33,7 +33,7 @@ class ExportQueueStore(context: Context) {
         val now = System.currentTimeMillis()
         val row = ExportRunRow(id, batchId, now, now, "QUEUED", options.jpeg.dimensionPercent,
             options.jpeg.compressionQuality, FrameOptionsCodec.write(options.frame),
-            (destination as? ExportDestination.Folder)?.treeUri?.toString())
+            (destination as? ExportDestination.Folder)?.treeUri?.toString(), options.jpeg.format.name)
         dao.enqueue(row, photos.map { ExportItemRow(id, it.id.value, it.name, it.frameNumber, PhotoRecipeCodec.write(it.recipe)) })
         requireNotNull(snapshot(id))
     }
@@ -67,8 +67,10 @@ class ExportQueueStore(context: Context) {
     }
 
     private fun run(group: ExportRunWithItems): ExportRun = with(group.run) {
+        val exportFormat = runCatching { ExportFormat.valueOf(format) }.getOrDefault(ExportFormat.JPEG)
         ExportRun(id, batchId, createdAt, updatedAt, ExportRunState.valueOf(state),
-            BatchExportOptions(JpegOutput(dimensionPercent, compressionQuality), FrameOptionsCodec.read(frameJson)),
+            BatchExportOptions(JpegOutput(dimensionPercent, compressionQuality, exportFormat),
+                FrameOptionsCodec.read(frameJson)),
             folderUri?.let { ExportDestination.Folder(Uri.parse(it)) } ?: ExportDestination.Gallery,
             group.items.sortedBy { it.frameNumber }.map { item -> ExportQueueItem(
                 ExportRequestPhoto(PhotoId(item.photoId), item.name, item.frameNumber, PhotoRecipeCodec.read(item.recipeJson)),

@@ -11,6 +11,7 @@ import android.provider.MediaStore
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import androidx.exifinterface.media.ExifInterface
+import com.lumixfilmmirror.model.ExportFormat
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.PixelSize
 import com.lumixfilmmirror.model.PhotoProcessingStage
@@ -77,16 +78,17 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
             try {
                 require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
                 require(frameNumber > 0)
+                val png = settings.format == ExportFormat.PNG
                 onStage(PhotoProcessingStage.PREPARING)
                 if (preserveEmbeddedJpeg) {
-                    require(lut == null && film == null && frame.preset == FramePreset.NONE && settings.dimensionPercent == 100)
+                    require(!png && lut == null && film == null && frame.preset == FramePreset.NONE && settings.dimensionPercent == 100)
                     coroutineContext.ensureActive()
                     val name = "LFM-original-${UUID.randomUUID()}.jpg"
                     onStage(PhotoProcessingStage.PUBLISHING)
                     timing.mark("prepare_original")
                     val result = when (destination) {
-                        ExportDestination.Gallery -> publishGallery(source.jpeg, name, onTargetCreated, onPublished)
-                        is ExportDestination.Folder -> publishFolder(source, source.jpeg, name, destination.treeUri, onTargetCreated, onPublished)
+                        ExportDestination.Gallery -> publishGallery(source.jpeg, name, "image/jpeg", onTargetCreated, onPublished)
+                        is ExportDestination.Folder -> publishFolder(source, source.jpeg, name, "image/jpeg", destination.treeUri, onTargetCreated, onPublished)
                     }
                     timing.mark("publish")
                     completed = true
@@ -94,7 +96,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                 }
                 val size = settings.contentSize(source.size)
                 val layout = FrameLayouts.plan(size, frame)
-                val temp = cache.newTemporaryFile()
+                val temp = cache.newTemporaryFile(if (png) "png" else "jpg")
                 try {
                     var pixels = decode(source, size)
                     timing.mark("decode_and_orientation")
@@ -110,28 +112,36 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                         timing.mark("effect_render")
                         if (frame.preset != FramePreset.NONE) {
                             onStage(PhotoProcessingStage.FRAMING)
-                            val framed = frames.render(pixels, source, frame, layout, film?.preset, frameNumber) { renderContext.ensureActive() }
+                            val framed = frames.render(pixels, source, frame, layout, film?.preset, frameNumber,
+                                transparentBackground = png) { renderContext.ensureActive() }
                             if (framed !== pixels) { pixels.recycle(); pixels = framed }
                         }
                         timing.mark("frame")
                         renderContext.ensureActive()
                         onStage(PhotoProcessingStage.ENCODING)
                         temp.outputStream().buffered().use { output ->
-                            check(pixels.compress(Bitmap.CompressFormat.JPEG, settings.compressionQuality, output)) { "无法写入 JPG" }
+                            if (png) {
+                                check(pixels.compress(Bitmap.CompressFormat.PNG, 100, output)) { "无法写入 PNG" }
+                            } else {
+                                check(pixels.compress(Bitmap.CompressFormat.JPEG, settings.compressionQuality, output)) { "无法写入 JPG" }
+                            }
                         }
-                        timing.mark("jpeg_encode")
+                        timing.mark(if (png) "png_encode" else "jpeg_encode")
                     } finally { pixels.recycle() }
                     coroutineContext.ensureActive()
-                    writeExif(source, temp, layout.canvas)
+                    // PNG keeps alpha as the deliverable; EXIF is only written for JPEG.
+                    if (!png) writeExif(source, temp, layout.canvas)
                     FileOutputStream(temp, true).use { it.fd.sync() }
                     coroutineContext.ensureActive()
                     val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))
-                    val name = "LFM-$stamp-${UUID.randomUUID()}.jpg"
+                    val extension = if (png) "png" else "jpg"
+                    val mimeType = if (png) "image/png" else "image/jpeg"
+                    val name = "LFM-$stamp-${UUID.randomUUID()}.$extension"
                     timing.mark("metadata_and_sync")
                     onStage(PhotoProcessingStage.PUBLISHING)
                     val result = when (destination) {
-                        ExportDestination.Gallery -> publishGallery(temp, name, onTargetCreated, onPublished)
-                        is ExportDestination.Folder -> publishFolder(source, temp, name, destination.treeUri, onTargetCreated, onPublished)
+                        ExportDestination.Gallery -> publishGallery(temp, name, mimeType, onTargetCreated, onPublished)
+                        is ExportDestination.Folder -> publishFolder(source, temp, name, mimeType, destination.treeUri, onTargetCreated, onPublished)
                     }
                     timing.mark("publish")
                     completed = true
@@ -143,7 +153,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                 lastExportPerformance = report
                 Log.i("LFMExport", "completed=${report.completed} totalMs=${report.totalMillis} " +
                     "input=${source.size.width}x${source.size.height} dimensions=${settings.dimensionPercent}% " +
-                    "quality=${settings.compressionQuality} frame=${frame.preset} " +
+                    "quality=${settings.compressionQuality} format=${settings.format} frame=${frame.preset} " +
                     "backend=${report.filmBackend} spatial=${report.spatialAlgorithmVersion} halation=${film?.parameters?.halationEnabled} " +
                     "stock=${film?.preset?.id} print=${film?.preset?.printId} exposureEv=${film?.parameters?.exposureEv} " +
                     "halationAppearance=${film?.spatialOptions?.halationAppearance} " +
@@ -164,7 +174,8 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
             maxOf(1, kotlin.math.round(layout.photo.height).toInt())), lut, film, checkActive = checkActive)
         try {
             checkActive()
-            val result = frames.render(pixels, source, frame, layout, film?.preset, frameNumber, checkActive)
+            val result = frames.render(pixels, source, frame, layout, film?.preset, frameNumber,
+                transparentBackground = output.format == ExportFormat.PNG, checkActive = checkActive)
             if (result !== pixels) pixels.recycle()
             return result
         }
@@ -195,8 +206,9 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
     }
 
     internal fun framePreview(pixels: Bitmap, source: SourceImage, options: FrameOptions,
-        layout: com.lumixfilmmirror.model.FrameLayout, stock: FilmPreset?, frameNumber: Int, checkActive: () -> Unit) =
-        frames.render(pixels, source, options, layout, stock, frameNumber, checkActive)
+        layout: com.lumixfilmmirror.model.FrameLayout, stock: FilmPreset?, frameNumber: Int,
+        transparentBackground: Boolean = false, checkActive: () -> Unit) =
+        frames.render(pixels, source, options, layout, stock, frameNumber, transparentBackground, checkActive)
 
     /** GPU may have committed earlier tiles. CPU must start from the private immutable JPEG. */
     private suspend fun renderFilm(source: SourceImage, size: PixelSize, plan: FilmRenderPlan,
@@ -259,14 +271,14 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                     output.write(bytes, 0, count)
                     copied += count
                 }
-                check(copied == expected && expected > 0) { "JPG 副本未完整写入" }
+                check(copied == expected && expected > 0) { "导出副本未完整写入" }
                 output.flush()
             }
         } ?: error("无法打开导出目标")
     }
 
     private suspend fun copyGallery(file: File, uri: Uri) {
-        val descriptor = context.contentResolver.openFileDescriptor(uri, "rwt") ?: error("无法打开相册 JPG")
+        val descriptor = context.contentResolver.openFileDescriptor(uri, "rwt") ?: error("无法打开相册图片")
         ParcelFileDescriptor.AutoCloseOutputStream(descriptor).use { output ->
             file.inputStream().buffered().use { input ->
                 val buffer = ByteArray(64 * 1024)
@@ -279,20 +291,21 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                     output.write(buffer, 0, count)
                     copied += count
                 }
-                check(copied == expected && expected > 0) { "相册 JPG 尚未完整" }
+                check(copied == expected && expected > 0) { "相册图片尚未完整" }
                 output.fd.sync()
             }
         }
         val stored = context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
-        check(stored == file.length()) { "相册 JPG 尺寸不一致" }
+        check(stored == file.length()) { "相册图片尺寸不一致" }
     }
 
-    private suspend fun publishGallery(file: File, name: String, onTargetCreated: suspend (Uri) -> Unit,
+    private suspend fun publishGallery(file: File, name: String, mimeType: String,
+        onTargetCreated: suspend (Uri) -> Unit,
         onPublished: suspend (Uri) -> Unit): Uri {
         val resolver = context.contentResolver
         val details = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            put(MediaStore.Images.Media.MIME_TYPE, mimeType)
             put(MediaStore.Images.Media.RELATIVE_PATH, cache.galleryPath)
             put(MediaStore.Images.Media.IS_PENDING, 1)
         }
@@ -304,18 +317,18 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
             // Publication and the caller's success record survive cancellation at the IO return boundary.
             withContext(NonCancellable) {
                 check(resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null) == 1) {
-                    "无法完成相册 JPG 发布"
+                    "无法完成相册图片发布"
                 }
                 onPublished(uri)
             }
             return uri
         } catch (error: Throwable) {
-            runCatching { cache.discardPending(uri, name) }.exceptionOrNull()?.let { error.addSuppressed(it) }
+            runCatching { cache.discardPending(uri, name, mimeType = mimeType) }.exceptionOrNull()?.let { error.addSuppressed(it) }
             throw error
         }
     }
 
-    private suspend fun publishFolder(source: SourceImage, file: File, name: String, tree: Uri,
+    private suspend fun publishFolder(source: SourceImage, file: File, name: String, mimeType: String, tree: Uri,
         onTargetCreated: suspend (Uri) -> Unit,
         onPublished: suspend (Uri) -> Unit): Uri {
         val folder = DocumentFile.fromTreeUri(context, tree) ?: error("导出文件夹不可用")
@@ -324,7 +337,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         var targetRecorded = false
         var committed = false
         try {
-            val created = folder.createFile("image/jpeg", name) ?: error("提供者未返回导出文件，请核对文件夹")
+            val created = folder.createFile(mimeType, name) ?: error("提供者未返回导出文件，请核对文件夹")
             target = created
             val record = folderJournal.created(prepared, created.uri)
             targetRecorded = true
@@ -335,7 +348,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                 // Preserve the closed, fully copied file even if recording the decision fails.
                 committed = true
                 try { folderJournal.committed(record) }
-                catch (error: Exception) { throw java.io.IOException("JPG 已写入，但完成记录未保存，请在文件夹中核对", error) }
+                catch (error: Exception) { throw java.io.IOException("图片已写入，但完成记录未保存，请在文件夹中核对", error) }
                 onPublished(created.uri)
             }
             return created.uri

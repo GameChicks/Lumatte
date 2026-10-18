@@ -25,7 +25,8 @@ data class ExportRun(val id: String, val batchId: String, val createdAt: Long, v
 )])
 internal data class ExportRunRow(@PrimaryKey val id: String, val batchId: String,
     val createdAt: Long, val updatedAt: Long, val state: String,
-    val dimensionPercent: Int, val compressionQuality: Int, val frameJson: String, val folderUri: String?)
+    val dimensionPercent: Int, val compressionQuality: Int, val frameJson: String, val folderUri: String?,
+    @ColumnInfo(defaultValue = "JPEG") val format: String = "JPEG")
 
 @Entity(tableName = "export_items", primaryKeys = ["runId", "photoId"],
     indices = [Index("runId"), Index("photoId")], foreignKeys = [ForeignKey(
