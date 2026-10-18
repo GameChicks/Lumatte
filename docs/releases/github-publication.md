@@ -2,7 +2,7 @@
 
 ## 仓库设置
 
-- 仓库名：`-Lumatte`
+- 仓库名：`GameChicks/Lumatte`（由 `GameChicks/-Lumatte` 重命名）
 - About：`松映 · Lumatte 是开源 Android 摄影工具，整合松下相机照片传输、移动胶片风格、LUT 与画框导出。独立第三方项目，非松下官方应用。`
 - Topics：`android`、`photography`、`film-simulation`、`lut`、`kotlin`、`gpl-3.0`
 - License：应用代码为 GPL-3.0；第三方内容按各自原许可，见 `THIRD_PARTY_NOTICES.md`。

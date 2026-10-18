@@ -4,7 +4,7 @@
 
 ## 请求快照
 
-`ExportQueueStore.enqueue` 为一次导出建立独立 UUID；Room 8 新增 `export_runs` 和 `export_items`，注册仅增表的 `7 → 8` 迁移。原照片、相机队列、批次及编辑草稿表保留，不执行破坏式迁移，Room schema 尚未生成。
+`ExportQueueStore.enqueue` 为一次导出建立独立 UUID；Room 8 新增 `export_runs` 和 `export_items`，注册仅增表的 `7 → 8` 迁移。原照片、相机队列、批次及编辑草稿表保留，不执行破坏式迁移。当前 schema 已导出到 `core/storage/schemas/`（含 12.json），迁移只做增表 / 增列。
 
 请求保存处理批次身份、照片顺序／原片号、每张实际生效的配方、颗粒种子、整批共享画框 JSON、输出尺寸百分比、压缩质量、导出格式（JPEG / PNG）、目标相册／文件夹 URI。首张继承在入队时解析成各项的有效胶片参数，后续照片保留自身种子、源图及 EXIF。每次恢复按这份快照运行，之后修改编辑草稿或工作台导出偏好不会悄悄改变旧任务。默认尺寸仍是有效输入 100%，质量默认 95，格式默认 JPEG，帧号在仅导出失败子集时不从 1 重新编号。
 

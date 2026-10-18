@@ -93,6 +93,15 @@ internal class FrameRenderer(context: Context) {
                     val paper = RectF(edge, edge, pixels.width - edge, pixels.height - edge)
                     paint.color = 0xFFFAF8F0.toInt()
                     canvas.drawRect(paper, paint)
+                    // Outer rim is painted before the cuts so the notch mouths stay open.
+                    val rimWidth = max(1f, edge * .18f)
+                    val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = 0xFF777A79.toInt(); style = Paint.Style.STROKE; strokeWidth = rimWidth
+                    }
+                    canvas.save(); canvas.clipRect(paper)
+                    canvas.drawRect(RectF(paper.left + rimWidth / 2, paper.top + rimWidth / 2,
+                        paper.right - rimWidth / 2, paper.bottom - rimWidth / 2), rim)
+                    canvas.restore()
                     val holeRadius = radius * .8f
                     val cut = Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.CLEAR }
                     var x = edge + radius
@@ -102,14 +111,8 @@ internal class FrameRenderer(context: Context) {
                         x += radius * 2.65f
                     }
                     canvas.drawCircle(pixels.width / 2f, imageBox.top * .36f, holeRadius, cut)
-                    // A clipped grey rim keeps the silhouette and cut-outs legible on light backgrounds.
-                    val rimWidth = max(1f, edge * .18f)
-                    val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        color = 0xFF777A79.toInt(); style = Paint.Style.STROKE; strokeWidth = rimWidth
-                    }
+                    // Rim the open cut-outs afterwards so the silhouette stays legible on light backgrounds.
                     canvas.save(); canvas.clipRect(paper)
-                    canvas.drawRect(RectF(paper.left + rimWidth / 2, paper.top + rimWidth / 2,
-                        paper.right - rimWidth / 2, paper.bottom - rimWidth / 2), rim)
                     var nx = edge + radius
                     while (nx < pixels.width - edge) {
                         canvas.drawCircle(nx, edge, radius, rim)

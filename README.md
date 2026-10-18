@@ -21,21 +21,21 @@
 ![LibRaw](https://img.shields.io/badge/LibRaw-0.22.2-lightgrey)
 ![胶片目录](https://img.shields.io/badge/胶片目录-24_款-ff69b4)
 
-[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-114025-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
+[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-115839-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
 
 ## ⏬ 下载与版本
 
 **当前版本：1.0.0（versionCode 17）**，2026-10-18 发布，最低 Android 11。
 
-- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-114025-debug.apk)，约 205.2 MiB
+- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-115839-debug.apk)，约 205.2 MiB
 - [Release 页面](https://github.com/GameChicks/Lumatte/releases/tag/v1.0.0) · [1.0.0 发布记录](docs/releases/1.0.0.md)
 
 <details>
 <summary>APK 校验信息</summary>
 
-- 文件名：`lumix-film-mirror-prototype-1.0.0-20261018-114025-debug.apk`
+- 文件名：`lumix-film-mirror-prototype-1.0.0-20261018-115839-debug.apk`
 - 文件大小：215,142,930 字节
-- APK SHA-256：`54C53663D69586F6C7177354B526B9DD3D31E8FF96B3F1F7F99B93249F712761`
+- APK SHA-256：`C11F8A162F1B94FB5FB5552591072B68A2DF28D930C1C20DD42AD8F7EE082886`
 - Android Debug 证书 SHA-256：`1a2e67ceaad95c8d88371b23663d1e71ea587132ec2e48114705067cce4c6a41`
 
 </details>
@@ -119,7 +119,7 @@
 3. 「画框」提供 11 款：无边框、白色相纸、黑色画廊、胶片暗盒、记忆票根、拍立得、暮色、雾面、取色相框、典藏纸框、幻灯片夹。本批全部照片使用同一款画框。
 4. 「文字与细节」：签名 / 水印文字（≤240 字）、EXIF 显示开关（机型、镜头、焦距、光圈、快门、ISO、拍摄时间）、7 款内置字体与自定义字体导入、画布比例、纸边、方向、取色策略、暗盒标签等。
 5. 「输出」：图片格式（JPEG / PNG 透明底）、照片尺寸（1–100%，默认 100%）、JPEG 压缩质量（1–100，默认 95）、最终画布尺寸；保存到系统相册的 `Pictures/LumixFilmMirror`，或通过「选择文件夹」用系统 SAF 指定位置。
-6. 点「导出本批 · N 张」，完成后可查看结果；导出文件名形如 `LFM-yyyyMMdd-HHmmss-SSS-<UUID>.jpg`，每次导出独立，不会覆盖已有照片。
+6. 点「导出本批 · N 张」，完成后可查看结果；导出文件名形如 `LFM-yyyyMMdd-HHmmss-SSS-<UUID>.jpg`（PNG 为 `.png`），每次导出独立，不会覆盖已有照片。
 
 > 📖 详细说明：[画框导出](docs/engineering/frame-export.md) · [JPEG 发布生命周期](docs/engineering/jpeg-export-lifecycle.md)
 
