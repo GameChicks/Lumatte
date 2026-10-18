@@ -93,15 +93,6 @@ internal class FrameRenderer(context: Context) {
                     val paper = RectF(edge, edge, pixels.width - edge, pixels.height - edge)
                     paint.color = 0xFFFAF8F0.toInt()
                     canvas.drawRect(paper, paint)
-                    // Outer rim is painted before the cuts so the notch mouths stay open.
-                    val rimWidth = max(1f, edge * .18f)
-                    val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        color = 0xFF777A79.toInt(); style = Paint.Style.STROKE; strokeWidth = rimWidth
-                    }
-                    canvas.save(); canvas.clipRect(paper)
-                    canvas.drawRect(RectF(paper.left + rimWidth / 2, paper.top + rimWidth / 2,
-                        paper.right - rimWidth / 2, paper.bottom - rimWidth / 2), rim)
-                    canvas.restore()
                     val holeRadius = radius * .8f
                     val cut = Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.CLEAR }
                     var x = edge + radius
@@ -111,16 +102,6 @@ internal class FrameRenderer(context: Context) {
                         x += radius * 2.65f
                     }
                     canvas.drawCircle(pixels.width / 2f, imageBox.top * .36f, holeRadius, cut)
-                    // Rim the open cut-outs afterwards so the silhouette stays legible on light backgrounds.
-                    canvas.save(); canvas.clipRect(paper)
-                    var nx = edge + radius
-                    while (nx < pixels.width - edge) {
-                        canvas.drawCircle(nx, edge, radius, rim)
-                        canvas.drawCircle(nx, pixels.height - edge, radius, rim)
-                        nx += radius * 2.65f
-                    }
-                    canvas.drawCircle(pixels.width / 2f, imageBox.top * .36f, holeRadius, rim)
-                    canvas.restore()
                 } else {
                     paint.color = 0xFF777A79.toInt(); canvas.drawRect(0f, 0f, pixels.width.toFloat(), pixels.height.toFloat(), paint)
                     paint.color = 0xFFFAF8F0.toInt(); canvas.drawRect(edge, edge, pixels.width - edge, pixels.height - edge, paint)
@@ -144,10 +125,13 @@ internal class FrameRenderer(context: Context) {
             }
             checkActive()
             if (options.preset == FramePreset.FILM) {
-                FrameFilmStrip(assets, fonts, identity.roll120).use { painter ->
+                FrameFilmStrip(assets, fonts, identity.roll120 && identity.stockId == null, identity.stockId,
+                    (layout.cartridge?.height?.toInt() ?: 2048).coerceIn(64,2048)).use { painter ->
                     val rail = imageBox.height() * .14f
-                    painter.strip(canvas, RectF(imageBox.left, imageBox.top - rail,
-                        imageBox.right + imageBox.width() * .6f, imageBox.bottom + rail), imageBox.width(), frameNumber, identity)
+                    val overlap = unit * 6
+                    painter.strip(canvas, RectF(imageBox.left-overlap, imageBox.top - rail,
+                        imageBox.right + imageBox.width() * .6f, imageBox.bottom + rail),
+                        imageBox.width()+overlap, frameNumber, identity, transparent)
                     canvas.drawBitmap(photo, null, imageBox, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
                     layout.cartridge?.let { painter.cartridge(canvas, it.rect(), identity) }
                 }

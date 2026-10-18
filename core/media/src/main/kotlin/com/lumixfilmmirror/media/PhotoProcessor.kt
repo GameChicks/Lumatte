@@ -136,8 +136,8 @@ class PhotoProcessor(context: Context) {
     suspend fun setLutSubjects(asset: LutAsset, subjects: Set<LutSubject>): LutGalleryEntry = lutGallery.setSubjects(asset, subjects)
     suspend fun importFrameImage(uri: Uri): String = writer.frameAssets.importImage(uri)
     suspend fun importFrameFont(uri: Uri): String = writer.frameAssets.importFont(uri)
-    fun exportLayout(source: SourceImage, options: BatchExportOptions) =
-        FrameLayouts.plan(options.jpeg.contentSize(source.size), options.frame)
+    fun exportLayout(source: SourceImage, options: BatchExportOptions, stockArtwork: Boolean = false) =
+        FrameLayouts.plan(options.jpeg.contentSize(source.size), options.frame, stockArtwork)
     fun lutBackend(): LutBackend = NativeLutRenderer.backend()
     fun filmBackend(): FilmBackend = FilmBackend.MOBILE_GLES3_WITH_CPU_FALLBACK
     fun filmSpatialEffectsInfo(): FilmSpatialEffectsInfo = FilmSpatialEffectsInfo()
@@ -235,11 +235,11 @@ class PhotoProcessor(context: Context) {
         previewGate.withPermit {
             val active = coroutineContext
             require(frameNumber > 0)
-            val layout = FrameLayouts.preview(exportLayout(source, options), longEdge)
+            val stock = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed).preset }
+            val layout = FrameLayouts.preview(exportLayout(source, options, stockArtwork = stock != null), longEdge)
             val pixels = effectPreview(source, recipe, catalogue, photoSize(layout),
                 if(matchFilmOutput)options.jpeg.contentSize(source.size) else null)
             try {
-                val stock = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed).preset }
                 val transparent = options.jpeg.format == com.lumixfilmmirror.model.ExportFormat.PNG
                 val result = writer.framePreview(pixels, source, options.frame, layout, stock, frameNumber, transparent) { active.ensureActive() }
                 if (result !== pixels) pixels.recycle()

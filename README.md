@@ -21,19 +21,19 @@
 ![LibRaw](https://img.shields.io/badge/LibRaw-0.22.2-lightgrey)
 ![胶片目录](https://img.shields.io/badge/胶片目录-24_款-ff69b4)
 
-[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-115839-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
+[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-123659-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
 
 ## ⏬ 下载与版本
 
 **当前版本：1.0.0（versionCode 17）**，2026-10-18 发布，最低 Android 11。
 
-- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-115839-debug.apk)，约 205.2 MiB
+- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-123659-debug.apk)，约 202.0 MiB
 - [Release 页面](https://github.com/GameChicks/Lumatte/releases/tag/v1.0.0) · [1.0.0 发布记录](docs/releases/1.0.0.md)
 
 <details>
 <summary>APK 校验信息</summary>
 
-- 文件名：`lumix-film-mirror-prototype-1.0.0-20261018-115839-debug.apk`
+- 文件名：`lumix-film-mirror-prototype-1.0.0-20261018-123659-debug.apk`
 - 文件大小：215,142,930 字节
 - APK SHA-256：`C11F8A162F1B94FB5FB5552591072B68A2DF28D930C1C20DD42AD8F7EE082886`
 - Android Debug 证书 SHA-256：`1a2e67ceaad95c8d88371b23663d1e71ea587132ec2e48114705067cce4c6a41`
