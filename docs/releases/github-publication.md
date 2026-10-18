@@ -2,7 +2,7 @@
 
 ## 仓库设置
 
-- 建议仓库名：`lumix-film-mirror`
+- 仓库名：`-Lumatte`
 - About：`松映 · Lumatte 是开源 Android 摄影工具，整合松下相机照片传输、移动胶片风格、LUT 与画框导出。独立第三方项目，非松下官方应用。`
 - Topics：`android`、`photography`、`film-simulation`、`lut`、`kotlin`、`gpl-3.0`
 - License：应用代码为 GPL-3.0；第三方内容按各自原许可，见 `THIRD_PARTY_NOTICES.md`。
@@ -27,6 +27,6 @@
 
 ## 公开分发记录
 
-维护者已于 2026-10-18 确认可再分发并授权发布到 `GameChicks/lumix-film-mirror`。公开源码和 APK 内保留栗壳坚坚体、10 款用户 LUT、恢复画框图片及其来源/权利说明；这些素材不纳入 GPL-3.0。
+维护者已于 2026-10-18 确认可再分发并授权发布到 `GameChicks/-Lumatte`。公开源码和 APK 内保留栗壳坚坚体、10 款用户 LUT、恢复画框图片及其来源/权利说明；这些素材不纳入 GPL-3.0。
 
 首次公开使用当前版本源码快照，不上传本机 `.git` 历史、SDK、缓存、旧包归档、个人素材或恢复资料。
