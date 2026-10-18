@@ -4,15 +4,17 @@
 
 ## 请求快照
 
-`ExportQueueStore.enqueue` 为一次导出建立独立 UUID；Room 8 新增 `export_runs` 和 `export_items`，注册仅增表的 `7 → 8` 迁移。原照片、相机队列、批次及编辑草稿表保留，不执行破坏式迁移，Room schema 尚未生成。
+`ExportQueueStore.enqueue` 为一次导出建立独立 UUID；Room 8 新增 `export_runs` 和 `export_items`，注册仅增表的 `7 → 8` 迁移。原照片、相机队列、批次及编辑草稿表保留，不执行破坏式迁移。当前 schema 已导出到 `core/storage/schemas/`（含 12.json），迁移只做增表 / 增列。
 
-请求保存处理批次身份、照片顺序／原片号、每张实际生效的配方、颗粒种子、整批共享画框 JSON、JPG 尺寸百分比、压缩质量、目标相册／文件夹 URI。首张继承在入队时解析成各项的有效胶片参数，后续照片保留自身种子、源图及 EXIF。每次恢复按这份快照运行，之后修改编辑草稿或工作台导出偏好不会悄悄改变旧任务。默认尺寸仍是有效输入 100%，质量默认 95，帧号在仅导出失败子集时不从 1 重新编号。
+请求保存处理批次身份、照片顺序／原片号、每张实际生效的配方、颗粒种子、整批共享画框 JSON、输出尺寸百分比、压缩质量、导出格式（JPEG / PNG）、目标相册／文件夹 URI。首张继承在入队时解析成各项的有效胶片参数，后续照片保留自身种子、源图及 EXIF。每次恢复按这份快照运行，之后修改编辑草稿或工作台导出偏好不会悄悄改变旧任务。默认尺寸仍是有效输入 100%，质量默认 95，格式默认 JPEG，帧号在仅导出失败子集时不从 1 重新编号。
+
+2026-10-18：`JpegOutput` 增加 `format`；Room `11 → 12` 仅给 `export_runs` 增列 `format TEXT NOT NULL DEFAULT 'JPEG'`，旧队列任务按 JPEG 恢复，已排队的 PNG 任务按快照继续 PNG。
 
 任务只保存参数和导入照片 ID，不复制成片位图或原图。自定义素材、字体和 LUT 仍引用应用私有资源；资源缺失时记录失败，不换成原图或其他滤镜继续导出。LUT ID 由现有库管理，胶卷模型仍使用当前内置目录；本轮没有保存整个历史引擎版本。未来模型／算法升级的旧配方迁移仍需要版本策略。
 
 ## 执行与结果
 
-`ExportQueueRunner` 不依赖 Compose 或 ViewModel，使用应用共享 PhotoProcessor。进程级运行门和数据库事务共同限制一次批量任务；实际导出仍使用已有 JPEG 编码／发布锁。每项阶段落盘后才进入下一步，执行阶段为 PREPARING、RENDERING、FRAMING、ENCODING、PUBLISHING。无框省略 FRAMING。
+`ExportQueueRunner` 不依赖 Compose 或 ViewModel，使用应用共享 PhotoProcessor。进程级运行门和数据库事务共同限制一次批量任务；实际导出仍使用已有 JPEG / PNG 编码／发布锁。每项阶段落盘后才进入下一步，执行阶段为 PREPARING、RENDERING、FRAMING、ENCODING、PUBLISHING。无框省略 FRAMING。
 
 | 项目状态 | 含义 |
 |---|---|

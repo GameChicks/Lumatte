@@ -1,5 +1,11 @@
 # 变更记录
 
+## 1.0.0 / 17 · 2026-10-18 画框 PNG 透明底
+
+- 画框「输出」新增图片格式：JPEG（默认）/ PNG 透明底。「胶片暗盒」「记忆票根」在 PNG 下保留透明轮廓（暗盒、胶片条、纸票、齿边、孔洞、照片与文字照常绘制），其他画框仍绘制自身底色；PNG 无损、不写 EXIF、不使用 JPEG 压缩质量。
+- 持久化：`JpegOutput` 增加 `format`；DataStore 增加 `export-format`；Room `11 → 12` 仅给 `export_runs` 增列 `format TEXT NOT NULL DEFAULT 'JPEG'`，旧队列任务按 JPEG 恢复。编码缓存、未发布占位清理与文件夹导出记录的打开 MIME 同时识别 `.png` / `image/png`。
+- 重建 1.0.0 / versionCode 17 调试 APK；`assembleDebug`、v2 签名、版本、ZIP 16 KiB 对齐及两种 ABI 原生库 LOAD 段 16 KiB 对齐检查通过。没有运行测试、模拟器或手机/相机验证；透明观感、PNG 体积/耗时与第三方相册/SAF 行为尚未实测，见 [画框导出](../engineering/frame-export.md)。
+
 ## 源码调整 · 2026-10-18 色彩推荐
 
 - 色彩推荐移除黑白入口；后端排除黑白与单色 LUT，黑白/近无色输入明确提示换彩照或手动选择。新增等亮度色度响应、实际去色、暖冷方向、过量裁切及反差保留筛选，不凑满不合适结果。

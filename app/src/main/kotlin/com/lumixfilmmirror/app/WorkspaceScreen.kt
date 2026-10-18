@@ -30,6 +30,7 @@ import com.lumixfilmmirror.design.FilmSpacing
 import com.lumixfilmmirror.design.LocalFilmMaterials
 import com.lumixfilmmirror.design.PaperPanel
 import com.lumixfilmmirror.media.ExportDestination
+import com.lumixfilmmirror.model.ExportFormat
 import com.lumixfilmmirror.model.JpegOutput
 import com.lumixfilmmirror.model.LutRecipe
 import kotlinx.coroutines.delay
@@ -204,8 +205,19 @@ private fun ExportSettingsPanel(state: WorkspaceState, onChange: (JpegOutput) ->
     val tones = LocalFilmMaterials.current
     PaperPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("JPG 导出", style = MaterialTheme.typography.titleMedium)
+            Text("导出设置", style = MaterialTheme.typography.titleMedium)
             Text("设置应用到这一批的全部照片", color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth()) {
+                Text("图片格式", Modifier.weight(1f))
+                Text(state.output.format.title, fontFamily = FontFamily.Monospace)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                for (format in ExportFormat.entries) FilterChip(selected = state.output.format == format,
+                    enabled = !state.busy, onClick = { onChange(state.output.copy(format = format)) },
+                    label = { Text(format.title) })
+            }
+            if (state.output.format == ExportFormat.PNG) Text("PNG 透明底用于「胶片暗盒」「记忆票根」。",
+                color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall)
             Row(Modifier.fillMaxWidth()) {
                 Text("照片尺寸", Modifier.weight(1f))
                 Text("${state.output.dimensionPercent}%", fontFamily = FontFamily.Monospace)
@@ -223,11 +235,12 @@ private fun ExportSettingsPanel(state: WorkspaceState, onChange: (JpegOutput) ->
             }
             HorizontalDivider(Modifier.padding(vertical = 8.dp), color = tones.rim)
             Row(Modifier.fillMaxWidth()) {
-                Text("JPG 压缩质量", Modifier.weight(1f))
+                Text("JPEG 压缩质量", Modifier.weight(1f))
                 Text("${state.output.compressionQuality}", fontFamily = FontFamily.Monospace)
             }
             Slider(value = state.output.compressionQuality.toFloat(), valueRange = 1f..100f, steps = 98,
-                enabled = !state.busy, onValueChange = { onChange(state.output.copy(compressionQuality = it.roundToInt())) })
+                enabled = !state.busy && state.output.format == ExportFormat.JPEG,
+                onValueChange = { onChange(state.output.copy(compressionQuality = it.roundToInt())) })
             Text("压缩质量不改变像素尺寸", color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall)
             HorizontalDivider(Modifier.padding(vertical = 8.dp), color = tones.rim)
             Text(if (state.destination is ExportDestination.Gallery) "保存到 Pictures/LumixFilmMirror" else "保存到所选文件夹",

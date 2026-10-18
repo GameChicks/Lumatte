@@ -5,7 +5,7 @@
 ## 数据归属
 
 - Room `film-mirror-workspace.db`：照片目录、原始 EXIF 文本、处理批次与成员顺序、传输批次与各项状态，以及视频保存目标 URI。
-- DataStore `workspace-settings`：JPG 尺寸百分比、压缩质量、导出目录 URI、当前照片 ID 和处理批次 ID。默认 100%／95／系统相册。
+- DataStore `workspace-settings`：JPG 尺寸百分比、压缩质量、导出格式（JPEG / PNG）、导出目录 URI、当前照片 ID 和处理批次 ID。默认 100%／95／JPEG／系统相册。
 - 原图只读。仅应用私有目录保存输入副本、下载中间文件及内嵌 JPEG；不读取其他应用的数据库、密码、签名或身份。
 - 相机 UDN、型号、目录对象 ID 和资源描述保存在队列中，用于重连核对。会话令牌、Wi-Fi 密码、系统 Network 对象不保存。
 

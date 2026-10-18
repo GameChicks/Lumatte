@@ -229,7 +229,7 @@ internal abstract class WorkspaceDao {
 
 @Database(entities = [PhotoRow::class, TransferTask::class, IncomingTransfer::class,
     ProcessingBatchRow::class, ProcessingEntryRow::class, BatchLutRecipeRow::class, BatchEditRecipeRow::class,
-    BatchFrameRecipeRow::class, ExportRunRow::class, ExportItemRow::class], version = 11, exportSchema = true)
+    BatchFrameRecipeRow::class, ExportRunRow::class, ExportItemRow::class], version = 12, exportSchema = true)
 internal abstract class WorkspaceDatabase : RoomDatabase() {
     abstract fun workspace(): WorkspaceDao
     abstract fun exports(): ExportQueueDao
@@ -300,9 +300,14 @@ internal abstract class WorkspaceDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE processing_entries ADD COLUMN removed INTEGER NOT NULL DEFAULT 0")
             }
         }
+        private val version11To12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE export_runs ADD COLUMN format TEXT NOT NULL DEFAULT 'JPEG'")
+            }
+        }
         fun get(context: Context): WorkspaceDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, WorkspaceDatabase::class.java,
-                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4, version4To5, version5To6, version6To7, version7To8, version8To9, version9To10, version10To11).build().also { instance = it }
+                "film-mirror-workspace.db").addMigrations(version1To2, version2To3, version3To4, version4To5, version5To6, version6To7, version7To8, version8To9, version9To10, version10To11, version11To12).build().also { instance = it }
         }
     }
 }

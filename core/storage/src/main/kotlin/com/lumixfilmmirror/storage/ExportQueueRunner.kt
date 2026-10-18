@@ -43,7 +43,7 @@ class ExportQueueRunner(context: Context, private val processor: PhotoProcessor)
                         onPublished = { uri -> store.saved(id, photo.id, uri) })
                 } catch (error: CancellationException) { throw error }
                 catch (error: OutOfMemoryError) {
-                    store.failed(id, photo.id, "当前尺寸所需内存不足，请降低 JPG 尺寸后重新导出失败项")
+                    store.failed(id, photo.id, "当前尺寸所需内存不足，请降低图片尺寸后重新导出失败项")
                 } catch (error: LinkageError) {
                     store.failed(id, photo.id, "影像引擎暂不可用")
                 } catch (error: Exception) {

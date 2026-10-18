@@ -118,12 +118,15 @@ class WorkspaceStore(context: Context) {
     suspend fun readPreferences(): WorkspacePreferences {
         val values = preferences.data.first()
         return WorkspacePreferences(JpegOutput((values[percent] ?: 100).coerceIn(1, 100),
-            (values[quality] ?: 95).coerceIn(1, 100)), values[folder], values[selected], values[processingBatch])
+            (values[quality] ?: 95).coerceIn(1, 100),
+            values[format]?.let { runCatching { ExportFormat.valueOf(it) }.getOrNull() } ?: ExportFormat.JPEG),
+            values[folder], values[selected], values[processingBatch])
     }
     suspend fun savePreferences(value: WorkspacePreferences) {
         preferences.edit { values ->
             values[percent] = value.output.dimensionPercent
             values[quality] = value.output.compressionQuality
+            values[format] = value.output.format.name
             if (value.folderUri == null) values.remove(folder) else values[folder] = value.folderUri
             if (value.selectedId == null) values.remove(selected) else values[selected] = value.selectedId
             if (value.processingBatchId == null) values.remove(processingBatch) else values[processingBatch] = value.processingBatchId
@@ -157,6 +160,7 @@ class WorkspaceStore(context: Context) {
     companion object {
         private val percent = intPreferencesKey("jpeg-dimension-percent")
         private val quality = intPreferencesKey("jpeg-compression-quality")
+        private val format = stringPreferencesKey("export-format")
         private val folder = stringPreferencesKey("export-folder-uri")
         private val selected = stringPreferencesKey("selected-photo-id")
         private val processingBatch = stringPreferencesKey("processing-batch-id")

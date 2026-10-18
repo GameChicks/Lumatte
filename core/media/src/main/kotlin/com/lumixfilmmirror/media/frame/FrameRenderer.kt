@@ -21,14 +21,17 @@ internal class FrameRenderer(context: Context) {
 
     /** NONE returns the borrowed input. Other presets return a new owned bitmap; input is never recycled. */
     fun render(photo: Bitmap, source: SourceImage, options: FrameOptions, layout: FrameLayout,
-        stock: FilmPreset? = null, frameNumber: Int = 1, checkActive: () -> Unit = {}): Bitmap {
+        stock: FilmPreset? = null, frameNumber: Int = 1, transparentBackground: Boolean = false,
+        checkActive: () -> Unit = {}): Bitmap {
         require(frameNumber > 0)
         if (options.preset == FramePreset.NONE) return photo
         checkActive()
         val pixels = Bitmap.createBitmap(layout.canvas.width, layout.canvas.height, Bitmap.Config.ARGB_8888)
+        // Only FILM and TICKET have silhouettes that read as cut-outs on a transparent canvas.
+        val transparent = transparentBackground && options.preset in setOf(FramePreset.FILM, FramePreset.TICKET)
         try {
             val canvas = Canvas(pixels)
-            // JPEG has no transparency. Expanded FILM ratio margins must be opaque black too.
+            // Opaque exports keep the full canvas filled; PNG cut-outs leave the margins empty.
             val colors = if (options.fixedColorArgb == null && options.preset in setOf(FramePreset.PALETTE, FramePreset.FILM))
                 FramePalette.extract(photo) else emptyMap()
             val accent = (options.fixedColorArgb ?: colors[options.mood] ?: Color.rgb(99, 103, 96)) or (-0x1000000)
@@ -44,7 +47,7 @@ internal class FrameRenderer(context: Context) {
                 FramePreset.PALETTE -> accent
                 else -> 0xFFFAF8F0.toInt()
             }
-            canvas.drawColor(background)
+            if (!transparent) canvas.drawColor(background)
             val ink = FramePalette.contrasting(background)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
             val unit = min(layout.canvas.width, layout.canvas.height) / 1000f
@@ -84,16 +87,51 @@ internal class FrameRenderer(context: Context) {
             }
             if (options.preset == FramePreset.TICKET) {
                 val edge = min(pixels.width, pixels.height) * .025f
-                paint.color = 0xFF777A79.toInt(); canvas.drawRect(0f, 0f, pixels.width.toFloat(), pixels.height.toFloat(), paint)
-                paint.color = 0xFFFAF8F0.toInt(); canvas.drawRect(edge, edge, pixels.width - edge, pixels.height - edge, paint)
-                paint.color = 0xFF777A79.toInt()
                 val radius = pixels.width * .014f
-                var x = edge + radius
-                while (x < pixels.width - edge) {
-                    canvas.drawCircle(x, edge, radius, paint); canvas.drawCircle(x, pixels.height - edge, radius, paint)
-                    x += radius * 2.65f
+                if (transparent) {
+                    // The paper silhouette floats on transparency; notches and punch hole are cut out.
+                    val paper = RectF(edge, edge, pixels.width - edge, pixels.height - edge)
+                    paint.color = 0xFFFAF8F0.toInt()
+                    canvas.drawRect(paper, paint)
+                    // Outer rim is painted before the cuts so the notch mouths stay open.
+                    val rimWidth = max(1f, edge * .18f)
+                    val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = 0xFF777A79.toInt(); style = Paint.Style.STROKE; strokeWidth = rimWidth
+                    }
+                    canvas.save(); canvas.clipRect(paper)
+                    canvas.drawRect(RectF(paper.left + rimWidth / 2, paper.top + rimWidth / 2,
+                        paper.right - rimWidth / 2, paper.bottom - rimWidth / 2), rim)
+                    canvas.restore()
+                    val holeRadius = radius * .8f
+                    val cut = Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.CLEAR }
+                    var x = edge + radius
+                    while (x < pixels.width - edge) {
+                        canvas.drawCircle(x, edge, radius, cut)
+                        canvas.drawCircle(x, pixels.height - edge, radius, cut)
+                        x += radius * 2.65f
+                    }
+                    canvas.drawCircle(pixels.width / 2f, imageBox.top * .36f, holeRadius, cut)
+                    // Rim the open cut-outs afterwards so the silhouette stays legible on light backgrounds.
+                    canvas.save(); canvas.clipRect(paper)
+                    var nx = edge + radius
+                    while (nx < pixels.width - edge) {
+                        canvas.drawCircle(nx, edge, radius, rim)
+                        canvas.drawCircle(nx, pixels.height - edge, radius, rim)
+                        nx += radius * 2.65f
+                    }
+                    canvas.drawCircle(pixels.width / 2f, imageBox.top * .36f, holeRadius, rim)
+                    canvas.restore()
+                } else {
+                    paint.color = 0xFF777A79.toInt(); canvas.drawRect(0f, 0f, pixels.width.toFloat(), pixels.height.toFloat(), paint)
+                    paint.color = 0xFFFAF8F0.toInt(); canvas.drawRect(edge, edge, pixels.width - edge, pixels.height - edge, paint)
+                    paint.color = 0xFF777A79.toInt()
+                    var x = edge + radius
+                    while (x < pixels.width - edge) {
+                        canvas.drawCircle(x, edge, radius, paint); canvas.drawCircle(x, pixels.height - edge, radius, paint)
+                        x += radius * 2.65f
+                    }
+                    canvas.drawCircle(pixels.width / 2f, imageBox.top * .36f, radius * .8f, paint)
                 }
-                canvas.drawCircle(pixels.width / 2f, imageBox.top * .36f, radius * .8f, paint)
             }
             if (options.preset == FramePreset.INSTANT) {
                 paint.color = 0xFFCFC9BB.toInt(); paint.style = Paint.Style.STROKE; paint.strokeWidth = unit

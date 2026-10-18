@@ -224,7 +224,8 @@ class PhotoProcessor(context: Context) {
             frame = frame, frameNumber = frameNumber,
             onStage = onStage, onTargetCreated = onTargetCreated, onPublished = onPublished,
             preserveEmbeddedJpeg = recipe == PhotoRecipe.Original && output.dimensionPercent == 100 &&
-                output.compressionQuality == 100 && frame.preset == com.lumixfilmmirror.model.FramePreset.NONE)
+                output.compressionQuality == 100 && output.format == com.lumixfilmmirror.model.ExportFormat.JPEG &&
+                frame.preset == com.lumixfilmmirror.model.FramePreset.NONE)
 
     /** Complete composition preview. longEdge bounds the final canvas, including frame and text. */
     suspend fun previewExport(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
@@ -239,7 +240,8 @@ class PhotoProcessor(context: Context) {
                 if(matchFilmOutput)options.jpeg.contentSize(source.size) else null)
             try {
                 val stock = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed).preset }
-                val result = writer.framePreview(pixels, source, options.frame, layout, stock, frameNumber) { active.ensureActive() }
+                val transparent = options.jpeg.format == com.lumixfilmmirror.model.ExportFormat.PNG
+                val result = writer.framePreview(pixels, source, options.frame, layout, stock, frameNumber, transparent) { active.ensureActive() }
                 if (result !== pixels) pixels.recycle()
                 result
             } catch (error: Throwable) { pixels.recycle(); throw error }

@@ -52,7 +52,8 @@ fun FolderExportRecordsPanel(state: WorkspaceState, workspace: WorkspaceViewMode
                 Row {
                     if (record.documentUri != null) TextButton(enabled = !state.busy, onClick = {
                         try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(record.documentUri, "image/jpeg")
+                            val mime = if (record.requestedName.endsWith(".png", ignoreCase = true)) "image/png" else "image/jpeg"
+                            context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(record.documentUri, mime)
                                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
                         } catch (_: SecurityException) {
                             workspace.notice("文件夹访问权限已失效，请重新选择文件夹或用系统文件应用核对")

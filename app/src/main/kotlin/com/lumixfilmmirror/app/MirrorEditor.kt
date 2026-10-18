@@ -175,7 +175,8 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
     var problem by remember(source.id, frame) { mutableStateOf<String?>(null) }
     var loading by remember(source.id, frame) { mutableStateOf(true) }
     var retry by rememberSaveable(source.id.value, frame) { mutableIntStateOf(0) }
-    LaunchedEffect(source.id, recipe, if (frame) state.frame else null, if (frame) state.output.dimensionPercent else null, filmOutputSize, state.luts, retry) {
+    LaunchedEffect(source.id, recipe, if (frame) state.frame else null, if (frame) state.output.dimensionPercent else null,
+        if (frame) state.output.format else null, filmOutputSize, state.luts, retry) {
         loading = workspace.displayPreviews.peek(previewKey) == null; problem = null
         try {
             if (loading) delay(160)
@@ -320,12 +321,27 @@ private fun LutControls(state: WorkspaceState, workspace: WorkspaceViewModel, on
 }
 
 @Composable
-internal fun OutputControls(state: WorkspaceState, workspace: WorkspaceViewModel) {
-    MirrorControlSection("JPEG 输出", "尺寸决定像素数量，压缩质量决定文件的精细度。") {
+internal fun OutputControls(state: WorkspaceState, workspace: WorkspaceViewModel, showFormat: Boolean = false) {
+    if (showFormat) {
+        MirrorControlSection("图片格式", "PNG 透明底用于「胶片暗盒」「记忆票根」；其他画框保留自身底色。") {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (format in ExportFormat.entries) {
+                    MirrorChoice(state.output.format == format,
+                        { workspace.output(state.output.copy(format = format)) },
+                        Modifier.weight(1f), enabled = !state.busy, label = { Text(format.title) })
+                }
+            }
+            if (state.output.format == ExportFormat.PNG) Text("PNG 为无损格式，不使用 JPEG 压缩质量。",
+                style = MaterialTheme.typography.bodySmall, color = LocalFilmMaterials.current.secondaryInk)
+        }
+    }
+    MirrorControlSection("输出尺寸", "尺寸决定像素数量；JPEG 压缩质量决定文件的精细度。") {
         ParameterSlider("照片尺寸", "${state.output.dimensionPercent}%", state.output.dimensionPercent.toFloat(), 1f..100f,
             !state.busy, steps = 98) { workspace.output(state.output.copy(dimensionPercent = it.roundToInt())) }
         ParameterSlider("JPEG 压缩质量", "${state.output.compressionQuality}", state.output.compressionQuality.toFloat(), 1f..100f,
-            !state.busy, steps = 98) { workspace.output(state.output.copy(compressionQuality = it.roundToInt())) }
+            !state.busy && (!showFormat || state.output.format == ExportFormat.JPEG), steps = 98) {
+            workspace.output(state.output.copy(compressionQuality = it.roundToInt()))
+        }
         state.current?.let { photo -> Text(state.output.contentSize(photo.size).let { "照片有效尺寸 ${it.width} × ${it.height}，画框会扩展画布。" },
             style = MaterialTheme.typography.bodySmall, color = LocalFilmMaterials.current.secondaryInk) }
         state.current?.let { photo ->
@@ -476,7 +492,7 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
                     onArt = { art.launch(arrayOf("image/*")) })
             }
             if (frameTab == "output") {
-            item { OutputControls(state, workspace) }
+            item { OutputControls(state, workspace, showFormat = true) }
             item {
                 MirrorControlSection("保存位置") {
                     Text(if (state.destination is ExportDestination.Gallery) "相册 / Pictures/LumixFilmMirror" else "当前使用所选文件夹",

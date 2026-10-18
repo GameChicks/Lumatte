@@ -13,12 +13,12 @@ fun JpegExportCachePanel(state: WorkspaceState, workspace: WorkspaceViewModel) {
     PaperPanel(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("导出中间文件", style = MaterialTheme.typography.titleMedium)
-            Text("整理 JPEG 编码缓存及本应用未发布的相册占位，保留工作台照片和已导出成片。",
+            Text("整理导出编码缓存及本应用未发布的相册占位，保留工作台照片和已导出成片。",
                 style = MaterialTheme.typography.bodySmall)
             state.exportCache?.let { cache ->
                 Text("编码缓存 ${storageBytes(cache.temporaryBytes)} · ${cache.temporaryFiles} 个",
                     style = MaterialTheme.typography.bodySmall)
-                Text("未发布 JPG 已知占用 ${storageBytes(cache.pendingBytes)} · ${cache.pendingImages} 个",
+                Text("未发布图片已知占用 ${storageBytes(cache.pendingBytes)} · ${cache.pendingImages} 个",
                     style = MaterialTheme.typography.bodySmall)
                 if (cache.unknownPendingSizes > 0) Text("其中 ${cache.unknownPendingSizes} 个占位的尺寸暂不可读",
                     style = MaterialTheme.typography.labelSmall)

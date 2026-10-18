@@ -114,7 +114,7 @@ class PhotoExportService : Service() {
                 PhotoProcessingStage.PREPARING -> "准备照片"
                 PhotoProcessingStage.RENDERING -> "处理影像"
                 PhotoProcessingStage.FRAMING -> "添加画框"
-                PhotoProcessingStage.ENCODING -> "生成 JPG"
+                PhotoProcessingStage.ENCODING -> "生成图片"
                 PhotoProcessingStage.PUBLISHING -> "保存照片"
                 null -> "准备下一张"
             }
