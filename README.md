@@ -4,18 +4,24 @@
 
 本项目由社区独立开发，与 Panasonic / 松下没有隶属关系。最低支持 Android 11（API 30），应用 ID 为 `com.lumixfilmmirror.app`。
 
-[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-101812-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
+[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-110054-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
 
-## 主要功能
+## 项目想解决什么
 
-| 功能 | 当前能力 |
-| --- | --- |
-| 相机连接与传输 | BLE 发现和配对、Wi-Fi 会话、相机媒体浏览、多选下载、发送队列接收、暂停与继续 |
-| 移动胶片 | 负片、电影卷、反转片和黑白风格；曝光、柔光与 Halation 等配方参数 |
-| LUT | 导入 `.cube` / `.vlt`，两个处理槽可分别设置强度并调整顺序；颗粒和导出选项独立控制 |
-| RAW 照片 | 读取 RAW 文件中相机嵌入的 JPEG 预览 |
-| 批量编辑 | 每张照片单独编辑，或显式继承第一张的处理参数 |
-| 导出 | 胶片或 LUT 完成后添加画框，保存到系统相册或用户选择的文件夹 |
+相机拍摄、手机接收、风格选择和成片保存常常分散在不同工具里。Lumatte 尝试把这些步骤连起来：从相机或手机选入照片，选择胶片模型或 LUT，逐张检查或批量应用，再统一设置画框和导出参数。
+
+胶片模型和 LUT 是两条不同的处理路径。胶片路径使用分阶段的响应、显影和扫描模型；LUT 路径按用户选择的顺序应用一到两个色彩查找表。它们可以服务于相似的创作目标，但彼此不能替代，也不应把一张内置风格 LUT 说成完整的胶片模拟。
+
+## 主要功能与明确边界
+
+| 功能 | 当前能力 | 设计边界 |
+| --- | --- | --- |
+| 相机连接与传输 | BLE 发现和配对、Wi-Fi 会话、相机媒体浏览、多选下载、发送队列接收、暂停与继续 | 聚焦媒体连接；不提供实时取景、遥控拍摄、视频启停、曝光/白平衡/对焦控制或相机参数复制 |
+| 移动胶片 | 负片、电影卷、反转片和黑白风格；曝光、柔光与 Halation 等配方参数 | CineStill 800T / 400D 使用专用 Fotufilm 物理返光模型；其他胶卷保留 SpektraFilm 默认路径 |
+| LUT | 导入 `.cube` / `.vlt`，两个处理槽可分别设置强度并调整顺序；颗粒和导出选项独立控制 | LUT 文件保存在应用的本地素材库；文件名、解析错误和来源会明确呈现 |
+| RAW 照片 | 读取 RAW 文件中相机嵌入的 JPEG 预览 | 只提取 JPEG，不解码传感器数据、不去马赛克、不做 RAW 显影；找不到可用预览时会说明原因 |
+| 批量编辑 | 每张照片单独编辑，或显式继承第一张的处理参数 | 继承的是配方，不复制照片、EXIF、尺寸或随机种子；整批共用一套画框设置 |
+| 导出 | 胶片或 LUT 完成后添加画框，保存到系统相册或用户选择的文件夹 | 默认照片尺寸为有效输入的 100%；输出尺寸与 JPEG 压缩质量是两个独立设置 |
 
 ## 从输入到成片
 
@@ -59,7 +65,7 @@ flowchart LR
 
 核心 Android 代码使用 Kotlin、Jetpack Compose、协程、Room 和 DataStore；原生处理通过 JNI 接入 NDK/C++。各模块入口和当前实现边界见下方[工程文档](#工程文档与进一步阅读)。
 
-### 胶片模拟：分阶段模型与有界处理
+### 移动胶片：分阶段模型与有界处理
 
 胶片渲染并不是把一个 `.cube` 文件换个名字。Lumatte 将胶片数据拆成响应（response）、显影（development）和扫描/印相（scan）阶段，由预先生成并校验来源的模型表驱动。曝光、柔光、Halation 和颗粒在相应阶段参与计算；完成胶片处理后才进入共享画框与 JPEG 输出。
 
@@ -73,6 +79,9 @@ LUT 处理把槽 1 的结果作为槽 2 的输入。两个槽各自控制强度�
 
 本地 LUT 导入经系统文件选择器完成；原始文件不会被改写，应用生成按源文件 SHA-256 标识的私有缓存。预览和整张成片复用同一处理计划，但缩略预览的分辨率与最终照片不同，因此不能期待颗粒噪声逐像素一致。详细格式行为以 [LUT 管线说明](docs/engineering/lut-pipeline.md) 为准。
 
+### RAW：只使用相机内嵌 JPEG
+
+RAW 导入先读取文件中可用的 JPEG 预览。松下 RW2/TIFF 元数据路径优先；需要时由固定版本 LibRaw 的 JPEG 缩略图接口补充读取。代码不调用 RAW 解包、去马赛克、白平衡或显影接口。最终尺寸按实际采用的 JPEG 预览计算，不是 RAW 传感器分辨率；相机没有可用 JPEG 预览时，不会把低质量替代内容冒充成 RAW 显影结果。
 
 ### 导出：质量、尺寸、画框分开管理
 
@@ -125,10 +134,10 @@ LUT 处理把槽 1 的结果作为槽 2 的输入。两个槽各自控制强度�
 
 当前公开版本为 **1.0.0**（versionCode `16`），最低 Android 版本为 Android 11（API 30）。GitHub Release 当前附带一个 APK：
 
-- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-101812-debug.apk)
+- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-110054-debug.apk)
 - [Release 页面与完整校验信息](https://github.com/GameChicks/Lumatte/releases/tag/v1.0.0)
 
-该 APK 使用 Android debug 证书签名，适用于体验和验证，不是应用商店签名包。发布记录中的 APK SHA-256 为 `4A7F1BE02CAF34DB535020EB8966A0EEF5A2FD7352A3BD5FAB075AC2506157B1`。1.0.0 的 Gradle 打包、v2 APK 签名检查和 16 KiB 对齐检查已记录；没有据此宣称完成手机、相机、全量回归或性能验证。
+该 APK 使用 Android debug 证书签名，适用于体验和验证，不是应用商店签名包。当前 APK 的 SHA-256 为 `7A86B791A6D47CBB3F178D812E63089C1A431A2378ABBE5A524CD8DA0BD9DA5D`。本次 `assembleDebug`、版本信息、v2 APK 签名、ZIP 16 KiB 对齐及两种 ABI 原生库 LOAD 段 16 KiB 对齐检查均通过；没有据此宣称完成手机、相机、自动化测试或性能验证。
 
 ## 从源码构建
 

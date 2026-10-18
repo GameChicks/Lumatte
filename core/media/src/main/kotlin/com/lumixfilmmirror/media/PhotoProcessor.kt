@@ -39,6 +39,7 @@ class PhotoProcessor(context: Context) {
     val officialLutCatalogue by lazy { LumixLabCatalogueClient() }
     val officialLutExplorer by lazy { OfficialLutExplorer(officialLutCatalogue) }
     private val officialLutRecommender by lazy { OfficialLutRecommender(officialLutCatalogue) }
+    private val officialLutPreviews by lazy { OfficialLutPreviewLibrary(officialLutCatalogue) }
     private val mobileFilmModels = MobileFilmModelLibrary(context)
     private val previewGate = Semaphore(1)
     private val previewCache = EffectPreviewCache()
@@ -70,22 +71,56 @@ class PhotoProcessor(context: Context) {
     /** Explicit download action; returns a normal offline asset usable in either LUT slot. */
     fun officialLutLanguage(): String = LumixLabLanguages.forContext(applicationContext)
 
-    /** Internet discovery uses creator thumbnails only; the user's photo stays on this device. */
+    /** Examples shortlist candidates; all returned recommendations are evaluated on the user's photo. */
     suspend fun discoverOfficialLuts(source: SourceImage, assets: List<LutAsset>,
-        styles: Set<LutRecommendationStyle> = LutRecommendationStyle.entries.toSet(),
-        refresh: Boolean = false): OfficialLutSuggestions {
+        styles: Set<LutRecommendationStyle> = setOf(LutRecommendationStyle.NATURAL, LutRecommendationStyle.WARM, LutRecommendationStyle.COOL),
+        refresh: Boolean = false, allowUnknownInput: Boolean = false): OfficialLutSuggestions {
         val excluded = assets.mapNotNull { it.lumixLabSource?.code }.toSet()
-        val selectedStyles = styles.toSet()
+        val selectedStyles = styles.filter { it != LutRecommendationStyle.MONOCHROME }.toSet()
+        if (selectedStyles.isEmpty()) return OfficialLutSuggestions(emptyList(), 0, 0,
+            listOf("色彩推荐不包含黑白方向。"), method = "photo-preview-shortlist-v2")
+        var inputProblem: String? = null
         val photo = withContext(Dispatchers.Default) { previewGate.withPermit {
             val scale = minOf(1.0, 128.0 / maxOf(source.size.width, source.size.height))
             val size = PixelSize(maxOf(1, (source.size.width * scale).toInt()), maxOf(1, (source.size.height * scale).toInt()))
             val current = coroutineContext
             val pixels = writer.previewPixels(source, size, null, null) { current.ensureActive() }
-            try { LutGalleryColours.analyse(pixels, LutColourOrigin.PHOTO_PREVIEW, source.id.value) }
+            try {
+                inputProblem = colourRecommendationInputProblem(pixels) { current.ensureActive() }
+                if (inputProblem == null) LutGalleryColours.analyse(pixels, LutColourOrigin.PHOTO_PREVIEW, source.id.value) else null
+            }
             finally { pixels.recycle() }
         } }
-        return officialLutRecommender.recommend(photo, officialLutLanguage(), selectedStyles, excluded, refresh)
+        if (photo == null) return OfficialLutSuggestions(emptyList(), 0, 0, listOfNotNull(inputProblem), method = "photo-preview-shortlist-v2")
+        val language = officialLutLanguage()
+        val shortlistStyles = LutRecommendationStyle.entries.filter { it != LutRecommendationStyle.MONOCHROME }.toSet()
+        val shortlist = officialLutRecommender.recommend(photo, language, shortlistStyles, excluded, refresh)
+        val temporary = mutableListOf<Pair<LumixLabLut, LutAsset>>()
+        val problems = shortlist.problems.toMutableList()
+        // At most five files, fetched sequentially; cancellation stops leaving this page's work.
+        val completed = kotlinx.coroutines.withTimeoutOrNull(30_000) { for (candidate in shortlist.suggestions.take(5)) {
+            coroutineContext.ensureActive()
+            try { temporary += candidate.lut to officialLutPreviews.asset(candidate.lut.code, language) }
+            catch (error: CancellationException) { throw error }
+            catch (_: Exception) { problems += "${candidate.lut.title}：试套文件暂不可用，未展示替代例图" }
+        }; true }
+        if (completed == null) problems += "官方试套读取超时，仅保留已完成的候选"
+        val evaluated = recommendLuts(source, temporary.map { it.second }, LutRecommendationOptions(
+            styles = selectedStyles, perStyle = 5, allowUnknownInput = allowUnknownInput))
+        val byStyle = evaluated.recommendations.groupBy { it.style }
+        val ranked = (0 until 5).flatMap { index ->
+            LutRecommendationStyle.entries.mapNotNull { byStyle[it]?.getOrNull(index) }
+        }.distinctBy { it.id }.take(5)
+        val suggestions = ranked.mapNotNull { info -> temporary.firstOrNull { it.second.id == info.id }?.let {
+            OfficialLutSuggestion(it.first, info.style, info.reasons, info.warnings)
+        } }
+        if (evaluated.skipped.isNotEmpty()) problems += "${evaluated.skipped.size} 款候选因输入约定不适用或未确认而跳过"
+        return shortlist.copy(suggestions = suggestions, problems = problems.distinct(), method = "photo-preview-shortlist-v2")
     }
+
+    /** Real current-photo preview. The table is session-only until the user explicitly downloads it. */
+    suspend fun previewOfficialLutCard(source: SourceImage, lut: LumixLabLut, longEdge: Int = 320): LutCardPreview =
+        previewLutCard(source, officialLutPreviews.asset(lut.code, officialLutLanguage()), longEdge)
 
     suspend fun downloadOfficialLut(code: String, language: String = officialLutLanguage(),
         onStage: suspend (OfficialLutDownloadStage) -> Unit = {}): LutAsset {

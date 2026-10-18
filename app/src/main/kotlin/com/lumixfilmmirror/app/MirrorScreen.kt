@@ -30,6 +30,7 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -59,6 +60,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
     var cameraEntry by rememberSaveable { mutableStateOf("bluetooth") }
     var requestedCameraId by rememberSaveable { mutableStateOf<String?>(null) }
     var fullscreen by remember { mutableStateOf(false) }
+    var immersiveLut by remember { mutableStateOf(false) }
     var transferHidden by rememberSaveable { mutableStateOf(false) }
     var transferChoice by rememberSaveable { mutableStateOf<String?>(null) }
     var transferDestination by rememberSaveable { mutableStateOf<String?>(null) }
@@ -218,7 +220,11 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
     CompositionLocalProvider(LocalMirrorReducedMotion provides reduced, LocalMirrorHaptics provides personal.haptics,
         LocalMirrorSoundEffects provides personal.soundEffects,LocalMirrorFeedbackPlayer provides feedbackPlayer,
         LocalMirrorAutomaticFilmDetails provides personal.automaticFilmDetails) {
-        Column(Modifier.fillMaxSize().background(tones.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
+        val collectionSurface = immersiveLut && tab == 2 && pane == null
+        val darkSurface = com.lumixfilmmirror.design.LocalFilmDark.current
+        Column(Modifier.fillMaxSize().drawBehind {
+            if (collectionSurface) drawCollectionBackdrop(darkSurface) else drawRect(tones.background)
+        }.windowInsetsPadding(WindowInsets.safeDrawing)) {
             MirrorTaskProgress(state, camera, workspace, transferHidden) { transferHidden = it }
             Box(Modifier.weight(1f).fillMaxWidth()) {
             ProgressiveBackdrop(Modifier.fillMaxSize(), enabled = navigation && !reduced, source = backdrop) {
@@ -270,7 +276,8 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                                 onAlbum = { importPhotos(PhotoTreatment.ORIGINAL) }, onSettings = { pane = "settings" })
                             1 -> MirrorFilm(state, workspace, { importPhotos(PhotoTreatment.FILM) }, chooseFilm) { if (shownTab == tab) fullscreen = it }
                             2 -> MirrorLuts(state, workspace, personal, { importPhotos(PhotoTreatment.LUT) },
-                                { luts.launch(arrayOf("*/*")) }, chooseLut, initialSecond = editingLutSecond) { if (shownTab == tab) fullscreen = it }
+                                { luts.launch(arrayOf("*/*")) }, chooseLut, initialSecond = editingLutSecond,
+                                onImmersive = { if (shownTab == tab) immersiveLut = it }) { if (shownTab == tab) fullscreen = it }
                             else -> Box(Modifier.padding(bottom = 100.dp)) {
                                 MirrorFrames(state, workspace, { importPhotos(PhotoTreatment.ORIGINAL) })
                             }
