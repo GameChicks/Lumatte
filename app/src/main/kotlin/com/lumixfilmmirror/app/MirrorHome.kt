@@ -80,6 +80,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
     val displayScale = LocalDensity.current.fontScale
     val viewportWidth = maxWidth
     val cardHeight = homeCardHeight(maxWidth, displayScale)
+    val actionCardHeight = homeActionCardHeight(maxWidth, displayScale)
     Column(Modifier.fillMaxSize().onGloballyPositioned { homeOrigin.value = it.positionInRoot() }
         .drawWithContent { homePixels.record { this@drawWithContent.drawContent() }; drawLayer(homePixels) }) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -97,9 +98,9 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 ActionAtmosphere("蓝牙\n连接", "连接你的相机", listOf(Color(0xFFFFCF78), Color(0xFFED653B), Color(0xFF428FA6)),
-                    Modifier.weight(1f), cardHeight, DotGlyph.BLUETOOTH, "BLUETOOTH\nCONNECT", { onCamera(null) })
+                    Modifier.weight(1f), actionCardHeight, DotGlyph.BLUETOOTH, "BLUETOOTH\nCONNECT", { onCamera(null) })
                 ActionAtmosphere("手机\n相册", "导入手机照片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
-                    Modifier.weight(1f), cardHeight, DotGlyph.ALBUM, "IMPORT\nPHOTOS", onAlbum)
+                    Modifier.weight(1f), actionCardHeight, DotGlyph.ALBUM, "IMPORT\nPHOTOS", onAlbum)
             }
         }
         item { UsageCard(state, transfers, cardHeight) }
@@ -129,6 +130,11 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
 internal fun homeCardHeight(viewportWidth: Dp, fontScale: Float): Dp =
     ((viewportWidth - 40.dp) * .654f).coerceIn(282.dp, 340.dp) +
         180.dp * (fontScale - 1f).coerceAtLeast(0f)
+
+/** Half-column entry cards have their own compact proportion, shared with transparent capture. */
+internal fun homeActionCardHeight(viewportWidth: Dp, fontScale: Float): Dp =
+    (((viewportWidth - 56.dp) / 2) * 1.35f).coerceIn(200.dp, 240.dp) +
+        96.dp * (fontScale - 1f).coerceAtLeast(0f)
 
 @Composable
 internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalState,
@@ -419,13 +425,13 @@ internal fun HomeJournalCard(personal: MirrorPersonalState, modifier: Modifier, 
     Atmosphere(modifier.height(height).clickable(role = Role.Button, onClick = onClick),
         listOf(Color(0xFFAEA891), Color(0xFF777967), Color(0xFF414D43))) {
         Text("“", Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = if (personal.journal.isBlank()) 20.dp else 54.dp),
-            fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
+            fontFamily = MirrorFonts.Dots, fontSize = 84.sp, color = Color.White.copy(.30f))
         Text("”", Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 20.dp),
-            fontFamily = MirrorFonts.Dots, fontSize = 60.sp, color = Color.White.copy(.30f))
+            fontFamily = MirrorFonts.Dots, fontSize = 84.sp, color = Color.White.copy(.30f))
         if (personal.journal.isBlank()) Text("创作记录", Modifier.align(Alignment.Center).padding(horizontal = 24.dp),
-            fontFamily = MirrorFonts.Dots, fontSize = 38.sp, lineHeight = 46.sp, color = Color.White)
+            fontFamily = MirrorFonts.Dots, fontSize = 48.sp, lineHeight = 58.sp, color = Color.White)
         else Column(Modifier.fillMaxSize().padding(24.dp)) {
-            Text("创作记录", fontFamily = MirrorFonts.Dots, fontSize = 32.sp, lineHeight = 40.sp, color = Color.White)
+            Text("创作记录", fontFamily = MirrorFonts.Dots, fontSize = 40.sp, lineHeight = 50.sp, color = Color.White)
             Spacer(Modifier.height(20.dp))
             Text(personal.journal, Modifier.weight(1f).padding(horizontal = 12.dp),
                 maxLines = 4, lineHeight = 24.sp, overflow = TextOverflow.Ellipsis, color = Color.White, fontSize = 16.sp)

@@ -43,7 +43,7 @@ class PromoCaptureActivity : ComponentActivity() {
                     val layer=rememberGraphicsLayer()
                     val fontScale=LocalDensity.current.fontScale
                     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF17191A)),contentAlignment=Alignment.Center) {
-                        val height=homeCardHeight(maxWidth,fontScale)
+                        val height=if(kind in setOf("bluetooth","phone"))homeActionCardHeight(maxWidth,fontScale) else homeCardHeight(maxWidth,fontScale)
                         val width=if(kind in setOf("bluetooth","phone"))(maxWidth-56.dp)/2 else maxWidth-40.dp
                         Box(Modifier.width(width).height(height).drawWithContent {
                             layer.record { this@drawWithContent.drawContent() };drawLayer(layer)

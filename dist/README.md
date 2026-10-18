@@ -1,12 +1,12 @@
 # 本机交付目录
 
-当前 APK：`lumix-film-mirror-prototype-0.2.3-20261018-002557-debug.apk`，版本 0.2.3 / 14，223,305,431 字节。
+当前 APK：`lumix-film-mirror-prototype-0.2.3-20261018-080714-debug.apk`，版本 0.2.3 / 14，223,306,575 字节。
 
-SHA-256：`a223409b807dafed8d6ef5e61e3a9771414aa1b0a1bf943421a847bf864d146b`。
+SHA-256：`bd87a404c6e215aa3406d5ebf29432db6adc8c127e5abddb68bf78ba258d6a8f`。
 
-签名、版本、ZIP / ELF 16KiB 对齐通过；调试证书与上一版一致。校验附件位于 `release-0.2.3-20261018-002557/`，实际验证范围见 [发布记录](../docs/releases/0.2.3.md)。
+签名、版本、ZIP / ELF 16KiB 对齐通过；调试证书与上一版一致。校验附件位于 `release-0.2.3-20261018-080714/`，实际验证范围见 [发布记录](../docs/releases/0.2.3.md)。
 
-宣传素材：`lumatte-0.2.3-promo.zip` 包含原生页面截图、透明卡片、小组件、图标与索引。`lumatte-0.2.3-transparent-cards.zip` 只含透明卡片，方便单独取用。解压后打开 `index.html` 浏览目录；未压缩版本位于 `promo-0.2.3/`。页面为 1080×2340，卡片使用恢复后的原比例。S5 已连接是明确指定的组件截图状态，不代表实体相机验证。
+宣传素材修正版：`lumatte-0.2.3-promo-r2.zip` 包含原生页面截图、透明卡片、小组件、图标与索引。`lumatte-0.2.3-transparent-cards-r2.zip` 只含透明卡片，方便单独取用。解压后打开 `index.html` 浏览目录；未压缩版本位于 `promo-0.2.3-r2/`。页面为 1080×2340，蓝牙与手机相册入口已缩短，创作记录标题与点阵引号已放大。S5 已连接是明确指定的组件截图状态，不代表实体相机验证。
 
 旧候选交付已可恢复地迁至项目外 `D:\AndroidBuild\Pineframe\work\20261018-superseded-deliveries`。`0.2.2-20261017-234949` 当前被其他进程占用，暂时保留，勿作为最新版使用。
 
