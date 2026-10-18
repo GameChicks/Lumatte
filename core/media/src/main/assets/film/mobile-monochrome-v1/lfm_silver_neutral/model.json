@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "modelVersion": "lfm-silver-three-stage-v1",
+  "stockId": "lfm_silver_neutral",
+  "printId": "lfm_silver_paper",
+  "positive": false,
+  "source": {
+    "origin": "project_authored",
+    "author": "Lumix Film Mirror",
+    "implementation": "silver-negative-v1",
+    "license": "GPL-3.0-only"
+  },
+  "storage": "float32_le_rgb_x_fastest",
+  "dir": "none_silver_density",
+  "spatialEffectsBaked": false,
+  "grainBaked": false,
+  "tables": {
+    "response": {
+      "file": "response.f32",
+      "size": 33,
+      "bytes": 431244,
+      "sha256": "53d05a34e700af648c502074ae0b28434863a8627e81cc8a726941b5d38211a3",
+      "minimum": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maximum": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "srgb_encoded",
+      "outputSpace": "film_raw_linear"
+    },
+    "development": {
+      "file": "development.f32",
+      "size": 33,
+      "bytes": 431244,
+      "sha256": "4ff6528f599195650aa4e800ba3eed0aefbeeb9b710e5088bb005ecfb2ef9bfc",
+      "minimum": [
+        -6.0,
+        -6.0,
+        -6.0
+      ],
+      "maximum": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_log10_exposure",
+      "outputSpace": "film_cmy_density"
+    },
+    "scan": {
+      "file": "scan.f32",
+      "size": 41,
+      "bytes": 827052,
+      "sha256": "90e6bf40d5cdb7046e8068c14cbd7608c31aaf60b39996064b3bcd9632d38b1f",
+      "minimum": [
+        -0.2,
+        -0.2,
+        -0.2
+      ],
+      "maximum": [
+        2.4800000000000004,
+        2.4800000000000004,
+        2.4800000000000004
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_cmy_density",
+      "outputSpace": "srgb_encoded"
+    }
+  },
+  "grainReference": {
+    "active": true,
+    "particle_area_um2": 0.45,
+    "particle_scale": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "density_min": [
+      0.02,
+      0.02,
+      0.02
+    ],
+    "uniformity": [
+      0.9,
+      0.9,
+      0.9
+    ]
+  },
+  "halationReference": {
+    "halation_strength": [
+      0.06,
+      0.06,
+      0.06
+    ],
+    "halation_first_sigma_um": [
+      60.0,
+      60.0,
+      60.0
+    ]
+  },
+  "settingsSnapshot": {
+    "camera": {
+      "film_format_mm": 36.0
+    }
+  },
+  "silverModel": {
+    "referenceLinearGrey": 0.184,
+    "filmBase": 0.08,
+    "filmDensitySpan": 2.2,
+    "filmSlope": 1.8,
+    "filmLogMidpoint": -0.7351821769904635,
+    "paperBase": 0.015,
+    "paperDensitySpan": 2.7,
+    "paperSlope": 3.0,
+    "paperLogMidpoint": -0.9582846513653749,
+    "scanWhiteDensity": 1.817416675736399,
+    "scanBlackDensity": 0.08,
+    "commercialStockCalibration": false
+  }
+}

@@ -1,0 +1,6 @@
+<network-security-config>
+    <!-- Camera IPs are discovered at runtime; Android domain rules cannot express private subnets.
+         CameraHttp accepts only private/link-local literal addresses on a selected Wi-Fi Network.
+         Internet/LUT clients must enforce HTTPS independently. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

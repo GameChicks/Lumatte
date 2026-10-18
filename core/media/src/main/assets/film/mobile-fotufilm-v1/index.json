@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+  "origin": "fotufilm_public_pack_adapter",
+  "sourceCommit": "12c8efea259e4cea70ec22166e504634d401a0cd",
+  "models": [
+    {
+      "stockId": "cinestill_800t",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+      "manifestSha256": "3b5211e4b399665038bf49f88743cfd067a482b3e9cf906382894070ffa874c3",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "cinestill_400d",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+      "manifestSha256": "986defb0ec627cfcc61bdee21f4df22132960e8bcba3020658703d88f78e7caf",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "fujifilm_acros_100_ii",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+      "manifestSha256": "34f5fd89e28db21c7a6e0b5a73e405e1acfbf2d194370615fb274a880a73ae7e",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_tri_x_400",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+      "manifestSha256": "573b511142243ad0250f9ba41ee31d4d08a7d9bd814e63c601112d7ac023b1c2",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "ilford_hp5_plus_400",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+      "manifestSha256": "fbd87562e05cf6d87c931294c8c893bdbbd213bbf83ca3063281e666997509ee",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "ilford_delta_3200",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+      "manifestSha256": "14deddf7e6260ad8ce6eede4e951b2b43775354e0556136d9ad6769e2723a6a1",
+      "tableBytes": 4553796
+    }
+  ]
+}

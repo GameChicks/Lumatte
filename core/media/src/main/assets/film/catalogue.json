@@ -1,0 +1,151 @@
+{
+  "sourceCommit": "6a347d5756f8b1a96ec393c60bf5d0452fa5498b",
+  "author": "Andrea Volpato",
+  "license": "CC-BY-SA-4.0",
+  "stocks": [
+    {
+      "id": "fujifilm_c200",
+      "name": "Fujifilm C200",
+      "category": "NEGATIVE",
+      "printId": "fujifilm_crystal_archive_typeii",
+      "positive": false,
+      "source": "profiles/fujifilm_c200.json"
+    },
+    {
+      "id": "fujifilm_pro_400h",
+      "name": "Fujifilm Pro 400H",
+      "category": "NEGATIVE",
+      "printId": "fujifilm_crystal_archive_typeii",
+      "positive": false,
+      "source": "profiles/fujifilm_pro_400h.json"
+    },
+    {
+      "id": "fujifilm_provia_100f",
+      "name": "Fujifilm Provia 100F",
+      "category": "REVERSAL",
+      "printId": "kodak_portra_endura",
+      "positive": true,
+      "source": "profiles/fujifilm_provia_100f.json"
+    },
+    {
+      "id": "fujifilm_velvia_100",
+      "name": "Fujifilm Velvia 100",
+      "category": "REVERSAL",
+      "printId": "kodak_portra_endura",
+      "positive": true,
+      "source": "profiles/fujifilm_velvia_100.json"
+    },
+    {
+      "id": "fujifilm_xtra_400",
+      "name": "Fujifilm X-Tra 400",
+      "category": "NEGATIVE",
+      "printId": "fujifilm_crystal_archive_typeii",
+      "positive": false,
+      "source": "profiles/fujifilm_xtra_400.json"
+    },
+    {
+      "id": "kodak_ektachrome_100",
+      "name": "Kodak Ektachrome 100",
+      "category": "REVERSAL",
+      "printId": "kodak_portra_endura",
+      "positive": true,
+      "source": "profiles/kodak_ektachrome_100.json"
+    },
+    {
+      "id": "kodak_ektar_100",
+      "name": "Kodak Ektar 100",
+      "category": "NEGATIVE",
+      "printId": "kodak_portra_endura",
+      "positive": false,
+      "source": "profiles/kodak_ektar_100.json"
+    },
+    {
+      "id": "kodak_gold_200",
+      "name": "Kodak Gold 200",
+      "category": "NEGATIVE",
+      "printId": "kodak_portra_endura",
+      "positive": false,
+      "source": "profiles/kodak_gold_200.json"
+    },
+    {
+      "id": "kodak_kodachrome_64",
+      "name": "Kodak Kodachrome 64",
+      "category": "REVERSAL",
+      "printId": "kodak_portra_endura",
+      "positive": true,
+      "source": "profiles/kodak_kodachrome_64.json"
+    },
+    {
+      "id": "kodak_portra_160",
+      "name": "Kodak Portra 160",
+      "category": "NEGATIVE",
+      "printId": "kodak_portra_endura",
+      "positive": false,
+      "source": "profiles/kodak_portra_160.json"
+    },
+    {
+      "id": "kodak_portra_400",
+      "name": "Kodak Portra 400",
+      "category": "NEGATIVE",
+      "printId": "kodak_portra_endura",
+      "positive": false,
+      "source": "profiles/kodak_portra_400.json"
+    },
+    {
+      "id": "kodak_portra_800",
+      "name": "Kodak Portra 800",
+      "category": "NEGATIVE",
+      "printId": "kodak_portra_endura",
+      "positive": false,
+      "source": "profiles/kodak_portra_800.json"
+    },
+    {
+      "id": "kodak_ultramax_400",
+      "name": "Kodak Ultramax 400",
+      "category": "NEGATIVE",
+      "printId": "kodak_portra_endura",
+      "positive": false,
+      "source": "profiles/kodak_ultramax_400.json"
+    },
+    {
+      "id": "kodak_verita_200d",
+      "name": "Kodak Verita 200D",
+      "category": "CINEMA",
+      "printId": "kodak_2383",
+      "positive": false,
+      "source": "profiles/kodak_verita_200d.json"
+    },
+    {
+      "id": "kodak_vision3_200t",
+      "name": "Kodak Vision3 200T",
+      "category": "CINEMA",
+      "printId": "kodak_2383",
+      "positive": false,
+      "source": "profiles/kodak_vision3_200t.json"
+    },
+    {
+      "id": "kodak_vision3_250d",
+      "name": "Kodak Vision3 250D",
+      "category": "CINEMA",
+      "printId": "kodak_2383",
+      "positive": false,
+      "source": "profiles/kodak_vision3_250d.json"
+    },
+    {
+      "id": "kodak_vision3_500t",
+      "name": "Kodak Vision3 500T",
+      "category": "CINEMA",
+      "printId": "kodak_2383",
+      "positive": false,
+      "source": "profiles/kodak_vision3_500t.json"
+    },
+    {
+      "id": "kodak_vision3_50d",
+      "name": "Kodak Vision3 50D",
+      "category": "CINEMA",
+      "printId": "kodak_2383",
+      "positive": false,
+      "source": "profiles/kodak_vision3_50d.json"
+    }
+  ]
+}

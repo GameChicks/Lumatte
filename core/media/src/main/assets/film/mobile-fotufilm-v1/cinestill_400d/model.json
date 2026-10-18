@@ -1,0 +1,233 @@
+{
+  "schema": 1,
+  "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+  "stockId": "cinestill_400d",
+  "printId": "fotu_fixed_print",
+  "positive": false,
+  "source": {
+    "origin": "fotufilm_public_pack_adapter",
+    "repository": "https://github.com/DhaliwalX/fotufilm-engine",
+    "commit": "12c8efea259e4cea70ec22166e504634d401a0cd",
+    "packSnapshot": "fotufilm-public-demo-20261016",
+    "packSha256": "9c98602708c83471a4cb5205867a487055aaca74b6166aa9c4e21d26862d4267",
+    "profileSha256": "814a7d8253abc0dc3471ae1bd778a6e3991d042de52bf40c02563b0924841f3f",
+    "author": "Fotufilm / MUAStudio Inc.",
+    "license": "CC-BY-SA-4.0"
+  },
+  "storage": "float32_le_rgb_x_fastest",
+  "dir": "baked_local_only",
+  "spatialEffectsBaked": false,
+  "grainBaked": false,
+  "tables": {
+    "response": {
+      "file": "response.f32",
+      "size": 33,
+      "bytes": 431244,
+      "sha256": "f771f5071dca08443c81d8b53074e661507bd8140f31ed036b9fa990442cad1b",
+      "minimum": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maximum": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "srgb_encoded",
+      "outputSpace": "film_raw_linear"
+    },
+    "development": {
+      "file": "development.f32",
+      "size": 65,
+      "bytes": 3295500,
+      "sha256": "991d0c6da3c0189f1c8bba9dae443d111f7d9b3aad8d1dafea23b3a7bf8a2562",
+      "minimum": [
+        -4.0,
+        -4.0,
+        -4.0
+      ],
+      "maximum": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_log10_exposure",
+      "outputSpace": "film_cmy_density"
+    },
+    "scan": {
+      "file": "scan.f32",
+      "size": 41,
+      "bytes": 827052,
+      "sha256": "4a875798a40bf6c7098079c7a69a83486187cbe1455b0399c5508fd759d740cd",
+      "minimum": [
+        -0.2,
+        -0.2,
+        -0.2
+      ],
+      "maximum": [
+        2.12154997587204,
+        2.7920879222030637,
+        2.8259621010606297
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_cmy_density",
+      "outputSpace": "srgb_encoded"
+    }
+  },
+  "grainReference": {
+    "active": true,
+    "particle_area_um2": 0.1,
+    "particle_scale": [
+      0.6216435955156301,
+      0.7659176470644827,
+      1.2689965779978973
+    ],
+    "density_min": [
+      0.02,
+      0.02,
+      0.02
+    ],
+    "uniformity": [
+      0.9,
+      0.9,
+      0.9
+    ],
+    "spacing_um": 4.0
+  },
+  "halationReference": {
+    "halation_strength": [
+      0.03,
+      0.001719215,
+      1.4675e-06
+    ],
+    "halation_first_sigma_um": [
+      188.1200525452262,
+      282.77264797974505,
+      425.04969227697507
+    ],
+    "halation_n_bounces": 3,
+    "halation_bounce_decay": 0.5,
+    "halation_renormalize": true,
+    "fotufilm_kernel": {
+      "algorithm": "fotufilm-legacy-physical-v1",
+      "sigma_mm": [
+        0.1881200525452262,
+        0.28277264797974505,
+        0.4250496922769751
+      ],
+      "weights": [
+        [
+          0.0,
+          0.952535497960449,
+          0.04746450203955099
+        ],
+        [
+          0.20609906075656145,
+          0.7939009392434385,
+          0.0
+        ],
+        [
+          0.43051448022761946,
+          0.5694855197723805,
+          0.0
+        ]
+      ],
+      "mix_matrix": [
+        [
+          0.02886826906161802,
+          0.0,
+          0.0002579445306149811
+        ],
+        [
+          0.00010272374663000564,
+          0.0016135406259167465,
+          0.0
+        ],
+        [
+          0.0,
+          4.891659488156368e-07,
+          9.783318976312735e-07
+        ]
+      ],
+      "strength": [
+        0.03,
+        0.001719215,
+        1.4675e-06
+      ],
+      "haze_mm": 0,
+      "base_thickness_mm": 0.13,
+      "record_refractive_indices": [
+        1.474,
+        1.48,
+        1.489
+      ],
+      "format_frame_height_mm": 24,
+      "angle_samples": 256,
+      "max_bounces": 5,
+      "fit_distance_count": 209,
+      "source_profile": {
+        "angularExponent": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "bounceRetention": [
+          0.283,
+          0.1375,
+          0.0651
+        ],
+        "diffuseShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "diffuseSigmaMM": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "roundTripOpticalDepth": [
+          0.9275,
+          1.458,
+          2.0075
+        ]
+      },
+      "source_return_matrix": [
+        [
+          0.104642,
+          0,
+          0.000935
+        ],
+        [
+          0.000383,
+          0.006016,
+          0
+        ],
+        [
+          0,
+          2e-06,
+          4e-06
+        ]
+      ],
+      "fit_arithmetic": "float64-offline",
+      "analysis_long_edge": 1536
+    }
+  },
+  "settingsSnapshot": {
+    "camera": {
+      "film_format_mm": 36.0
+    }
+  },
+  "mobileAdaptation": {
+    "monochrome": false,
+    "halationModel": "fotufilm-legacy-physical-v1",
+    "fullEngineParity": false,
+    "sampledCurves": true,
+    "sceneMetering": false,
+    "spatialDIR": false,
+    "grain": "density-statistical-approximation"
+  }
+}

@@ -1,0 +1,5 @@
+#pragma once
+namespace lfm::mobile::shaders {
+inline constexpr const char* vertex = R"glsl(@FILM_VERTEX@)glsl";
+inline constexpr const char* fragment = R"glsl(@FILM_FRAGMENT@)glsl";
+}

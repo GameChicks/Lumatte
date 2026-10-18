@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-18",
+  "cataloguePresets": 24,
+  "mappedAppearances": 26,
+  "missing": [],
+  "files": [
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_gold_200_v2.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_gold_200_v2.png",
+      "sha256": "a31332ecac6140454a4efaf08454ef2c6e9dd8a3587e21a7e26b9467fb0097d1",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_c200_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_c200_v1.png",
+      "sha256": "8a7b64985d07b1a0f24d4dc7d4683d1bc5a6236463eb4e44a22a3658bbc91574",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_velvia_100_v2.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_velvia_100_v2.png",
+      "sha256": "d06d8546aa5c79950c71df989222105a297897bc4133e402a7e67d463f05c7c5",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_vision3_500t_v2.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_vision3_500t_v2.png",
+      "sha256": "2e8edb94d7e2642bfa80ffebf8d4cf5247d182790a6825a9dd054484180d397c",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_silver_neutral_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_silver_neutral_v1.png",
+      "sha256": "a1a0f0a8f6479525e1b19a19583d4266d446dccb8a004749e8bd50a20e826ef6",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_silver_contrast_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_silver_contrast_v1.png",
+      "sha256": "a1ef200316770fa611430e8efbba22ee4eafc7fbf3e1b73e318fe9381b7701fd",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_fujifilm_pro_400h_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_fujifilm_pro_400h_v1.png",
+      "sha256": "800fdc988b3b83a563f75a9106ac331ce2b2b5de8d690a3171520fcc5712cb6c",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_fujifilm_provia_100f_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_fujifilm_provia_100f_v1.png",
+      "sha256": "69ea3ee527e429a7251fa37c65245a629a939e101936be700b501fa821e55bf1",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_fujifilm_xtra_400_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_fujifilm_xtra_400_v1.png",
+      "sha256": "d2b087e0d5bed90fbea1acd5cf6fd47e5f561e419eb69ac26c346968612de79a",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_ektachrome_100_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_ektachrome_100_v1.png",
+      "sha256": "48378cf6e1f24750488596324dbcb07b3a24eb14e02e407a227bf6998e7ac5cf",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_ektar_100_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_ektar_100_v1.png",
+      "sha256": "eb58465ae8026eff6cfb3a1182d546cce502c0a1509464b08833bc39b074351d",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_kodachrome_64_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_kodachrome_64_v1.png",
+      "sha256": "b36c3cf42ab13fc55061492f355be90dcca617a46e5d83ce8a01ab9f5f358b36",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_portra_160_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_portra_160_v1.png",
+      "sha256": "4691769fe21a1c1dca998a91c95b43ff3d8e41787413e0f1e0b89685c03de145",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_portra_400_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_portra_400_v1.png",
+      "sha256": "7a5a56de5a1c4358024bbf4faffa370fc32a36ae94edd81d076a1f8b27ccc4eb",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_portra_800_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_portra_800_v1.png",
+      "sha256": "be18de7d6a5ae49b2998daffcee0b1ad86201503a4ce6bd65f2f2c7434ba5bf5",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_ultramax_400_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_ultramax_400_v1.png",
+      "sha256": "3d99bcf4667738e1d6cabf785578a00be3da0f59a094dd0b23feb2d6fa29cbea",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_verita_200d_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_verita_200d_v1.png",
+      "sha256": "22f24eb30bd02fac119d50eb04ea8b4e4dc979d56df77135a12f49a9a8e9776d",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_vision3_200t_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_vision3_200t_v1.png",
+      "sha256": "96f123937db888fd07a331451bdd3f86a583205da81bae7daadff155d1bc00aa",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_vision3_250d_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_vision3_250d_v1.png",
+      "sha256": "dbeb4ad3a85481b5cd6c9bdf29f850fb8deb37cf2930a1d52d97db814e614f55",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_vision3_50d_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_vision3_50d_v1.png",
+      "sha256": "114ee009c0f80cd6576550bc29f928fb10dd5cfc092c495500e5f807c433deb7",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_cinestill_800t_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_cinestill_800t_v1.png",
+      "sha256": "7be9a84b548c19fefabb43d00ef64a8ccd1e9dad9374dee53c48d718452d97a7",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_cinestill_400d_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_cinestill_400d_v1.png",
+      "sha256": "99f06370354759334a2695cdec66aacd00ef1ca7cdefb9f1ba58106629a7782e",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_fujifilm_acros_100_ii_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_fujifilm_acros_100_ii_v1.png",
+      "sha256": "7153cca80fc83274dc362662252b3a19ced536565cbedbcc440604cbeb8ae93c",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_kodak_tri_x_400_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_kodak_tri_x_400_v1.png",
+      "sha256": "b4f6ec72bb4b204397760b8bc39e76c1f54b6f886fc990c18a16e56791feed71",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_ilford_hp5_plus_400_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_ilford_hp5_plus_400_v1.png",
+      "sha256": "0496fd0d3fc0ee05691c9388db37af390f3a4637516f4bd746545b7f7a3d316f",
+      "originalBytesPreserved": true
+    },
+    {
+      "source": "app/src/main/res/drawable-nodpi/cartridge_ilford_delta_3200_v1.png",
+      "file": "core/media/src/main/res/drawable-nodpi/cartridge_ilford_delta_3200_v1.png",
+      "sha256": "db86b4e2c89caf24e80f252fb43150736a09f95ba1db09b42cc1da1d42ace9fe",
+      "originalBytesPreserved": true
+    }
+  ]
+}

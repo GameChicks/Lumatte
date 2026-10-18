@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">松映 · Lumatte</string>
+    <string name="widget_configure">配置松映小组件</string>
+    <string name="widget_soft">松映 · 柔光胶卷</string>
+    <string name="widget_bands">松映 · 分层胶卷</string>
+    <string name="widget_camera">松映 · 相机连接</string>
+    <string name="widget_film_description">选择一卷胶片，从桌面导入照片。</string>
+    <string name="widget_camera_description">从桌面进入松下相机连接。</string>
+</resources>

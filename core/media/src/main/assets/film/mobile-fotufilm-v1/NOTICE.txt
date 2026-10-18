@@ -1,0 +1,6 @@
+Fotufilm profiles and derived tables: CC BY-SA 4.0. Copyright MUAStudio Inc.
+Attribution: Fotufilm, https://fotufilm.com, https://github.com/DhaliwalX/fotufilm-engine
+Pointwise equations adapted from Fotufilm, Apache-2.0; original NOTICE preserved in research/fotufilm/licenses.
+Changes: fixed public-demo pack snapshot to three sRGB mobile tables; no scene auto levels, spatial DIR or full-engine grain; CineStill physical default halation kernel adapted from pinned upstream, with bounded mobile spatial sampling.
+Source profiles, public pack hashes and adapter are preserved in research/fotufilm and tools/produce_fotufilm_models.py.
+Not calibrated physical-film, full-engine-parity, rendered-photo or device-performance verification.

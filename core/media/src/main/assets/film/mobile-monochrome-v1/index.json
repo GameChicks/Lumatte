@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "modelVersion": "lfm-silver-three-stage-v1",
+  "origin": "project_authored",
+  "models": [
+    {
+      "stockId": "lfm_silver_neutral",
+      "printId": "lfm_silver_paper",
+      "positive": false,
+      "modelVersion": "lfm-silver-three-stage-v1",
+      "manifestSha256": "14e389922b7fb0d0496e4293f87f281d4548f72c5bd295ffeb61a38e3c5b8508",
+      "tableBytes": 1689540
+    },
+    {
+      "stockId": "lfm_silver_contrast",
+      "printId": "lfm_silver_paper",
+      "positive": false,
+      "modelVersion": "lfm-silver-three-stage-v1",
+      "manifestSha256": "1ca0baee8bf6944b565aa484a22537640b3a97198b8213d762e0050d82dfd38a",
+      "tableBytes": 1689540
+    }
+  ]
+}

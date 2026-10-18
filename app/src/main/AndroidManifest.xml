@@ -1,0 +1,46 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.GET_CONTENT" />
+            <category android:name="android.intent.category.OPENABLE" />
+            <data android:mimeType="image/jpeg" />
+        </intent>
+    </queries>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <application android:name=".FilmMirrorApplication" android:allowBackup="false" android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true" android:theme="@style/Theme.FilmMirror"
+        android:networkSecurityConfig="@xml/network_security_config">
+        <service android:name=".CameraTransferService" android:exported="false"
+            android:foregroundServiceType="connectedDevice" android:stopWithTask="false" />
+        <service android:name=".PhotoExportService" android:exported="false"
+            android:foregroundServiceType="dataSync|mediaProcessing" android:stopWithTask="false" />
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".MirrorWidgetConfigurationActivity" android:exported="true" android:label="@string/widget_configure">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+        </activity>
+        <receiver android:name=".FilmSoftWidget" android:exported="false" android:label="@string/widget_soft">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_film_soft" />
+        </receiver>
+        <receiver android:name=".MirrorWidgetPinnedReceiver" android:exported="false" />
+        <receiver android:name=".FilmBandsWidget" android:exported="false" android:label="@string/widget_bands">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_film_bands" />
+        </receiver>
+        <receiver android:name=".CameraConnectWidget" android:exported="false" android:label="@string/widget_camera">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_camera" />
+        </receiver>
+    </application>
+</manifest>

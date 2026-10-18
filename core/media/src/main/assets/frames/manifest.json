@@ -1,0 +1,365 @@
+{
+  "source_apk_sha256": "1ff129af2b54564f0dbeec44430b5e0633c2c056eecf5ba61d380300925a4b5f",
+  "assets": [
+    {
+      "file": "art/cartridge_blank_v1.png",
+      "source": "research/filmtool/assets/drawable/cartridge_blank_v1.png",
+      "sha256": "9b1d74d504caea7b3d0dd0a9af2e2de5c7ae5901fe8457e83788463089fc8a37",
+      "bytes": 1573877,
+      "apk_entry": "res/33.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_ektar_100.png",
+      "source": "research/filmtool/assets/drawable/film_ektar_100.png",
+      "sha256": "1b1c17ad1036b7e0bdb9709f980a990020f4665d6525bc4404ce7c97b30e0f7b",
+      "bytes": 855609,
+      "apk_entry": "res/ev.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_gold_200_image2.png",
+      "source": "research/filmtool/assets/drawable/film_gold_200_image2.png",
+      "sha256": "1fd047281b6ad10f8fcd033c40558086a9b473b8baae84a80f094cca8c4116ab",
+      "bytes": 754307,
+      "apk_entry": "res/-_.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_foma_fomapan100.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_foma_fomapan100.png",
+      "sha256": "87f948073e5f0d05d6c64987758fcab97d67d65793b822498c76d641d01c1f88",
+      "bytes": 142431,
+      "apk_entry": "res/A6.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_foma_fomapan400.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_foma_fomapan400.png",
+      "sha256": "621c7fc45e0a7ec5cb9fa0b78565628eb23a71ddf3729c793ca4a84846a4f5ed",
+      "bytes": 132079,
+      "apk_entry": "res/r1.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_fuji_8573.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_fuji_8573.png",
+      "sha256": "b20f1dd85e94853252501819c6057de50488cb6ec51d07a1dd4cb9ff19998357",
+      "bytes": 156694,
+      "apk_entry": "res/Mp.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_fuji_astia100f.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_fuji_astia100f.png",
+      "sha256": "165b4411358718c1884f699d364226b92879e29e5e4733c1ddf1a3a1d7aac8db",
+      "bytes": 113026,
+      "apk_entry": "res/Za.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_fuji_c200.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_fuji_c200.png",
+      "sha256": "b46dfb1a6b8218c9c79d39f52bec0e53ad61f3f45ebcc0a0c463714a838b00f7",
+      "bytes": 191177,
+      "apk_entry": "res/fC.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_fuji_industrial400.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_fuji_industrial400.png",
+      "sha256": "dee27f91f732b5a39ebd8732f85789ced0d664de2fcacb0abb3660e4ac234e4e",
+      "bytes": 139454,
+      "apk_entry": "res/KX.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_fuji_premium400.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_fuji_premium400.png",
+      "sha256": "abe26356a9d560051b9b501b2807381cd286228ca68fb45a7dea6e340d1bfacd",
+      "bytes": 118594,
+      "apk_entry": "res/tK.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_fuji_provia100f.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_fuji_provia100f.png",
+      "sha256": "97d31e21a36b17be6a99fc4c022b9f80be698a8a159fa4abe0851a0230acbb2b",
+      "bytes": 151470,
+      "apk_entry": "res/mZ.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_fuji_superia400.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_fuji_superia400.png",
+      "sha256": "789345ca19eb656ba5191e2f461945d766a7ae2ee56e62951aa4256752fcdf24",
+      "bytes": 143055,
+      "apk_entry": "res/xI.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_fuji_velvia100.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_fuji_velvia100.png",
+      "sha256": "21ecb4f7bc622175c2407e2db29f6ad349153165cece860f62918e68d9707d5b",
+      "bytes": 140468,
+      "apk_entry": "res/Wt.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_fujifilm_velvia_50.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_fujifilm_velvia_50.png",
+      "sha256": "d5310810b200acf684db942042f946e11394899d2959909324987cc5229270f7",
+      "bytes": 255793,
+      "apk_entry": "res/-a.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_ilford_delta100.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_ilford_delta100.png",
+      "sha256": "871e9a1c01b54e93964116b0e1417afb07c2e9b926ce2d40409a47f7b87d9c2f",
+      "bytes": 119463,
+      "apk_entry": "res/RB.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_ilford_delta400.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_ilford_delta400.png",
+      "sha256": "2b16fab5bf7ed8ce6344d0369f2d4dd1e140649609ac8ac27da99b8b6ac86f2a",
+      "bytes": 130609,
+      "apk_entry": "res/v_.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_ilford_fp4.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_ilford_fp4.png",
+      "sha256": "7334a82a9be6c50b7c3b6cd4c3ecf3b38995c58203c9be330158d551d2cdf5b4",
+      "bytes": 141988,
+      "apk_entry": "res/95.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_ilford_hp5.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_ilford_hp5.png",
+      "sha256": "05df9385ea619125cf26b042d661e53d4bc705bfdea0010bf75bbc76638b81a5",
+      "bytes": 156257,
+      "apk_entry": "res/2T.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_ilford_pan400.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_ilford_pan400.png",
+      "sha256": "95eb84f640c27562f07162f8d761547b8542ad2a083abf0122741c444401229d",
+      "bytes": 161308,
+      "apk_entry": "res/Ta.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_5203.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_5203.png",
+      "sha256": "6efa92a9c5b90f7ca59eafe6644ed51038a3f739a7969fba56eb6fa206f2c047",
+      "bytes": 121362,
+      "apk_entry": "res/9b.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_5213.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_5213.png",
+      "sha256": "40f744cb4bcf38da029aba14bc7866d4591f1c06264552408bc6df0c9daed3f8",
+      "bytes": 140703,
+      "apk_entry": "res/3P.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_5219.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_5219.png",
+      "sha256": "563bf9e1ef5b5cca046c10945c849a84b1dff560094321bb68ed9a67191f320b",
+      "bytes": 136964,
+      "apk_entry": "res/Cr.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_5222.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_5222.png",
+      "sha256": "ea7cf3ae8ada33d1113018ccf35241575cbcfe88788f48b4feb8d63e91c3c645",
+      "bytes": 149880,
+      "apk_entry": "res/kD.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_5260.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_5260.png",
+      "sha256": "d6937a21b1337f51fcb309167825e7de7c336b021df4399232a38ff71d07a996",
+      "bytes": 178146,
+      "apk_entry": "res/hn.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_e100.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_e100.png",
+      "sha256": "28af3c121525e512bb702b568fc2df526fb46b4b086937c3bee278173721c40b",
+      "bytes": 108003,
+      "apk_entry": "res/uc.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_proimage100.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_proimage100.png",
+      "sha256": "449fb86f43aacce900ab40a2572125b2d4117f29ec16b41cade038414e6453f4",
+      "bytes": 102327,
+      "apk_entry": "res/vm.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_tmax100.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_tmax100.png",
+      "sha256": "b37eaf8b2a52c36c6b1aa9c5e9168bd9218596d9824626e6cb01a45dcc362d3e",
+      "bytes": 151332,
+      "apk_entry": "res/yQ.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_tmax400.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_tmax400.png",
+      "sha256": "9369a0bc69b28bf32bd05ed2be7c5ac745a33ffa5ea61ef89a3273e2f774442f",
+      "bytes": 135681,
+      "apk_entry": "res/DN.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_kodak_trix400.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_kodak_trix400.png",
+      "sha256": "11a72576416364d72da533b19324588b359b9b7da14045b88027a23d451a0c53",
+      "bytes": 110274,
+      "apk_entry": "res/eQ.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_lucky_c200.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_lucky_c200.png",
+      "sha256": "d721fd48b634b24bae7d7c97f20a0f57b03e7147de2a938829c522e2133b1dc3",
+      "bytes": 265285,
+      "apk_entry": "res/4l.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_lucky_shd100.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_lucky_shd100.png",
+      "sha256": "86b9c3411f41e3688c60979189244046ba24f2e29570d437262dc4df91b0712c",
+      "bytes": 306093,
+      "apk_entry": "res/mz.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_lucky_shd400.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_lucky_shd400.png",
+      "sha256": "12c5ae77a8bf9e1756c855e12f1fccaa38fb2180285d39a98fb30a253421a61d",
+      "bytes": 361476,
+      "apk_entry": "res/cr.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_rollei_rpx100.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_rollei_rpx100.png",
+      "sha256": "1f5ad9bea721bb2af4d7ec5a9453effe8094ff640e35489444815d5dfdf2d2e7",
+      "bytes": 117498,
+      "apk_entry": "res/NN.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_shanghai_gp3.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_shanghai_gp3.png",
+      "sha256": "ca03f8a6738f70d2ee96d18f0e5490f5a84971ba120af2d74dfda5212dfa3d8b",
+      "bytes": 244726,
+      "apk_entry": "res/k5.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_pkg_yesstar_200.png",
+      "source": "research/filmtool/assets/drawable/film_pkg_yesstar_200.png",
+      "sha256": "c93a4d5352e6cebcf0965a674942404cb91a00a7bff60060fe277dd33205fa2c",
+      "bytes": 298080,
+      "apk_entry": "res/bE.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/film_ultramax_400.png",
+      "source": "research/filmtool/assets/drawable/film_ultramax_400.png",
+      "sha256": "f202ca43f48f682f3f5efa6c8f3f126b7fc3224fb506eaf4b58f1af0ffed3f10",
+      "bytes": 828927,
+      "apk_entry": "res/Td.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/print_cotton_paper.png",
+      "source": "research/filmtool/assets/drawable/print_cotton_paper.png",
+      "sha256": "8fa8c97d132162cc7f4204b33af277742964a0aa8a4af2c663a08a7ad0774f44",
+      "bytes": 1979590,
+      "apk_entry": "res/Un.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "art/spool_120_blank_v1.png",
+      "source": "research/filmtool/assets/drawable/spool_120_blank_v1.png",
+      "sha256": "d6200fd20fa6f10fb270166b7cebbda9735088c81a1a92e2d7c48f4167a6a373",
+      "bytes": 1209279,
+      "apk_entry": "res/0v.png",
+      "license": "Recovered user-provided Film Companion artwork; see docs/engineering/frame-export.md"
+    },
+    {
+      "file": "fonts/film_sans_regular.otf",
+      "source": "research/filmtool/assets/font/film_sans_regular.otf",
+      "sha256": "1379c34cc4d8ed69300218856b653b73b09364dfa339cbddab678c123f537bf3",
+      "bytes": 1785432,
+      "apk_entry": "res/US.otf",
+      "license": "OFL-1.1; licenses/SourceHanSans-OFL.txt"
+    },
+    {
+      "file": "fonts/print_typewriter.ttf",
+      "source": "research/filmtool/assets/font/print_typewriter.ttf",
+      "sha256": "a6563be48e63fcb9c6adf45f401518a5dfd926f12628196daf3d14eba3746067",
+      "bytes": 77252,
+      "apk_entry": "res/xe.ttf",
+      "license": "OFL-1.1; licenses/cutivemono-OFL.txt"
+    },
+    {
+      "file": "fonts/print_script.ttf",
+      "source": "research/filmtool/assets/font/print_script.ttf",
+      "sha256": "7e457df97068dc950db6e4770094d08cec59778c0eac59b9a331b0a6814e42f8",
+      "bytes": 79932,
+      "apk_entry": "res/61.ttf",
+      "license": "OFL-1.1; licenses/dancingscript-OFL.txt"
+    },
+    {
+      "file": "fonts/print_serif.ttf",
+      "source": "research/filmtool/assets/font/print_serif.ttf",
+      "sha256": "17e6c4698298ec2bc9fe8f5bf7bc120607ae6d0a357c96e4436d7e69c7747601",
+      "bytes": 236212,
+      "apk_entry": "res/jG.ttf",
+      "license": "OFL-1.1; licenses/playfairdisplay-OFL.txt"
+    },
+    {
+      "file": "fonts/print_display.ttf",
+      "source": "research/filmtool/assets/font/print_display.ttf",
+      "sha256": "c74a9205b39807559f17a668d6675421eee0292d8060749a9b0721b6f66dfd73",
+      "bytes": 58372,
+      "apk_entry": "res/Cn.ttf",
+      "license": "OFL-1.1; licenses/abrilfatface-OFL.txt"
+    },
+    {
+      "file": "fonts/print_spaced.ttf",
+      "source": "research/filmtool/assets/font/print_spaced.ttf",
+      "sha256": "cea63bc3d6e417ae75afbbc27888151369c911991a9be009c4844227098d2182",
+      "bytes": 41676,
+      "apk_entry": "res/Ou.ttf",
+      "license": "OFL-1.1; licenses/juliussansone-OFL.txt"
+    },
+    {
+      "file": "fonts/print_great_vibes.ttf",
+      "source": "research/filmtool/assets/font/print_great_vibes.ttf",
+      "sha256": "aacb35f3c5d4b8a6f53c16619c8d51b2fc5af787dea532e4305646ad14f28c4e",
+      "bytes": 90528,
+      "apk_entry": "res/WM.ttf",
+      "license": "OFL-1.1; licenses/greatvibes-OFL.txt"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+* text=auto
+.gitattributes text eol=lf
+.gitignore text eol=lf
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+*.properties text eol=lf
+*.ps1 text eol=lf
+*.txt text eol=lf
+*.kt text eol=lf
+*.kts text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.cube -text whitespace=cr-at-eol,-blank-at-eof
+*.ttf binary
+*.otf binary
+core/media/src/main/assets/frames/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
+*.csv text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
+*.hpp.in text eol=lf
+*.vert text eol=lf
+*.frag text eol=lf
+*.cmake text eol=lf
+*.pro text eol=lf
+CMakeLists.txt text eol=lf
+third_party/libraw/upstream/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
+*.bin binary
+*.f32 binary
+*.pack binary
+research/fotufilm/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
+research/fotufilm/halation-reference/** -text
+core/media/src/main/assets/film/mobile-fotufilm-v1/*.txt -text whitespace=-blank-at-eol,-blank-at-eof
+core/media/src/main/assets/film/mobile-v1/SPEKTRAFILM_LICENSE.txt -text whitespace=-blank-at-eol,-blank-at-eof
+core/media/src/main/assets/film/mobile-monochrome-v1/LICENSE.txt -text whitespace=-blank-at-eol,-blank-at-eof
+LICENSE -text whitespace=-blank-at-eol,-blank-at-eof
+app/src/main/assets/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
+core/design/src/main/assets/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof

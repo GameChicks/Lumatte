@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/launcher_film_mirror_v1"
+    android:insetLeft="4%" android:insetTop="4%"
+    android:insetRight="4%" android:insetBottom="4%" />
