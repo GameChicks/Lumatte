@@ -18,7 +18,7 @@ Cormorant Garamond、Dancing Script、Great Vibes、Instrument Serif、Playfair 
 
 选卷页与取色相框的胶卷图标共用 `FilmCartridgeArtwork`。26 张原图移到媒体模块，未复制为另一套资源；与移动前 Git HEAD 的原始字节一致，来源路径和 SHA-256 见 [共享暗盒清单](shared-cartridge-sources.json)。当前 24 款目录全部有映射，旧 Silver 配方也保留对应造型；推片后缀归到基础胶卷。取色相框仍优先尊重用户自行导入的装饰图，无选择胶卷时不虚构品牌外观。
 
-中文 LUT 名称使用维护者提供的栗壳坚坚体副本，内部字体版本标记为 2.001（2025-07-04），原字节与 SHA-256 记录见 [字体来源清单](font-sources.json) 及应用内的许可说明。维护者于 2026-10-18 授权将该字体、10 款用户 LUT 和恢复画框图片随项目与 APK 在 GameChicks/-Lumatte 公开分发；各素材保留原作者权利与来源说明，不由 GPLv3 统一授权。详见[第三方清单](../../THIRD_PARTY_NOTICES.md)。
+中文 LUT 名称使用维护者提供的栗壳坚坚体副本，内部字体版本标记为 2.001（2025-07-04），原字节与 SHA-256 记录见 [字体来源清单](font-sources.json) 及应用内的许可说明。维护者于 2026-10-18 授权将该字体、10 款用户 LUT 和恢复画框图片随项目与 APK 公开分发；项目仓库现名为 GameChicks/Lumatte（由 GameChicks/-Lumatte 重命名）。各素材保留原作者权利与来源说明，不由 GPLv3 统一授权。详见[第三方清单](../../THIRD_PARTY_NOTICES.md)。
 
 宣传用原始透明图标为 `app/src/main/res/drawable-nodpi/launcher_film_mirror_v1.png`：1254×1254 RGBA PNG，包含全透明像素。Android 自适应图标通过 `launcher_foreground.xml` 引用它；宣传页面直接使用 PNG 即可。
 
