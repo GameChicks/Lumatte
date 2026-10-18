@@ -34,7 +34,11 @@ $arguments = @('-p',$workspaceRoot,'--no-daemon','--console=plain','--max-worker
     "-Porg.gradle.java.installations.paths=$($env:JAVA_HOME)",
     '-Porg.gradle.java.installations.auto-detect=false','-Porg.gradle.java.installations.auto-download=false')
 $arguments += if ($CompileOnly) { @(':core:media:externalNativeBuildDebug', ':app:compileDebugKotlin') } else { ':app:assembleDebug' }
-$gradle = if ($paths -and $paths.gradle) { Join-Path $paths.gradle 'bin/gradle.bat' } else { Join-Path $workspaceRoot 'gradlew.bat' }
+$gradle = if ($paths -and $paths.gradle) { Join-Path $paths.gradle 'bin/gradle.bat' } else {
+    $installedGradle = Get-Command gradle.bat -ErrorAction SilentlyContinue
+    if (-not $installedGradle) { throw 'Install Gradle 8.13 and add its bin directory to PATH. See BUILDING.md.' }
+    $installedGradle.Source
+}
 & $gradle @arguments *>&1 | Tee-Object -FilePath $log
 if ($LASTEXITCODE -ne 0) { throw "Build failed; see $log" }
 if ($CompileOnly) { Write-Output 'Source compilation completed; no tests or APK packaging.'; return }

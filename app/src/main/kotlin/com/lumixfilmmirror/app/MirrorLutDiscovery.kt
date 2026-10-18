@@ -169,7 +169,7 @@ internal fun MirrorColorExplorer(cards:List<MirrorLutCard>,state:WorkspaceState,
                     onColours={palettes[card.key]=it})
             }
         }
-        Column(Modifier.align(Alignment.TopStart).fillMaxWidth().background(Brush.verticalGradient(listOf(
+        Column(Modifier.align(Alignment.TopStart).fillMaxWidth().statusBarsPadding().background(Brush.verticalGradient(listOf(
             if(dark)Color(0xFF10131B) else Color(0xFFF2EDE1),Color.Transparent))).padding(20.dp)) {
             Row(verticalAlignment=Alignment.Top,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                 RoundAction("返回 LUT 列表",DotGlyph.LEFT,onClick=onBack)
@@ -363,7 +363,7 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
     var selected by rememberSaveable { mutableIntStateOf(0) }
     var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedCard=cards.firstOrNull { it.key==selectedKey } ?: cards.getOrNull(selected.coerceAtLeast(0))
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Box(Modifier.weight(1f)) {
             Column(Modifier.fillMaxSize().padding(top=12.dp)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal=20.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)) {

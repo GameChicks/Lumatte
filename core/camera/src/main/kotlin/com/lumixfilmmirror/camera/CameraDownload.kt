@@ -27,8 +27,9 @@ internal suspend fun downloadCameraResource(
         it.length <= 1024 && it.none { char -> char == '\r' || char == '\n' }
     }
     // Resume only with an HTTP validator. A camera may reuse a URL for a newer photo.
-    val resume = if (!validator.isNullOrBlank() && partial.exists() &&
-        (resource.bytes == null || partial.length() < resource.bytes)) partial.length() else 0L
+    // DIDL res@size is catalogue metadata, not an HTTP framing guarantee. Some
+    // cameras report zero or a stale estimate, including for a generated JPEG.
+    val resume = if (!validator.isNullOrBlank() && partial.exists()) partial.length() else 0L
     val connection = http.open(resource.uri)
     try {
         if (resume > 0) {
@@ -37,6 +38,7 @@ internal suspend fun downloadCameraResource(
         }
         currentCoroutineContext().ensureActive()
         val code = connection.responseCode
+        CameraConnectionLog.info("LFMDownload", "response status=$code resumeBytes=$resume catalogueBytes=${resource.bytes}")
         if (code == 416 && resume > 0) {
             // An interrupted task may already have received the last byte; fetch afresh once.
             check(!partial.exists() || partial.delete())
@@ -46,7 +48,8 @@ internal suspend fun downloadCameraResource(
         }
         if (code != 200 && code != 206) throw CameraProtocolException("下载 HTTP $code")
         var start = 0L
-        var total = resource.bytes
+        var total: Long? = null
+        val contentLength = connection.contentLengthLong.takeIf { it >= 0 }
         if (code == 206) {
             val range = Regex("bytes (\\d+)-(\\d+)/(\\d+)").matchEntire(
                 connection.getHeaderField("Content-Range").orEmpty().trim())
@@ -55,17 +58,19 @@ internal suspend fun downloadCameraResource(
             val end = range.groupValues[2].toLong()
             val remoteTotal = range.groupValues[3].toLong()
             require(start == resume && end >= start && end == remoteTotal - 1) { "相机返回了不同的下载区间" }
-            require(total == null || total == remoteTotal) { "相机文件尺寸已发生变化，请刷新列表" }
+            require(contentLength == null || contentLength == remoteTotal - start) { "相机下载区间与响应长度不一致" }
             total = remoteTotal
         } else {
-            connection.contentLengthLong.takeIf { it >= 0 }?.let { length ->
-                require(total == null || total == length) { "相机文件尺寸已发生变化，请刷新列表" }
-                total = length
-            }
+            total = contentLength
         }
-        val nextValidator = connection.getHeaderField("ETag")?.takeUnless { it.startsWith("W/") }
-            ?: connection.getHeaderField("Last-Modified")
+        val nextValidator = (connection.getHeaderField("ETag")?.takeUnless { it.startsWith("W/") }
+            ?: connection.getHeaderField("Last-Modified"))?.takeIf {
+                it.isNotBlank() && it.length <= 1024 && it.none { char -> char == '\r' || char == '\n' }
+            }
+        require(start == 0L || nextValidator == null || nextValidator == validator) { "相机下载文件已变化，请重新下载" }
         val expected = total
+        CameraConnectionLog.info("LFMDownload", "framing=${if (code == 206) "range" else if (expected != null) "content-length" else "stream"} " +
+            "expectedBytes=$expected catalogueMismatch=${expected != null && resource.bytes != null && expected != resource.bytes}")
         var received = start
         connection.inputStream.use { input ->
             FileOutputStream(partial, start > 0).use { output ->
@@ -91,6 +96,11 @@ internal suspend fun downloadCameraResource(
         require(!finished.exists()) { "已有完成的传输文件，请先恢复其导入" }
         check(partial.renameTo(finished)) { "无法保存完整的传输文件" }
         validatorFile.delete()
+        CameraConnectionLog.info("LFMDownload", "completed bytes=$received catalogueMismatch=${resource.bytes != null && received != resource.bytes}")
         finished
+    } catch (error: Exception) {
+        // Type and byte counts only: no URI, file name, credentials or server reply.
+        CameraConnectionLog.warn("LFMDownload", "failed type=${error.javaClass.simpleName} partialBytes=${partial.length()}")
+        throw error
     } finally { http.release(connection) }
 }

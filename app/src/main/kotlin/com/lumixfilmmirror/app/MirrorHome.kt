@@ -212,8 +212,9 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
                     Text("删除本机", fontFamily = MirrorFonts.Dots, fontSize = 30.sp, color = Color.White)
                     Text(personal.cameras.getOrNull(pager.currentPage)?.model.orEmpty(), color = Color.White, fontSize = 24.sp)
                     Text("移除本机记录，已传入的照片会保留。", color = Color.White)
-                    Row {
-                        TextButton(enabled = !camera.busy && currentId != null, onClick = { deleting = currentId }) { Text("移除记录", color = Color.White) }
+                    Spacer(Modifier.weight(1f))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        TextButton(enabled = !camera.busy && currentId != null, onClick = { deleting = currentId }) { Text("移除记录", color = Color.White, fontSize = 16.sp) }
                         TextButton(onClick = { travelDirection = 1; mode = "normal" }) { Text("返回", color = Color.White, fontSize = 16.sp) }
                     }
                 }

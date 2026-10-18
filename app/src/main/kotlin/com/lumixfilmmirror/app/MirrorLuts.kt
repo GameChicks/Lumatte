@@ -208,7 +208,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     BackHandler(detailOpen || favourites || discovery!=null) { if (detailOpen) closeDetail() else if(discovery!=null)discovery=null else favourites = false }
     BackHandler(searchEditing && !detailOpen && !favourites) { searchEditing = false; focusManager.clearFocus() }
     LaunchedEffect(detailOpen, favourites, searchEditing,discovery) { onFullscreen(detailOpen || favourites || searchEditing || discovery!=null) }
-    LaunchedEffect(detailOpen,discovery) { onImmersive(discovery=="recommendations" && !detailOpen) }
+    LaunchedEffect(detailOpen,discovery,favourites) { onImmersive((favourites || discovery=="recommendations") && !detailOpen) }
     DisposableEffect(Unit) { onDispose { onFullscreen(false); onImmersive(false) } }
     val storedOfficialCards = personal.savedLuts.map { item ->
         MirrorLutCard(state.luts.firstOrNull { it.lumixLabSource?.code == item.code }, item)
@@ -267,7 +267,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                     LaunchedEffect(scroll.isScrollInProgress) {
                         if (scroll.isScrollInProgress) searchVisible = false else { delay(700); searchVisible = true }
                     }
-                    Column(Modifier.fillMaxSize().onGloballyPositioned { galleryOrigin.value = it.positionInRoot() }
+                    Column(Modifier.fillMaxSize().statusBarsPadding().onGloballyPositioned { galleryOrigin.value = it.positionInRoot() }
                         .drawWithContent { galleryPixels.record { this@drawWithContent.drawContent() }; drawLayer(galleryPixels) }) {
                     PageHeading("COLOR / COLLECT", "LUT") { searchEditing = false; focusManager.clearFocus(); onImportPhoto() }
                     val bandColours = categories.associate { category ->
@@ -580,7 +580,7 @@ private fun LutDetail(card: MirrorLutCard, origin: String, state: WorkspaceState
             catch (e: Exception) { workspace.notice(e.message ?: "分类读取失败") }
         }
     }
-    Column(Modifier.fillMaxSize().background(tones.background)) {
+    Column(Modifier.fillMaxSize().background(tones.background).statusBarsPadding()) {
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item { RoundAction("返回 LUT 列表", DotGlyph.LEFT, onClick = onBack) }
             item { Polaroid(card, origin, state, workspace, personal, shared, visibility, Modifier.fillMaxWidth(), true,
@@ -676,7 +676,7 @@ private fun FavouriteFan(cards: List<MirrorLutCard>, state: WorkspaceState, work
         Box(Modifier.fillMaxSize().onGloballyPositioned { sceneOrigin.value = it.positionInRoot() }
             .drawWithContent { scenePixels.record { this@drawWithContent.drawContent() }; drawLayer(scenePixels) }) {
         CollectionBackdrop(Modifier.fillMaxSize(), dark)
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp)) {
                 Column(Modifier.fillMaxWidth().semantics { heading() }) {
                     MirrorLayeredTitle("Color", "Collection", tones.ink,
