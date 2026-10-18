@@ -30,3 +30,11 @@ research/third-party-sync/raw/
 /dist/*
 !/dist/README.md
 research/lut2photo/upstream/
+
+# iOS native port
+/.film-assets/
+ios/DerivedData/
+ios/build/
+**/xcuserdata/
+*.xcuserstate
+.DS_Store
