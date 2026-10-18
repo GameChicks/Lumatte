@@ -6,11 +6,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 
 /** Stationary spatial light, independent of the home page's moving colour field. */
 @Composable
 internal fun CollectionBackdrop(modifier: Modifier, dark: Boolean) {
-    Canvas(modifier) {
+    Canvas(modifier) { drawCollectionBackdrop(dark) }
+}
+
+/** Shared with the root surface so safe system-bar areas use the same continuous field. */
+internal fun DrawScope.drawCollectionBackdrop(dark: Boolean) {
         val w = size.width; val h = size.height
         val colours = if (dark) arrayOf(
             0f to Color(0xFF091C3C), .38f to Color(0xFF0B2C50),
@@ -24,5 +29,4 @@ internal fun CollectionBackdrop(modifier: Modifier, dark: Boolean) {
             center = Offset(w * .08f, h * .95f), radius = w * 1.02f))
         drawRect(Brush.radialGradient(listOf(Color(0xFFCED1FB).copy(if (dark) .37f else .24f), Color.Transparent),
             center = Offset(w * .98f, h * 1.07f), radius = w * .88f))
-    }
 }

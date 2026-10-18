@@ -84,6 +84,7 @@ internal fun LutAsset.galleryCard(): MirrorLutCard {
 internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, personal: MirrorPersonalState,
     onImportPhoto: () -> Unit, onImportLut: () -> Unit, onChoose: (LutAsset, Boolean) -> Unit,
     initialSecond: Boolean = false,
+    onImmersive: (Boolean) -> Unit = {},
     onFullscreen: (Boolean) -> Unit) {
     val browser by workspace.officialLuts.state.collectAsState()
     val tones = LocalFilmMaterials.current
@@ -207,7 +208,8 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
     BackHandler(detailOpen || favourites || discovery!=null) { if (detailOpen) closeDetail() else if(discovery!=null)discovery=null else favourites = false }
     BackHandler(searchEditing && !detailOpen && !favourites) { searchEditing = false; focusManager.clearFocus() }
     LaunchedEffect(detailOpen, favourites, searchEditing,discovery) { onFullscreen(detailOpen || favourites || searchEditing || discovery!=null) }
-    DisposableEffect(Unit) { onDispose { onFullscreen(false) } }
+    LaunchedEffect(detailOpen,discovery) { onImmersive(discovery=="recommendations" && !detailOpen) }
+    DisposableEffect(Unit) { onDispose { onFullscreen(false); onImmersive(false) } }
     val storedOfficialCards = personal.savedLuts.map { item ->
         MirrorLutCard(state.luts.firstOrNull { it.lumixLabSource?.code == item.code }, item)
     }
@@ -450,6 +452,15 @@ internal fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState
                 }
                 bitmap = example.image; colours = example.colours
                 example.colours?.let(reportColours)
+            } else if (actualPhoto && card.official != null && card.local == null) {
+                state.current?.let { source ->
+                    val preview = workspace.displayPreviews.load(previewKey, keepLoading = false) {
+                        workspace.processor.previewOfficialLutCard(source, card.official, if (large) 512 else 320)
+                            .let { MirrorPreview(it.image, it.colours) }
+                    }
+                    bitmap = preview.image; colours = preview.colours
+                    preview.colours?.let(reportColours)
+                }
             } else if (card.local != null) {
                 state.current?.let { source ->
                     val preview = workspace.displayPreviews.load(previewKey) {
