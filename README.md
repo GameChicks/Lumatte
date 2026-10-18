@@ -502,22 +502,20 @@ cd Lumatte
 
 ### 字体与内置素材
 
-- SIL OFL 1.1 字体：Cormorant Garamond、Dancing Script、Great Vibes、Instrument Serif、Playfair Display、Source Han Serif / Sans、Teko、Bebas Neue、金字社统圆体（界面子集，改名为 Pineframe Tongyuan UI）
-- OPPO Sans 4.0：按 OPPO Sans Fonts License Agreement 随应用捆绑，原字体逐字节保留，不单独分发
-- 栗壳坚坚体（LikeJianJianTi）：中文 LUT 名称；作者为栗壳字库，来源与 SHA-256 记录见[字体来源清单](docs/design/font-sources.json)
-- 10 款用户提供的 LUT：Fresh Bright、Kitaura、Smoky Color-S、Teal Flat-S、VOL 23 TXD AgfaPhoto LeBox、千禧回声 cold / warm、Backlight-N、Clear-S、Color Harmony；保留原作者与文件注释
-- 38 张恢复画框 / 胶卷图片与 26 张共享暗盒：来自维护者自有旧 APK，来源与 SHA-256 记录见 `core/media/src/main/assets/frames/manifest.json` 与[共享暗盒清单](docs/design/shared-cartridge-sources.json)
-- 应用图标与暗盒视觉：由维护者授权提供 / 生成
+- SIL OFL 1.1 字体：Cormorant Garamond、Dancing Script、Great Vibes、Instrument Serif、Playfair Display、Source Han Serif / Sans、Teko、Bebas Neue、金字社统圆体
+- OPPO Sans 4.0：按 OPPO Sans Fonts License Agreement 随应用捆绑。
+- 栗壳坚坚体（LikeJianJianTi）：中文 LUT 名称；作者为栗壳字库。
+- 10 款松下官方/官方合作创作者提供的 LUT：Fresh Bright、Kitaura、Smoky Color-S、Teal Flat-S、VOL 23 TXD AgfaPhoto LeBox、千禧回声、Backlight-N、Clear-S、Color Harmony；保留原作者与文件注释
+- 38 张恢复画框 / 胶卷图片与 26 张共享暗盒：由GPT iamge 2 模型生成。
+- 应用图标与暗盒视觉：由GPT iamge 2 模型生成。
 
 ### 特别致谢
 
-- [Lut2Photo-Android](https://github.com/qh7574/Lut2Photo-Android)（MPL-2.0）：Bayer 抖动与亮度颗粒的算法思路参考；本项目独立实现，**未打包该项目的源码或二进制**。
+- [Lut2Photo-Android](https://github.com/qh7574/Lut2Photo-Android)（MPL-2.0）：Bayer 抖动与亮度颗粒的算法思路参考。
 
 ## 📜 许可
 
 Lumatte 应用代码采用 [GNU GPL v3.0](LICENSE)。第三方代码、胶片模型、字体、LUT 和图片继续遵循各自的许可、署名和来源要求，完整记录见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-维护者于 2026-10-18 授权栗壳坚坚体、10 款用户提供的 LUT 和恢复画框图片随 `GameChicks/Lumatte` 项目与 1.0.0 APK 公开发布。这些素材仍保留原作者权利和来源记录；该授权不会把它们改为 GPLv3，也不替代原作者许可。
 
 从 Lumix Lab 下载的官方 LUT、例图与头像保留创作者权利，本项目不内置、不再分发。LUMIX、Panasonic 及其他商标归其所有者，本项目不是松下官方软件。
 
