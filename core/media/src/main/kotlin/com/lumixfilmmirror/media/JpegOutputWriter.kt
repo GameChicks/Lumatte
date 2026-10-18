@@ -95,7 +95,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                     return@withLock result
                 }
                 val size = settings.contentSize(source.size)
-                val layout = FrameLayouts.plan(size, frame)
+                val layout = FrameLayouts.plan(size, frame, stockArtwork = film != null)
                 val temp = cache.newTemporaryFile(if (png) "png" else "jpg")
                 try {
                     var pixels = decode(source, size)
@@ -169,7 +169,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         require(longEdge > 0)
         require(lut == null || film == null) { "请分别选择胶片模拟或 LUT 处理" }
         require(frameNumber > 0)
-        val layout = FrameLayouts.preview(FrameLayouts.plan(output.contentSize(source.size), frame), longEdge)
+        val layout = FrameLayouts.preview(FrameLayouts.plan(output.contentSize(source.size), frame, stockArtwork = film != null), longEdge)
         val pixels = previewPixels(source, PixelSize(maxOf(1, kotlin.math.round(layout.photo.width).toInt()),
             maxOf(1, kotlin.math.round(layout.photo.height).toInt())), lut, film, checkActive = checkActive)
         try {

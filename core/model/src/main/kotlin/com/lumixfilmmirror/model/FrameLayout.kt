@@ -30,7 +30,7 @@ data class FrameLayout(val canvas: PixelSize, val photo: FloatBox, val caption: 
 
 /** Recovered Film Companion proportions. Percent affects the photo, never a hidden canvas cap. */
 object FrameLayouts {
-    fun plan(content: PixelSize, frame: FrameOptions): FrameLayout {
+    fun plan(content: PixelSize, frame: FrameOptions, stockArtwork: Boolean = false): FrameLayout {
         val pw = content.width.toFloat()
         val ph = content.height.toFloat()
         if (frame.preset == FramePreset.NONE) {
@@ -43,9 +43,10 @@ object FrameLayouts {
             else -> 0f
         })
         val film = frame.preset == FramePreset.FILM
+        val roll120 = frame.roll120 && !stockArtwork
         val header = when (frame.preset) {
             FramePreset.TICKET -> short * .23f
-            FramePreset.FILM -> ph * .18f
+            FramePreset.FILM -> ph * .44f
             FramePreset.MUSEUM -> short * .105f
             FramePreset.SLIDE -> short * .13f
             else -> pad
@@ -54,13 +55,13 @@ object FrameLayouts {
         val footer = short * when (frame.preset) {
             FramePreset.TICKET -> .4f
             FramePreset.INSTANT -> .23f
-            FramePreset.FILM -> ph / short * .18f
+            FramePreset.FILM -> ph / short * .26f
             FramePreset.PALETTE -> .25f
             FramePreset.MUSEUM -> if (textVisible) .24f else .105f
             FramePreset.SLIDE -> if (textVisible) .21f else .13f
             else -> if (textVisible) .17f else frame.borderFraction.coerceIn(.02f, .12f)
         }
-        val sidebar = if (film) ph * (if (frame.roll120) .38f else .74f) else 0f
+        val sidebar = if (film) ph * (if (roll120) .48f else .95f) else 0f
         val tail = if (film) pw * .6f else 0f
         var width = pw + pad * 2 + sidebar + tail
         var height = ph + header + footer
@@ -80,11 +81,12 @@ object FrameLayouts {
             canvas.height - pad * .35f - unit * 10 - if (frame.preset == FramePreset.TICKET)
                 min(canvas.width, canvas.height) * .025f + canvas.width * .014f else 0f)
         val cartridge = if (film) {
-            val top = maxOf(0f, y - ph * .16f)
-            val bottom = photo.bottom + ph * .14f
-            val scale = (bottom - top) / 430f
-            val cw = if (frame.roll120) 120f else 240f
-            val bodyRight = if (frame.roll120) 112f else 235f
+            // The strip meets the body below its neck, rather than the top of the whole canister.
+            val scale = ph * 1.28f / 338f
+            val top = y - ph * .14f - 71f * scale
+            val bottom = top + 430f * scale
+            val cw = if (roll120) 120f else 240f
+            val bodyRight = if (roll120) 112f else 235f
             val right = x + (cw - bodyRight) * scale
             FloatBox(right - cw * scale, top, right, bottom)
         } else null

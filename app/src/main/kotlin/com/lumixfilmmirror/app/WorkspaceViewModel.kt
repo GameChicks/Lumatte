@@ -419,7 +419,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun exportLayout(id: PhotoId): com.lumixfilmmirror.model.FrameLayout {
         val snapshot = mutable.value
         val source = snapshot.photos.firstOrNull { it.id == id } ?: error("照片不在当前批次中")
-        return processor.exportLayout(source, snapshot.exportOptions)
+        return processor.exportLayout(source, snapshot.exportOptions, stockArtwork = snapshot.treatment == PhotoTreatment.FILM)
     }
 
     /** Export-stage settings apply to every photo in this batch, in either treatment mode. */
@@ -427,6 +427,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         val snapshot = mutable.value
         val id = snapshot.processingBatchId ?: return
         if (snapshot.busy || snapshot.frame == frame) return
+        if (frame.preset != snapshot.frame.preset && frame.preset in setOf(
+                com.lumixfilmmirror.model.FramePreset.FILM, com.lumixfilmmirror.model.FramePreset.TICKET)) {
+            output(snapshot.output.copy(format = com.lumixfilmmirror.model.ExportFormat.PNG))
+        }
         frameDrafts[id] = frame
         mutable.update { it.copy(frame = frame, processingBatches = it.processingBatches.map { batch ->
             if (batch.id == id) batch.copy(frame = frame) else batch

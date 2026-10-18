@@ -40,13 +40,16 @@ class FrameAssets(context: Context) {
     }
     internal fun bundledFont(name: String): Typeface = Typeface.createFromAsset(context.assets, "frames/fonts/$name")
     internal fun cover(stockId: String?): Bitmap? {
+        return cartridge(stockId, 256)
+    }
+    internal fun cartridge(stockId: String?, longEdge: Int = 2048): Bitmap? {
         if (stockId == null) return null
         val resource = FilmCartridgeArtwork.resource(stockId) ?: return null
-        // Caption icons are small; bound decoding without altering the source artwork.
+        require(longEdge in 64..4096)
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true; inScaled = false }
         BitmapFactory.decodeResource(context.resources, resource, bounds)
         var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2L) >= 256) sample *= 2
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2L) >= longEdge) sample *= 2
         return BitmapFactory.decodeResource(context.resources, resource, BitmapFactory.Options().apply {
             inScaled = false; inSampleSize = sample; inPreferredConfig = Bitmap.Config.ARGB_8888
         })
