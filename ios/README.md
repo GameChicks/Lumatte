@@ -74,13 +74,24 @@ LUMATTE_FILM_ASSETS=/path/to/film xcodebuild ...
 | `Lumatte/Services/FrameRenderer.swift` | Core Graphics 画框与文字排版 |
 | `Lumatte/Services/PhotoLoader.swift` | ImageIO 导入、方向归一化与 EXIF |
 | `Lumatte/Models/CubeLUT.swift` | `.cube` 3D LUT 解析 |
+| `LumatteUITests/LumatteUITests.swift` | 模拟器端到端 UI 测试：导入、换胶片、画框、导出与存相册 |
 
 ## 验证记录
 
 - Xcode 27.1（iOS SDK 27.1），`iphonesimulator` Debug 与 `iphoneos` Release 均编译通过
 - Metal 着色器在 macOS 上通过 `MTLDevice.makeLibrary(source:)` 编译，导出 9 个函数
 - 使用同一套 MSL 与 Portra 400 / CineStill 800T / Ektachrome 100 模型完成合成图渲染检查
-- 生成了未签名 IPA；**没有**在实体 iPhone、相机或照片图库中运行验证
+- iOS 27.1 模拟器（iPhone Duo）端到端 UI 测试通过：相册导入 → Kodak Gold 200 默认渲染 → 切换 Portra 400 → 拍立得画框 → 生成 JPEG → 存入照片图库
+- 导出文件为 1697 × 1361 JPEG，画框、颗粒与光晕均正常；照片图库中确认新增同尺寸图片
+- 生成了未签名 IPA；**没有**在实体 iPhone、真实相机照片或真实设备相册权限下运行验证
+
+UI 测试命令（需要可用的 iOS Simulator runtime）：
+
+```sh
+xcodebuild test -project Lumatte.xcodeproj -scheme Lumatte \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  CODE_SIGNING_ALLOWED=NO
+```
 
 ## 许可
 

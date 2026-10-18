@@ -36,13 +36,14 @@
 - `xcodebuild` Debug（iphonesimulator）与 Release（generic iOS device）编译成功。
 - Metal 着色器通过运行时编译，函数列表包含 `linear_downsample`、`film_response`、`blur_horizontal`、`blur_vertical`、`combine_scatter`、`combine_halo`、`film_render`、`lut_render`、`fullscreen_vertex`。
 - 使用合成渐变与色块图，对 Portra 400、CineStill 800T、Ektachrome 100 运行同一套 MSL 与 LUT 表，检查均值/极值并生成 PNG。
+- 在 iOS 27.1 模拟器中安装 Debug 构建，UI 测试完整跑通：相册导入 → 默认 Kodak Gold 200 渲染 → 搜索并切换 Portra 400 → 选择拍立得画框 → 生成 JPEG → 存入照片图库。导出文件 1697 × 1361，照片图库新增同尺寸资产。
 - 生成了未签名 IPA。
 
 没有完成的验证：
 
 - 实体 iPhone 安装与运行
 - 真实相机照片（尤其 RW2 内嵌预览）
-- 照片图库权限、批量导出、分享面板的端到端操作
+- 批量导出与分享面板的端到端操作
 - 与 Android 输出的逐像素对比
 
 ## 后续工作
