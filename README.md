@@ -4,12 +4,13 @@
   <img src="app/src/main/res/drawable-nodpi/launcher_film_mirror_v1.png" width="120" alt="松映 · Lumatte 应用图标">
 </p>
 
-**松映 · Lumatte** 是一款开源 Android 摄影工具。它把松下相机照片传输、移动胶片模拟、双 LUT 试套和画框导出放进同一条本地工作流，想让手机成为一间随身数字暗房。
+**松映 · Lumatte** 是一款开源摄影工具（Android 首发，并提供 iOS 原生移植）。它把松下相机照片传输、移动胶片模拟、双 LUT 试套和画框导出放进同一条本地工作流，想让手机成为一间随身数字暗房。
 
 本项目由社区独立开发，与 Panasonic / 松下没有隶属关系；LUMIX、Kodak、Fujifilm、Ilford 等商标与产品名只用于标识相机和胶片风格。最低支持 Android 11（API 30），应用 ID 为 `com.lumixfilmmirror.app`，应用代码按 [GNU GPL v3.0](LICENSE) 开源。
 
 ![应用版本](https://img.shields.io/badge/版本-1.0.0-blue)
 ![Android](https://img.shields.io/badge/Android-11%2B-green)
+![iOS](https://img.shields.io/badge/iOS-17%2B-black)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.2.20-purple)
 ![Jetpack Compose](https://img.shields.io/badge/Compose-BOM_2025.10.00-4285F4)
 ![License](https://img.shields.io/badge/License-GPL--3.0-red)
@@ -22,6 +23,22 @@
 ![胶片目录](https://img.shields.io/badge/胶片目录-24_款-ff69b4)
 
 [下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-123659-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
+
+## 📱 iOS 原生版（开发中）
+
+仓库新增了 **SwiftUI + Metal** 的 iOS 原生移植，源码位于 [`ios/`](ios/README.md)，最低支持 iOS 17。
+
+- 复用 `core/media/src/main/assets/film/` 中同一套三阶段胶片模型与 26 款胶片目录，构建时复制，不在 Git 中重复存放资产。
+- 已覆盖：相册 / 文件导入、胶片模拟、Halation / 黑柔 / 颗粒、单槽 `.cube` LUT、7 种画框、批量导出与分享。
+- 尚未覆盖：松下相机蓝牙 / Wi-Fi 传输、双 LUT 槽、官方 LUT 浏览器、CineStill 多 bounce 物理光晕。
+- 移植范围、验证证据与差异说明见 [iOS 移植记录](docs/engineering/ios-swift-port-20261018.md)。
+
+```sh
+cd ios
+xcodebuild -project Lumatte.xcodeproj -scheme Lumatte \
+  -sdk iphonesimulator -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO build
+```
 
 ## ⏬ 下载与版本
 

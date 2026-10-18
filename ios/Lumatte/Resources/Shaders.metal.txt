@@ -1,0 +1,298 @@
+#include <metal_stdlib>
+using namespace metal;
+
+struct VertexOut {
+    float4 position [[position]];
+    float2 uv;
+};
+
+vertex VertexOut fullscreen_vertex(uint vid [[vertex_id]]) {
+    const float2 positions[3] = { float2(-1, -1), float2(3, -1), float2(-1, 3) };
+    VertexOut out;
+    out.position = float4(positions[vid], 0, 1);
+    out.uv = float2((positions[vid].x + 1.0) * 0.5, (1.0 - positions[vid].y) * 0.5);
+    return out;
+}
+
+struct FilmUniforms {
+    float4 responseLow;
+    float4 responseHigh;
+    float4 developmentLow;
+    float4 developmentHigh;
+    float4 scanLow;
+    float4 scanHigh;
+    float4 particleScale;
+    float4 floorDensity;
+    float4 uniformity;
+    float4 densityMax;
+    float4 halationMix;
+    float4 returnRow0;
+    float4 returnRow1;
+    float4 returnRow2;
+    float4 lensParams;   // softness, exposureGain, formatMM, grainSpacingUM
+    float4 imageSize;    // width, height, sourceWidth, sourceHeight
+    uint halationEnabled;
+    uint grainEnabled;
+    uint spectralReturn;
+    uint hasLens;
+    uint seed;
+    uint pad0;
+    uint pad1;
+    uint pad2;
+};
+
+struct BlurUniforms {
+    float4 sigma;
+    float4 texel; // 1/width, 1/height, 0, 0
+};
+
+struct LensUniforms {
+    float4 params; // softness, scatteredScale, 0, 0
+};
+
+struct DownsampleUniforms {
+    float4 texel; // 1/targetWidth, 1/targetHeight
+};
+
+struct LUTUniforms {
+    float4 domainMin;
+    float4 domainMax;
+    float4 params; // strength
+};
+
+struct CombineUniforms {
+    float4 params; // mode/scatter amount/mix
+    float4 m0;
+    float4 m1;
+    float4 m2;
+};
+
+constexpr sampler linearSampler(filter::linear, address::clamp_to_edge, coord::normalized);
+
+static inline float srgb_decode(float v) {
+    return v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4);
+}
+static inline float srgb_encode(float v) {
+    return v <= 0.0031308 ? v * 12.92 : 1.055 * pow(v, 1.0 / 2.4) - 0.055;
+}
+
+static inline float3 cube_lookup(texture3d<float, access::read> data, float3 colour,
+                                 float3 minimum, float3 maximum) {
+    int3 size = int3(data.get_width(), data.get_height(), data.get_depth());
+    float3 p = clamp((colour - minimum) / (maximum - minimum), 0.0, 1.0) * float3(size - 1);
+    int3 lo = int3(floor(p));
+    int3 hi = min(lo + 1, size - 1);
+    float3 f = p - float3(lo);
+    float3 a = data.read(uint3(lo.x, lo.y, lo.z)).rgb;
+    float3 b = data.read(uint3(hi.x, lo.y, lo.z)).rgb;
+    float3 c = data.read(uint3(lo.x, hi.y, lo.z)).rgb;
+    float3 d = data.read(uint3(hi.x, hi.y, lo.z)).rgb;
+    float3 e = data.read(uint3(lo.x, lo.y, hi.z)).rgb;
+    float3 g = data.read(uint3(hi.x, lo.y, hi.z)).rgb;
+    float3 h = data.read(uint3(lo.x, hi.y, hi.z)).rgb;
+    float3 i = data.read(uint3(hi.x, hi.y, hi.z)).rgb;
+    float3 low = (a * (1.0 - f.x) + b * f.x) * (1.0 - f.y) + (c * (1.0 - f.x) + d * f.x) * f.y;
+    float3 high = (e * (1.0 - f.x) + g * f.x) * (1.0 - f.y) + (h * (1.0 - f.x) + i * f.x) * f.y;
+    return low * (1.0 - f.z) + high * f.z;
+}
+
+static inline uint hash32(uint value) {
+    value = (value ^ (value >> 16)) * 0x85ebca6bu;
+    value = (value ^ (value >> 13)) * 0xc2b2ae35u;
+    return value ^ (value >> 16);
+}
+
+static inline float normal_at(int64_t x, int64_t y, uint seed, uint salt) {
+    uint base = uint(x) * 73856093u ^ uint(y) * 19349663u ^ seed ^ salt;
+    float sum = 0.0;
+    for (uint n = 0; n < 3; ++n) {
+        sum += float(hash32(base + n * 0x9e3779b9u) & 65535u) / 65535.0 - 0.5;
+    }
+    return sum * 2.0;
+}
+
+static inline float grain_noise(float2 position, uint seed, uint salt, float spacing) {
+    float2 p = position / spacing;
+    int64_t x = int64_t(floor(p.x));
+    int64_t y = int64_t(floor(p.y));
+    float fx = p.x - float(x);
+    float fy = p.y - float(y);
+    float a = (1.0 - fx) * (1.0 - fy);
+    float b = fx * (1.0 - fy);
+    float c = (1.0 - fx) * fy;
+    float d = fx * fy;
+    float energy = sqrt(a * a + b * b + c * c + d * d);
+    return (a * normal_at(x, y, seed, salt) + b * normal_at(x + 1, y, seed, salt) +
+            c * normal_at(x, y + 1, seed, salt) + d * normal_at(x + 1, y + 1, seed, salt)) / max(energy, 1e-9);
+}
+
+static inline float3 lens_colour(float3 linear, texture2d<float> lens, float2 uv,
+                                 float softness, uint hasLens) {
+    if (hasLens == 0 || softness <= 0.0) { return linear; }
+    float3 glow = lens.sample(linearSampler, uv).rgb * (0.55 * softness);
+    return clamp(linear * (1.0 - softness) + glow, 0.0, 1.0);
+}
+
+fragment float4 linear_downsample(VertexOut in [[stage_in]],
+                                  texture2d<float> input [[texture(0)]],
+                                  constant DownsampleUniforms &u [[buffer(0)]]) {
+    float3 sum = float3(0.0);
+    for (int y = 0; y < 4; ++y) {
+        for (int x = 0; x < 4; ++x) {
+            float2 offset = (float2(float(x) + 0.5, float(y) + 0.5) / 4.0 - 0.5) * u.texel.xy;
+            sum += input.sample(linearSampler, in.uv + offset).rgb;
+        }
+    }
+    float3 encoded = sum / 16.0;
+    return float4(srgb_decode(encoded.r), srgb_decode(encoded.g), srgb_decode(encoded.b), 1.0);
+}
+
+fragment float4 blur_horizontal(VertexOut in [[stage_in]],
+                                texture2d<float> input [[texture(0)]],
+                                constant BlurUniforms &u [[buffer(0)]]) {
+    float maxSigma = max(u.sigma.x, max(u.sigma.y, u.sigma.z));
+    int radius = int(ceil(3.0 * maxSigma));
+    if (radius < 1) { return input.sample(linearSampler, in.uv); }
+    float3 sum = float3(0.0);
+    float3 weightSum = float3(0.0);
+    float3 sigma = max(u.sigma.xyz, float3(0.15));
+    for (int i = -radius; i <= radius; ++i) {
+        float3 weight = exp(-float3(float(i * i)) / (2.0 * sigma * sigma));
+        float2 uv = in.uv + float2(float(i) * u.texel.x, 0.0);
+        sum += input.sample(linearSampler, uv).rgb * weight;
+        weightSum += weight;
+    }
+    return float4(sum / max(weightSum, float3(1e-6)), 1.0);
+}
+
+fragment float4 blur_vertical(VertexOut in [[stage_in]],
+                              texture2d<float> input [[texture(0)]],
+                              constant BlurUniforms &u [[buffer(0)]]) {
+    float maxSigma = max(u.sigma.x, max(u.sigma.y, u.sigma.z));
+    int radius = int(ceil(3.0 * maxSigma));
+    if (radius < 1) { return input.sample(linearSampler, in.uv); }
+    float3 sum = float3(0.0);
+    float3 weightSum = float3(0.0);
+    float3 sigma = max(u.sigma.xyz, float3(0.15));
+    for (int i = -radius; i <= radius; ++i) {
+        float3 weight = exp(-float3(float(i * i)) / (2.0 * sigma * sigma));
+        float2 uv = in.uv + float2(0.0, float(i) * u.texel.y);
+        sum += input.sample(linearSampler, uv).rgb * weight;
+        weightSum += weight;
+    }
+    return float4(sum / max(weightSum, float3(1e-6)), 1.0);
+}
+
+fragment float4 film_response(VertexOut in [[stage_in]],
+                              texture2d<float> linear [[texture(0)]],
+                              texture2d<float> lens [[texture(1)]],
+                              texture3d<float, access::read> response [[texture(2)]],
+                              constant FilmUniforms &u [[buffer(0)]]) {
+    float3 rgb = linear.sample(linearSampler, in.uv).rgb;
+    rgb = lens_colour(rgb, lens, in.uv, u.lensParams.x, u.hasLens);
+    float3 encoded = clamp(float3(srgb_encode(rgb.r), srgb_encode(rgb.g), srgb_encode(rgb.b)), 0.0, 1.0);
+    float3 raw = cube_lookup(response, encoded, u.responseLow.xyz, u.responseHigh.xyz);
+    return float4(max(raw, 0.0), 1.0);
+}
+
+fragment float4 combine_scatter(VertexOut in [[stage_in]],
+                                texture2d<float> raw [[texture(0)]],
+                                texture2d<float> blurred [[texture(1)]],
+                                constant CombineUniforms &u [[buffer(0)]]) {
+    float3 a = raw.sample(linearSampler, in.uv).rgb;
+    float3 b = blurred.sample(linearSampler, in.uv).rgb;
+    return float4(mix(a, b, u.params.x), 1.0);
+}
+
+fragment float4 combine_halo(VertexOut in [[stage_in]],
+                             texture2d<float> scattered [[texture(0)]],
+                             texture2d<float> blurred [[texture(1)]],
+                             texture2d<float> original [[texture(2)]],
+                             constant CombineUniforms &u [[buffer(0)]]) {
+    float3 scatter = scattered.sample(linearSampler, in.uv).rgb;
+    float3 blur = blurred.sample(linearSampler, in.uv).rgb;
+    if (u.params.x > 0.5) {
+        float3 mixed = float3(dot(u.m0.xyz, blur), dot(u.m1.xyz, blur), dot(u.m2.xyz, blur));
+        return float4(mixed, 1.0);
+    }
+    float3 before = original.sample(linearSampler, in.uv).rgb;
+    float3 mixAmount = u.params.yzw;
+    float3 halo = mixAmount * blur + scatter * (1.0 - mixAmount) - before;
+    return float4(halo, 1.0);
+}
+
+fragment float4 film_render(VertexOut in [[stage_in]],
+                            texture2d<float> input [[texture(0)]],
+                            texture2d<float> halo [[texture(1)]],
+                            texture2d<float> lens [[texture(2)]],
+                            texture3d<float, access::read> response [[texture(3)]],
+                            texture3d<float, access::read> development [[texture(4)]],
+                            texture3d<float, access::read> scan [[texture(5)]],
+                            constant FilmUniforms &u [[buffer(0)]]) {
+    float4 pixel = input.sample(linearSampler, in.uv);
+    float3 encoded = pixel.rgb;
+    float3 originalEncoded = encoded;
+    float3 linear = float3(srgb_decode(encoded.r), srgb_decode(encoded.g), srgb_decode(encoded.b));
+    linear = lens_colour(linear, lens, in.uv, u.lensParams.x, u.hasLens);
+    encoded = clamp(float3(srgb_encode(linear.r), srgb_encode(linear.g), srgb_encode(linear.b)), 0.0, 1.0);
+
+    float3 raw = cube_lookup(response, encoded, u.responseLow.xyz, u.responseHigh.xyz);
+    if (u.halationEnabled != 0) {
+        float3 field = halo.sample(linearSampler, in.uv).rgb;
+        if (u.spectralReturn != 0) {
+            float3 direct = raw;
+            raw += field;
+            raw -= float3(dot(u.returnRow0.xyz, direct),
+                          dot(u.returnRow1.xyz, direct),
+                          dot(u.returnRow2.xyz, direct));
+        } else {
+            raw = raw * (1.0 - u.halationMix.xyz) + field;
+        }
+    }
+    raw = max(raw, 0.0);
+
+    float3 gain = float3(u.lensParams.y, u.lensParams.y, u.lensParams.y);
+    float3 logExposure = log10(max(raw * gain, float3(1e-10)));
+    float3 density = cube_lookup(development, logExposure, u.developmentLow.xyz, u.developmentHigh.xyz);
+
+    if (u.grainEnabled != 0) {
+        float2 size = u.imageSize.xy;
+        float2 sourceSize = u.imageSize.zw;
+        float2 position = in.uv * size - 0.5;
+        float spacing = u.lensParams.w > 0.0
+            ? max(0.7, u.lensParams.w * max(sourceSize.x, sourceSize.y) / (u.lensParams.z * 1000.0))
+            : 1.4;
+        float pixelUM = u.lensParams.z * 1000.0 / max(size.x, size.y);
+        float pixelArea = pixelUM * pixelUM;
+        float sharedNoise = grain_noise(position, u.seed, 0x7f4a7c15u, spacing);
+        for (int c = 0; c < 3; ++c) {
+            float maximum = u.densityMax[c] + u.floorDensity[c];
+            float p = clamp((density[c] + u.floorDensity[c]) / max(maximum, 1e-6), 0.0, 1.0);
+            float variance = p * (1.0 - p * u.uniformity[c]) *
+                u.floorDensity.w * u.particleScale[c] / max(pixelArea, 1e-9);
+            float deviation = maximum * sqrt(max(variance, 0.0));
+            float noise = 0.35 * sharedNoise +
+                0.9367497 * grain_noise(position, u.seed, 0x9e3779b9u * uint(c + 1), spacing);
+            density[c] += deviation * noise;
+        }
+    }
+
+    float3 rgb = cube_lookup(scan, density, u.scanLow.xyz, u.scanHigh.xyz);
+    if (any(isnan(rgb)) || any(isinf(rgb))) {
+        rgb = float3(1.0, 0.0, 1.0);
+    }
+    rgb = clamp(rgb, 0.0, 1.0);
+    rgb = mix(originalEncoded, rgb, clamp(u.halationMix.w, 0.0, 1.0));
+    return float4(rgb, 1.0);
+}
+
+
+fragment float4 lut_render(VertexOut in [[stage_in]],
+                           texture2d<float> input [[texture(0)]],
+                           texture3d<float, access::read> lut [[texture(1)]],
+                           constant LUTUniforms &u [[buffer(0)]]) {
+    float3 encoded = input.sample(linearSampler, in.uv).rgb;
+    float3 value = cube_lookup(lut, encoded, u.domainMin.xyz, u.domainMax.xyz);
+    float3 result = mix(encoded, clamp(value, 0.0, 1.0), clamp(u.params.x, 0.0, 1.0));
+    return float4(result, 1.0);
+}
