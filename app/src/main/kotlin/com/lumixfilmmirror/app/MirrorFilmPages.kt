@@ -67,7 +67,7 @@ internal fun FilmCategories(state: WorkspaceState, workspace:WorkspaceViewModel,
     linkedCategory: String?, onCategory: (FilmCategory) -> Unit) {
     val reduced = LocalMirrorReducedMotion.current
     val tones = LocalFilmMaterials.current
-    BoxWithConstraints(Modifier.fillMaxSize().background(tones.background)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(tones.background).statusBarsPadding()) {
         val cardHeight = ((maxHeight-230.dp)/4).coerceIn(160.dp,186.dp)
         val fontScale = LocalDensity.current.fontScale
         Column(Modifier.fillMaxSize()) {
@@ -151,7 +151,7 @@ internal fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initi
     val blur=remember(density.density,reduced) { List(7) { if(it==0 || reduced)null else BlurEffect(it*density.density*.65f,it*density.density*.65f,TileMode.Clamp) } }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         FilmAtmosphere(category,Modifier.fillMaxSize())
-        val top=0.dp
+        val top=WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         val bottom=0.dp
         val viewHeight=(maxHeight-top-bottom).coerceAtLeast(220.dp)
         val step=(viewHeight*.23f).coerceIn(134.dp,180.dp)
@@ -193,7 +193,7 @@ internal fun FilmCarousel(films: List<FilmPreset>, category: FilmCategory, initi
             drawRect(Brush.verticalGradient(listOf(edge,Color.Transparent),startY=0f,endY=64.dp.toPx()))
             drawRect(Brush.verticalGradient(listOf(Color.Transparent,edge),startY=size.height-130.dp.toPx(),endY=size.height))
         }
-        FilmSmallAction("返回胶卷分类",DotGlyph.LEFT,Modifier.align(Alignment.TopStart).padding(start=18.dp,top=10.dp),onClick=onBack)
+        FilmSmallAction("返回胶卷分类",DotGlyph.LEFT,Modifier.align(Alignment.TopStart).padding(start=18.dp,top=top+10.dp),onClick=onBack)
         Column(Modifier.align(Alignment.BottomStart).padding(start=22.dp,bottom=142.dp,end=22.dp).fillMaxWidth(.58f)) {
             val morph=with(shared) { Modifier.sharedBounds(rememberSharedContentState("category-${category.name}"),visibility,
                 boundsTransform={ _,_->tween(if(reduced)0 else 420,easing=MirrorEase) }) }
@@ -227,15 +227,16 @@ internal fun FilmDetail(film: FilmPreset,state: WorkspaceState,workspace: Worksp
     val rotation=filmObjectRotation(visibility,0f,arrivalAngle,departureAngle)
     val context=LocalContext.current
     var fullStory by rememberSaveable(film.id) { mutableStateOf(false) }
+    val statusBarTop=WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     Column(Modifier.fillMaxSize().background(if(dark)Color(0xFF0B100D) else Color(0xFFF3EDE0))) {
         LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(bottom=14.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
             item(key="hero") {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val heroWidth=maxWidth
-                    val heroHeight=(heroWidth*.92f).coerceIn(270.dp,380.dp)
+                    val heroHeight=(heroWidth*.92f).coerceIn(270.dp,380.dp)+statusBarTop
                     Box(Modifier.fillMaxWidth().height(heroHeight)) {
                         FilmAtmosphere(film.category,Modifier.fillMaxSize(),accent=info.accent,hero=true)
-                        FilmSmallAction("返回选卷",DotGlyph.LEFT,Modifier.align(Alignment.TopStart).padding(start=18.dp,top=10.dp),light=true,onClick=onBack)
+                        FilmSmallAction("返回选卷",DotGlyph.LEFT,Modifier.align(Alignment.TopStart).padding(start=18.dp,top=statusBarTop+10.dp),light=true,onClick=onBack)
                         val morph=with(shared) { Modifier.sharedElement(rememberSharedContentState("film-${film.id}"),visibility,
                             boundsTransform={ _,_->tween(if(reduced)0 else 420,easing=MirrorEase) }) }
                         FilmCartridge(film,Modifier.align(Alignment.BottomCenter).width(heroWidth*.56f).height(heroHeight-44.dp).then(morph),

@@ -21,21 +21,21 @@
 ![LibRaw](https://img.shields.io/badge/LibRaw-0.22.2-lightgrey)
 ![胶片目录](https://img.shields.io/badge/胶片目录-24_款-ff69b4)
 
-[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-123659-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](docs/releases/CHANGELOG.md) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
+[下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/Lumatte-1.0.0-build19-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](https://github.com/GameChicks/Lumatte/releases) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
 
 ## ⏬ 下载与版本
 
-**当前版本：1.0.0（versionCode 17）**，2026-10-18 发布，最低 Android 11。
+**当前版本：1.0.0（versionCode 19）**，2026-10-18 发布，最低 Android 11。
 
-- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/lumix-film-mirror-prototype-1.0.0-20261018-123659-debug.apk)，约 202.0 MiB
-- [Release 页面](https://github.com/GameChicks/Lumatte/releases/tag/v1.0.0) · [1.0.0 发布记录](docs/releases/1.0.0.md)
+- [Lumatte 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/Lumatte-1.0.0-build19-debug.apk)，205.2 MiB
+- [Release 页面](https://github.com/GameChicks/Lumatte/releases/tag/v1.0.0) · [1.0.0 发布记录](https://github.com/GameChicks/Lumatte/releases/tag/v1.0.0)
 
 <details>
 <summary>APK 校验信息</summary>
 
-- 文件名：`lumix-film-mirror-prototype-1.0.0-20261018-123659-debug.apk`
-- 文件大小：215,142,930 字节
-- APK SHA-256：`C11F8A162F1B94FB5FB5552591072B68A2DF28D930C1C20DD42AD8F7EE082886`
+- 文件名：`Lumatte-1.0.0-build19-debug.apk`
+- 文件大小：215,163,482 字节
+- APK SHA-256：`EE59734C0071C5D13451352FA23B6D2ACB506A28C7EF10A36FCDC3A829AC4778`
 - Android Debug 证书 SHA-256：`1a2e67ceaad95c8d88371b23663d1e71ea587132ec2e48114705067cce4c6a41`
 
 </details>
@@ -75,7 +75,6 @@
 
 其他连接入口：相机已连 Wi-Fi 时用「已连 Wi-Fi · 查找相机」；手机与相机接同一路由器时用「同一路由器连接」；也可以手动输入 Wi-Fi 名称和安全类型。
 
-> 📖 相机协议、机型范围与限制见[相机协议记录](docs/protocol/lumix-sync.md)；连接、传输与恢复边界见[传输与恢复](docs/engineering/storage-and-transfer.md)和[接收相机发送](docs/engineering/automatic-transfer.md)。
 
 #### 3. 从手机相册 / 文件导入
 
@@ -100,7 +99,6 @@
 3. 两槽各自「强度」0–100%，可「交换两槽顺序 ↔」或「移除」；处理顺序固定为 **LUT 1 → LUT 2**。
 4. 另有「颗粒效果」开关 + 强度，以及「减少色彩断层」（Bayer 抖动，在 8 位量化前）；随后点「选择画框与导出 →」。
 
-> 📖 详细说明：[移动胶片模型](docs/engineering/mobile-film-models.md) · [移动渲染与资源边界](docs/engineering/mobile-film-rendering.md) · [LUT 管线](docs/engineering/lut-pipeline.md) · [Lumix Lab 目录](docs/engineering/lumix-lab-catalogue.md)
 
 #### 5. 批量处理
 
@@ -110,7 +108,6 @@
 4. 整批共用**一个画框预设和一套画框设置**；每张仍使用自己的方向、EXIF、取色与片号。
 5. 导出任务会持久化，失败项可以「重试失败照片」；状态为 REVIEW（保存结果不明）的照片需要先核对，不会自动重试。
 
-> 📖 详细说明：[批量处理规则](docs/engineering/processing-batches.md) · [导出队列](docs/engineering/export-queue.md)
 
 #### 6. 画框与导出
 
@@ -121,7 +118,6 @@
 5. 「输出」：图片格式（JPEG / PNG 透明底）、照片尺寸（1–100%，默认 100%）、JPEG 压缩质量（1–100，默认 95）、最终画布尺寸；保存到系统相册的 `Pictures/LumixFilmMirror`，或通过「选择文件夹」用系统 SAF 指定位置。
 6. 点「导出本批 · N 张」，完成后可查看结果；导出文件名形如 `LFM-yyyyMMdd-HHmmss-SSS-<UUID>.jpg`（PNG 为 `.png`），每次导出独立，不会覆盖已有照片。
 
-> 📖 详细说明：[画框导出](docs/engineering/frame-export.md) · [JPEG 发布生命周期](docs/engineering/jpeg-export-lifecycle.md)
 
 #### 7. RAW 照片
 
@@ -130,7 +126,6 @@
 3. 界面会提示 `使用 RAW 内嵌 JPEG · W × H · 输出尺寸以预览图为准`。
 4. 如果找不到可用预览，会说明原因并继续处理同批其他照片，不会用低质量替代内容冒充 RAW 显影结果。
 
-> 📖 [RAW 内嵌 JPEG 读取](docs/engineering/raw-preview.md)
 
 #### 8. 浏览 Lumix Lab
 
@@ -165,7 +160,7 @@
 - RAW 内嵌 JPEG 提取（RW2 / TIFF 快速路径 + LibRaw 补充）。
 - 批量「逐张独立 / 继承首张」、整批共享画框、持久导出任务。
 - 11 款画框、8 种画布比例、7 款签名字体、EXIF 文字与自定义字体。
-- 画框 PNG 透明底：JPEG / PNG 输出格式，「胶片暗盒」与「记忆票根」保留透明轮廓，已随 1.0.0 / versionCode 17 重建包交付。
+- 画框 PNG 透明底：JPEG / PNG 输出格式，「胶片暗盒」与「记忆票根」保留透明轮廓，已随 1.0.0 / versionCode 19 重建包交付。
 - 3 种桌面小组件 × 6 种配色、首页用量、创作记录、设置与许可页。
 - 1.0.0 打包与结构核验：assembleDebug、v2 签名、ZIP / ELF 16 KiB 对齐、双 ABI。
 
@@ -269,7 +264,6 @@ flowchart LR
 - 胶片颗粒由模型内部按每张照片的种子生成，**没有独立的胶片颗粒强度 UI**；继承首张只共享参数，不复制噪声种子。
 - 画框在胶片渲染完成后添加，不做边框 / 水印检测。
 
-> 📖 详细说明：[移动胶片模型](docs/engineering/mobile-film-models.md) · [渲染、取消与资源边界](docs/engineering/mobile-film-rendering.md) · [Fotufilm 物理返光](docs/engineering/fotufilm-physical-halation-20261017.md) · [CineStill JPEG 高光](docs/engineering/cinestill-jpeg-halation-20261017.md)
 
 ### 24 款胶片目录
 
@@ -291,7 +285,6 @@ flowchart LR
 - 预览与整张成片复用同一处理计划，但预览分辨率与最终照片不同，不承诺噪声逐像素一致。
 - 智能推荐用当前照片的小图采样与特征排序，官方候选会临时试用最多 5 款真实 grid17 LUT。它是有边界的色彩启发式，不是题材识别或全库最佳审美判断；准确率与阈值尚未在真实照片集上校准。
 
-> 📖 详细说明：[LUT 管线](docs/engineering/lut-pipeline.md)
 
 ### RAW：只使用相机内嵌 JPEG
 
@@ -299,7 +292,6 @@ flowchart LR
 - 代码不调用 RAW 解包、去马赛克、白平衡或显影接口。
 - 最终尺寸按实际采用的 JPEG 预览计算，不是 RAW 传感器分辨率；相机没有可用 JPEG 预览时会明确说明原因。
 
-> 📖 详细说明：[RAW 内嵌 JPEG 读取](docs/engineering/raw-preview.md)
 
 ### 相机连接与传输
 
@@ -308,7 +300,6 @@ flowchart LR
 - 下载任务写入可恢复队列，记录相机、媒体资源、进度和导入阶段；暂停或进程结束后，队列等待你重新连接并继续核对。应用启动时不会擅自重连相机。
 - 协议按 LUMIX Sync 官方机型范围实现：S1H、S1R、S1、S5M2、S5M2X、S5、S9、BS1H、GH5M2、GH6、GH7、G9M2、G97、G100（含 DC-G110 地区别名）、G100D、BGH1，以及 limited 支持的 GH5、G9、GH5S。全部尚未逐机型验证，列表只表示协议覆盖范围。
 
-> 📖 详细说明：[相机协议](docs/protocol/lumix-sync.md) · [BLE 连接](docs/engineering/bluetooth-connection.md) · [存储与传输恢复](docs/engineering/storage-and-transfer.md)
 
 ### 批量与导出
 
@@ -317,7 +308,6 @@ flowchart LR
 - 发布使用临时文件与完成记录，尽量把已完成结果与正在处理的中间文件区分开；发布目标为系统相册 MediaStore 或 SAF 文件夹。
 - 视频按原文件保存，不进入照片管线。
 
-> 📖 详细说明：[导出队列](docs/engineering/export-queue.md) · [JPEG 发布生命周期](docs/engineering/jpeg-export-lifecycle.md)
 
 ### 画框与水印
 
@@ -325,7 +315,6 @@ flowchart LR
 - 画框文字可以使用每张照片自己的 EXIF 信息；机型号会按规则显示为 `Lumix S5` 等，无法识别时保留原样，缺失不推测。
 - 取色相框和胶片暗盒支持自动取色 / 暖白 / 黑色纸面与 6 种 mood（炽烈 / 清曜 / 棠梨 / 尘霭 / 霜月 / 侘寂）；取色相框支持导入装饰图。
 
-> 📖 详细说明：[画框导出](docs/engineering/frame-export.md) · [设计规范](docs/design/specification.md)
 
 ## ⚙️ 参数与设置速查
 
@@ -421,7 +410,7 @@ Acros 100 II、Tri-X 400、HP5 Plus 400、Delta 3200 覆盖从细颗粒到高感
 - **数据与存储**：Room 2.8.5（工作台数据库）、DataStore Preferences（设置）。
 - **原生与影像**：C++20 + JNI + NDK 28.2.13676358 + CMake 3.22.1；OpenGL ES 3.0 分块胶片渲染 + CPU 后备；LUT 原生 CPU 扫描；LibRaw 0.22.2（LGPL-2.1）仅用于内嵌 JPEG 提取。
 - **网络**：OkHttp 4.12.0，用于相机 HTTP 与 Lumix Lab HTTPS。
-- **构建**：AGP 8.13.2、Gradle 8.13 Wrapper、JDK 17，compileSdk / targetSdk 36，minSdk 30，ABI arm64-v8a / x86_64。
+- **构建**：AGP 8.13.2、Gradle 8.13、JDK 17，compileSdk / targetSdk 36，minSdk 30，ABI arm64-v8a / x86_64。
 - **架构**：`app` + 6 个 core 模块 + 3 个 native 子项目；Compose 状态驱动界面，模块之间保持明确的数据契约。
 - **测试**：仓库没有 CI 与自动测试钩子；JVM 合同检查仅在维护者明确要求时手动运行，不替代设备、相机或 GPU 验证。
 
@@ -432,7 +421,7 @@ Acros 100 II、Tri-X 400、HP5 Plus 400、Delta 3200 覆盖从细颗粒到高感
 - JDK 17
 - Android SDK Platform 36、Build Tools 35.0.0、Platform Tools
 - Android NDK `28.2.13676358`、CMake `3.22.1`
-- 仓库内 Gradle Wrapper 8.13（校验官方发行 ZIP 的 SHA-256）
+- [Gradle 8.13](https://gradle.org/releases/)，自行安装并加入 PATH
 
 Windows PowerShell：
 
@@ -449,7 +438,7 @@ macOS / Linux：
 ```sh
 git clone https://github.com/GameChicks/Lumatte.git
 cd Lumatte
-./gradlew :app:assembleDebug
+gradle :app:assembleDebug
 ```
 
 构建脚本只由维护者手动调用，不自动运行测试、启动模拟器或上传构建结果。交付 APK 与日志写入 `dist/`；SDK、JDK、AVD、Gradle 缓存和签名材料由本机环境管理，不随源码提交。更多环境说明见 [BUILDING.md](BUILDING.md)。
@@ -471,7 +460,6 @@ cd Lumatte
 | `third_party/libraw/` | 固定版本 LibRaw 源码、来源清单与许可 |
 | `research/fotufilm/` | 固定的模型生产输入、原始方程、来源哈希与许可 |
 | `tools/` | 手动构建、模型生产与专项验证脚本 |
-| `docs/` | 设计、产品决策、工程说明、协议与发布记录 |
 
 ### 反馈与贡献
 
@@ -481,12 +469,6 @@ cd Lumatte
 - **照片 / 导出问题**：请说明输入格式（JPEG / RAW）、使用的胶卷或 LUT、参数与导出选项，以及是否属于批量任务。
 - **功能建议**：描述你期望的使用场景即可，不必先给出实现方案。
 - 公开上传样片或日志前，请先移除不愿公开的 EXIF、定位信息、账号标识和个人照片。
-
-### 📖 工程文档
-
-- 设计：[设计规范](docs/design/specification.md) · [设计系统](docs/design/system.md) · [产品决策记录](docs/product/decisions.md) · [素材与字体来源](docs/design/assets.md)
-- 影像：[移动胶片模型](docs/engineering/mobile-film-models.md) · [渲染边界](docs/engineering/mobile-film-rendering.md) · [LUT 管线](docs/engineering/lut-pipeline.md) · [RAW 读取](docs/engineering/raw-preview.md) · [画框导出](docs/engineering/frame-export.md) · [Lumix Lab 目录](docs/engineering/lumix-lab-catalogue.md)
-- 相机与发布：[相机协议](docs/protocol/lumix-sync.md) · [传输恢复](docs/engineering/storage-and-transfer.md) · [导出队列](docs/engineering/export-queue.md) · [版本记录](docs/releases/CHANGELOG.md) · [1.0.0 发布记录](docs/releases/1.0.0.md) · [第三方许可清单](THIRD_PARTY_NOTICES.md) · [构建说明](BUILDING.md)
 
 ## 🙏 开源库与素材鸣谢
 
@@ -511,9 +493,9 @@ cd Lumatte
 
 - SIL OFL 1.1 字体：Cormorant Garamond、Dancing Script、Great Vibes、Instrument Serif、Playfair Display、Source Han Serif / Sans、Teko、Bebas Neue、金字社统圆体（界面子集，改名为 Pineframe Tongyuan UI）；画框另使用 Cutive Mono、Abril Fatface、Julius Sans One（同样为 OFL 1.1）。
 - OPPO Sans 4.0：按 OPPO Sans Fonts License Agreement 随应用捆绑，原字体逐字节保留，不单独分发
-- 栗壳坚坚体（LikeJianJianTi）：中文 LUT 名称；作者为栗壳字库，来源与 SHA-256 记录见[字体来源清单](docs/design/font-sources.json)
+- 栗壳坚坚体（LikeJianJianTi）：中文 LUT 名称；作者为栗壳字库，来源与 SHA-256 记录见[字体来源清单](third_party/provenance/font-sources.json)
 - 10 款用户提供的 LUT：Fresh Bright、Kitaura、Smoky Color-S、Teal Flat-S、VOL 23 TXD AgfaPhoto LeBox、千禧回声 cold / warm、Backlight-N、Clear-S、Color Harmony；保留原作者与文件注释
-- 38 张恢复画框 / 胶卷图片与 26 张共享暗盒：来自维护者自有旧 APK，来源与 SHA-256 记录见 `core/media/src/main/assets/frames/manifest.json` 与[共享暗盒清单](docs/design/shared-cartridge-sources.json)
+- 38 张恢复画框 / 胶卷图片与 26 张共享暗盒：来自维护者自有旧 APK，来源与 SHA-256 记录见 `core/media/src/main/assets/frames/manifest.json` 与[共享暗盒清单](third_party/provenance/shared-cartridge-sources.json)
 - 应用图标与暗盒视觉：由维护者授权提供 / 生成
 
 ### 特别致谢

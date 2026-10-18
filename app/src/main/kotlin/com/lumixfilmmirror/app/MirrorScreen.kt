@@ -221,10 +221,13 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
         LocalMirrorSoundEffects provides personal.soundEffects,LocalMirrorFeedbackPlayer provides feedbackPlayer,
         LocalMirrorAutomaticFilmDetails provides personal.automaticFilmDetails) {
         val collectionSurface = immersiveLut && tab == 2 && pane == null
+        // Film and LUT scenes paint through the status bar and inset their own controls.
+        val edgeScene = pane == null && tab in 1..2
         val darkSurface = com.lumixfilmmirror.design.LocalFilmDark.current
         Column(Modifier.fillMaxSize().drawBehind {
             if (collectionSurface) drawCollectionBackdrop(darkSurface) else drawRect(tones.background)
-        }.windowInsetsPadding(WindowInsets.safeDrawing)) {
+        }.windowInsetsPadding(if (edgeScene) WindowInsets.safeDrawing.only(
+            WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom) else WindowInsets.safeDrawing)) {
             MirrorTaskProgress(state, camera, workspace, transferHidden) { transferHidden = it }
             Box(Modifier.weight(1f).fillMaxWidth()) {
             ProgressiveBackdrop(Modifier.fillMaxSize(), enabled = navigation && !reduced, source = backdrop) {

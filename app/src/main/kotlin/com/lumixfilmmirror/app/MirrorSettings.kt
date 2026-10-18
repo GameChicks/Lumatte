@@ -72,6 +72,15 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
                 }
             }
             item {
+                MirrorControlSection("支持开发", "感谢你支持 松映 · Lumatte 的持续开发。") {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        MirrorChoice(false, { donation = "alipay" }, Modifier.weight(1f), label = { Text("支付宝") })
+                        MirrorChoice(false, { donation = "wechat" }, Modifier.weight(1f), label = { Text("微信") })
+                    }
+                    Text("自愿捐赠，金额由你决定。", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
+                }
+            }
+            item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutputControls(state, workspace)
                     Text("编辑与水印页使用同一组选项，自动保留最近一次选择。", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
@@ -83,15 +92,6 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
                     MirrorChoice(false, onTools, Modifier.fillMaxWidth(), label = { Text("打开任务与缓存管理 →") })
                     Text("RAW 仅提取内嵌 JPEG；原始文件保留。照片默认按有效输入尺寸的 100% 输出。",
                         style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
-                }
-            }
-            item {
-                MirrorControlSection("支持开发", "感谢你支持 松映 · Lumatte 的持续开发。") {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        MirrorChoice(false, { donation = "alipay" }, Modifier.weight(1f), label = { Text("支付宝") })
-                        MirrorChoice(false, { donation = "wechat" }, Modifier.weight(1f), label = { Text("微信") })
-                    }
-                    Text("自愿捐赠，金额由你决定。", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
                 }
             }
             item {

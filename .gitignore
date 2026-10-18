@@ -27,6 +27,13 @@ research/third-party-sync/decompiled/
 research/third-party-sync/raw/
 .cxx/
 **/.cxx/
-/dist/*
-!/dist/README.md
+/dist/
+/docs/
+/gradle/wrapper/
+/gradlew
+/gradlew.bat
+**/schemas/
+/AGENTS.md
+/research/reference-apks.json
+/tools/render_welcome_font_study.py
 research/lut2photo/upstream/

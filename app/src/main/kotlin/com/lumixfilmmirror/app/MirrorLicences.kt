@@ -43,7 +43,7 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
             LicenceEntry("Teko", "Teko Project Authors · SIL OFL 1.1 · 欢迎标题使用 Bold 700，原始可变字体未修改。", listOf("licenses/teko-OFL.txt")),
             LicenceEntry("Bebas Neue", "Bebas Neue Project Authors · SIL OFL 1.1 · 原欢迎标题字体，保留原始来源记录。", listOf("licenses/bebas-neue-OFL.txt")),
             LicenceEntry("金字社统圆体", "金留庆 / Roman Czyborra / Paul Hardy · SIL OFL 1.1；界面字符子集改名为 Pineframe Tongyuan UI，字形轮廓未修改。", listOf("licenses/jinzi-tongyuan-OFL.txt")),
-            LicenceEntry("恢复画框与胶卷图片", "来自维护者自有旧 APK；维护者于 2026-10-18 授权随本项目公开再分发。来源与文件哈希见项目 docs/design/assets.md。", emptyList()),
+            LicenceEntry("恢复画框与胶卷图片", "来自维护者自有旧 APK；维护者于 2026-10-18 授权随本项目公开再分发。来源与文件哈希见项目 core/media/src/main/assets/frames/manifest.json 与 third_party/provenance/shared-cartridge-sources.json。", emptyList()),
             LicenceEntry("Lut2Photo 算法参考", "qh7574/Lut2Photo-Android（MPL 2.0）。参考其 Bayer 抖动及亮度颗粒思路；本应用实现独立编写，没有打包该项目源码或二进制。", emptyList()),
             LicenceEntry("LUT 与创作者例图", "内置 10 款用户提供 LUT 已获维护者授权，可随项目和 APK 发布到 GameChicks/Lumatte；下载的例图与头像保留各自创作者权利，不由 GPLv3 统一授权。", emptyList())
         )

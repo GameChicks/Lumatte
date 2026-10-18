@@ -65,7 +65,7 @@ def main():
             'family':family,'modification':'UI character subset only; outlines unchanged; renamed derivative; original notices retained',
             'license':'OFL-1.1','unicode':charset,'sha256':sha((fonts/'jinzi_tongyuan_ui.ttf').read_bytes())},
         'bebas':{'family':'Bebas Neue','license':'OFL-1.1','modified':False}}
-    (ROOT/'docs/design/font-sources.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8',newline='\n')
+    (ROOT/'third_party/provenance/font-sources.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8',newline='\n')
     print('Installed original OPPO Sans 4.0 / Bebas Neue and renamed OFL Tongyuan subset:',len(charset),'characters')
 
 if __name__=='__main__':main()

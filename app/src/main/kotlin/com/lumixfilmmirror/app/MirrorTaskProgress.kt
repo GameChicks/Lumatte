@@ -32,7 +32,7 @@ internal fun MirrorTaskProgress(state: WorkspaceState, camera: CameraWorkspaceSt
     val state = if (active) state else lastState
     val camera = if (active) camera else lastCamera
     val transfer = camera.activeTransferBatch != null
-    Surface(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), shape = RoundedCornerShape(20.dp),
+    Surface(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 8.dp), shape = RoundedCornerShape(20.dp),
         color = LocalFilmMaterials.current.paperHighlight, shadowElevation = 2.dp) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
