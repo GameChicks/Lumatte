@@ -1,8 +1,8 @@
-# 松映 · Lumatte
-
 <p align="center">
-  <img src="app/src/main/res/drawable-nodpi/launcher_film_mirror_v1.png" width="120" alt="松映 · Lumatte 应用图标">
+  <img src="assets/readme/lumatte-hero.jpg" width="720" alt="Lumatte — 拍完，才刚开始">
 </p>
+
+# 松映 · Lumatte
 
 **松映 · Lumatte** 是一款开源 Android 摄影工具。它把松下相机照片传输、移动胶片模拟、双 LUT 试套和画框导出放进同一条本地工作流，想让手机成为一间随身数字暗房。
 
@@ -138,6 +138,10 @@
 
 > ⚠️ 从 Lumix Lab 下载的 LUT、例图与头像保留创作者权利，本项目不内置、不再分发。
 
+<p align="center">
+  <img src="assets/readme/lut-discovery.jpg" width="480" alt="LUT 色彩探索与智能推荐">
+</p>
+
 ## 📝 TODO / 路线图
 
 ### ⌛ 计划内
@@ -182,6 +186,10 @@
 
 ### 📷 相机连接与传输
 
+<p align="center">
+  <img src="assets/readme/camera-transfer.jpg" width="480" alt="松下相机连接与照片传输">
+</p>
+
 - BLE 发现、配对，以及相机 Wi-Fi 的 SoftAP / STA 两种连接方式。
 - 相机相册网格浏览、最新在前倒序分页、多选与「选择已载入」。
 - 下载队列支持暂停 / 继续 / 取消余下、断点文件与前台服务通知；断线或进程结束后队列保留，由你重新连接后继续。
@@ -191,6 +199,10 @@
 - **相机边界**：不提供实时取景、遥控快门、视频启停、曝光 / 白平衡 / 对焦控制、相机参数复制或远程电源。
 
 ### 🎞️ 移动胶片
+
+<p align="center">
+  <img src="assets/readme/film-catalogue.jpg" width="480" alt="24 款胶卷：负片、电影卷、反转片与黑白卷">
+</p>
 
 - 24 款目录：负片 10、电影卷 6、反转片 4、黑白卷 4。
 - 分阶段模型：响应（response）→ 显影（development）→ 印相 / 直扫（scan）。
@@ -202,6 +214,10 @@
 
 ### 🧪 双 LUT
 
+<p align="center">
+  <img src="assets/readme/lut-library.jpg" width="480" alt="本地 LUT、Lumix Lab、详情与收藏界面">
+</p>
+
 - 两个顺序槽：LUT 1 → LUT 2，各自 0–100% 强度，可交换顺序或只用一槽。
 - 支持 `.cube`（1D / 3D / 1D shaper + 3D）与松下 `.vlt`（17³，严格校验）；非法尺寸、缺行、越界或冲突的输入域声明会被拒绝。
 - 本地导入不改写原文件，按源文件 SHA-256 生成应用私有缓存。
@@ -212,6 +228,10 @@
 
 ### 🖼️ 画框、水印与导出
 
+<p align="center">
+  <img src="assets/readme/frames-and-watermarks.jpg" width="480" alt="11 种画框与水印效果展示，摄影者署名保留在原图中">
+</p>
+
 - 11 款画框、8 种画布比例、纸边 2%–12%，画布方向可跟随照片或强制横 / 竖。
 - 签名 / 标题 / 副标题 / 页脚文字，7 款内置字体，支持导入 TTF / OTF / TTC（≤32 MiB）。
 - EXIF 文字逐项开关，开关应用于整批；每张照片只显示实际检测到的数据。
@@ -221,6 +241,10 @@
 - 「水印」栏可对原图直接加画框，不套胶片或 LUT 效果。
 
 ### 🖥️ 工作台、首页与桌面
+
+<p align="center">
+  <img src="assets/readme/cards-and-widgets.jpg" width="480" alt="首页卡片、创作记录、相机用量与桌面小组件">
+</p>
 
 - 工作台：批次切换 / 新建 / 继续导入、传输与导出任务、JPG 导出设置、LUT 调色、导出中间文件与自选文件夹记录、缓存清理。
 - 首页：Lumatte / Darkroom 标题、相机卡片、手机相册入口、相机用量（本月拍摄 / 传入数量）、创作记录。
@@ -257,6 +281,10 @@ flowchart LR
 照片进入应用后，先确定输入格式：JPEG 直接读取方向与 EXIF；RAW 只提取内嵌 JPEG 预览，再走同一套流程。之后按选择进入胶片或 LUT 处理，完成后添加整批共享画框，编码 JPEG、写入 EXIF，并发布到系统相册或用户选择的 SAF 文件夹。
 
 ### 移动胶片：分阶段模型与有界渲染
+
+<p align="center">
+  <img src="assets/readme/film-halation.jpg" width="480" alt="CineStill 800T 胶片模拟与 Halation 效果，照片来源：@凡">
+</p>
 
 - 胶片数据不是把 `.cube` 换个名字：模型拆成响应、显影、印相 / 直扫三个阶段，由预先生成并校验来源的数值表驱动；18 款 SpektraFilm 派生模型 + 6 款 Fotufilm 模型组成当前 24 款目录。
 - 渲染后端优先使用 GLES 3 图块扫描；遇到可识别的 GPU / 驱动类失败时，丢弃未完成结果，从原始 JPEG 重新用同模型 CPU 后端重做。CPU 与 GPU 使用同一配方与模型，但浮点计算与 8-bit 编码差异意味着不承诺逐像素完全相同。
