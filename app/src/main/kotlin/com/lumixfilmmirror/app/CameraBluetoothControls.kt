@@ -132,7 +132,7 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
                         DotIcon(DotGlyph.CAMERA, Modifier.padding(end = 12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(found.name, style = MaterialTheme.typography.titleSmall)
-                            Text(if (found.pairing) "相机正在等待配对" else "相机已开机",
+                            Text(if (found.pairing) "相机正在等待配对" else "相机已开机 · 未处于配对状态（首次连接请先在相机进入「蓝牙 → 配对」）",
                                 style = MaterialTheme.typography.bodySmall)
                         }
                         TextButton(enabled = selectable, onClick = { connectCandidate(found.address) }) {

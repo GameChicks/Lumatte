@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
+import android.os.SystemClock
 import java.io.Closeable
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -230,7 +231,10 @@ class CameraBluetooth(private val context: Context) {
     private suspend fun <T> withConnection(camera: BluetoothCamera, onStep: (BluetoothConnectionStep) -> Unit,
         block: suspend (ConnectionGatt) -> T): T {
         val device = adapter().getRemoteDevice(camera.address)
-        val session = ConnectionGatt(context, device)
+        // Diagnostic only: the advertised state and system bond state, never an address or name.
+        CameraConnectionLog.info("LFMBle", "gattTarget advertised=${if (camera.pairing) "pairing" else "normal"} " +
+            "bondState=${bondLabel(device.bondState)}")
+        val session = ConnectionGatt(context, device, camera.pairing)
         try {
             onStep(BluetoothConnectionStep.CONNECTING)
             session.connect()
@@ -275,9 +279,20 @@ class CameraBluetooth(private val context: Context) {
     }
 }
 
-/** One request at a time; connection/sending notifications and two fixed ordinary startup values. */
+private fun bondLabel(state: Int): String = when (state) {
+    BluetoothDevice.BOND_NONE -> "none"
+    BluetoothDevice.BOND_BONDING -> "bonding"
+    BluetoothDevice.BOND_BONDED -> "bonded"
+    else -> "unknown"
+}
+
+/**
+ * One request at a time; connection/sending notifications and two fixed ordinary startup values.
+ * [advertisedPairing] is the state the camera advertised when it was scanned: true for the pairing page, false for normal.
+ */
 @SuppressLint("MissingPermission")
-private class ConnectionGatt(private val context: Context, private val device: BluetoothDevice) : Closeable {
+private class ConnectionGatt(private val context: Context, private val device: BluetoothDevice,
+    private val advertisedPairing: Boolean) : Closeable {
     private enum class Kind { CONNECTED, SERVICES, READ, WRITE, DESCRIPTOR, MTU }
     private class Event(val kind: Kind, val status: Int, val uuid: UUID? = null, val bytes: ByteArray = byteArrayOf(),
         val mtu: Int = 0)
@@ -411,12 +426,16 @@ private class ConnectionGatt(private val context: Context, private val device: B
     suspend fun connect() = mutex.withLock {
         gatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
             ?: error("蓝牙连接无法启动")
+        val startedAt = SystemClock.elapsedRealtime()
         await(Kind.CONNECTED, timeout = 30_000L)
+        CameraConnectionLog.info("LFMBle", "gattConnect elapsedMs=${SystemClock.elapsedRealtime() - startedAt}")
         Unit
     }
     suspend fun discover() = mutex.withLock {
         check(requireGatt().discoverServices()) { "蓝牙服务读取无法启动" }
+        val startedAt = SystemClock.elapsedRealtime()
         await(Kind.SERVICES, timeout = 20_000L)
+        CameraConnectionLog.info("LFMBle", "serviceDiscovery elapsedMs=${SystemClock.elapsedRealtime() - startedAt}")
         Unit
     }
     fun has(uuid: UUID, service: UUID = LumixBleProtocol.service): Boolean = requireGatt().getService(service)?.getCharacteristic(uuid) != null
@@ -675,6 +694,18 @@ private class ConnectionGatt(private val context: Context, private val device: B
         failure.get()?.let { throw it }
         return gatt ?: error("蓝牙会话已经结束")
     }
+    /**
+     * A phone the camera has never registered is refused outside the pairing page. When a registration write
+     * fails after the camera advertised its normal state, say so instead of leaving a bare GATT status.
+     */
+    private fun registrationHint(uuid: UUID?): String {
+        val protocol = LumixBleProtocol
+        val registration = uuid == protocol.clientId || uuid == protocol.friendlyName ||
+            uuid == protocol.apsClientId || uuid == protocol.apsFriendlyName
+        return if (registration && !advertisedPairing)
+            "。相机当时未处于配对状态：若这台手机尚未与相机配对，请先在相机上进入「蓝牙 → 配对」页面，重新查找并确认列表显示“相机正在等待配对”后再连接"
+        else ""
+    }
     private suspend fun await(kind: Kind, uuid: UUID? = null, timeout: Long = 20_000L): Event {
         val operation = when (uuid) {
             LumixBleProtocol.clientId, LumixBleProtocol.apsClientId -> "登记手机标识"
@@ -701,8 +732,9 @@ private class ConnectionGatt(private val context: Context, private val device: B
                     if (event.kind != kind || event.uuid != uuid) { event.bytes.fill(0); continue }
                     if (event.status != BluetoothGatt.GATT_SUCCESS) {
                         event.bytes.fill(0)
-                        CameraConnectionLog.warn("LFMBle", "operation=$kind uuid=$uuid status=${event.status}")
-                        error("$operation 失败（状态 ${event.status}），请重新进入相机配对页面后重试")
+                        CameraConnectionLog.warn("LFMBle", "operation=$kind uuid=$uuid status=${event.status} " +
+                            "advertised=${if (advertisedPairing) "pairing" else "normal"}")
+                        error("$operation 失败（状态 ${event.status}），请重新进入相机配对页面后重试${registrationHint(uuid)}")
                     }
                     // Protocol UUIDs only: never log characteristic values, device IDs or addresses.
                     CameraConnectionLog.info("LFMBle", "operation=$kind uuid=$uuid status=success" +

@@ -66,6 +66,10 @@ class CameraController(private val application: Application) {
     // A user-started handshake survives Android's Bluetooth/Wi-Fi confirmation Activity.
     // This is bounded below; it does not enable background scanning or automatic reconnect.
     private var bluetoothConnectionInProgress = false
+    // Steps before the Wi-Fi handoff. A failure here leaves the scanned camera entry untrustworthy: the camera may
+    // no longer be connectable at that address, and retrying it only waits out the 30 s connect timeout.
+    private val bluetoothPreWifiSteps = setOf(BluetoothConnectionStep.CONNECTING, BluetoothConnectionStep.READING_SERVICES,
+        BluetoothConnectionStep.REGISTERING_NOTIFICATIONS, BluetoothConnectionStep.IDENTIFYING, BluetoothConnectionStep.READING_WIFI)
     private data class PendingWifiSelection(val id: String, val title: String,
         var options: List<CameraWifiNetwork>, val reply: CompletableDeferred<Network?>)
     private var pendingWifiSelection: PendingWifiSelection? = null
@@ -1005,7 +1009,10 @@ class CameraController(private val application: Application) {
                 if (error is CameraProtocolException && error.requiresReconnect) cameraSession?.let {
                     expireCameraSession(it, "相机授权已失效，请重新连接后继续；已选照片和传输记录保留。")
                 }
-                cameraMutable.update { if (it.disconnected) it else it.copy(problem = error.message ?: "相机连接或传输失败") }
+                val staleScan = cameraMutable.value.bluetoothStep?.let { it in bluetoothPreWifiSteps } == true
+                if (staleScan) cameraMutable.update { it.copy(bluetoothCameras = emptyList(), bluetoothSelectedCamera = null) }
+                cameraMutable.update { if (it.disconnected) it else it.copy(problem = (error.message ?: "相机连接或传输失败") +
+                    if (staleScan) "。已清除旧的相机列表，请重新点“查找蓝牙相机”。" else "") }
                 if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
             } finally {
                 cameraMutable.update { it.copy(operationRunning = false, cacheBusy = false, bluetoothStep = null,
