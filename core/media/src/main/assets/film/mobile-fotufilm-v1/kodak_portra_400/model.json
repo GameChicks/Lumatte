@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "modelVersion": "lfm-fotufilm-catalogue-v3",
+  "stockId": "kodak_portra_400",
+  "printId": "fotu_fixed_print",
+  "positive": false,
+  "source": {
+    "origin": "fotufilm_public_pack_adapter",
+    "repository": "https://github.com/DhaliwalX/fotufilm-engine",
+    "commit": "e15b09815a83b0e00ba9381b65d31d253667a1b1",
+    "builderCommitNotPublished": true,
+    "builderSha256": "d14b767d2a21ae82792d678d90f74160f370bcc13f8de17348709639321c607e",
+    "packSha256": "f7628d49765a2da8ed5d1d4c04277c13dad88631b1dc60b556d286e5e83a6918",
+    "profileSha256": "6a98433bc13fb36b6bf33968506ffaea055c00179c0b90b33d63f97d8ac8cafc",
+    "author": "Fotufilm / MUAStudio Inc.",
+    "license": "CC-BY-SA-4.0"
+  },
+  "storage": "float32_le_rgb_x_fastest",
+  "dir": "baked_local_only",
+  "spatialEffectsBaked": false,
+  "grainBaked": false,
+  "tables": {
+    "response": {
+      "file": "response.f32",
+      "size": 33,
+      "bytes": 431244,
+      "sha256": "79de9fd24a4f5b86509782719192130a701f58114ee1bd681c7f6ed2c00abb8c",
+      "minimum": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maximum": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "srgb_encoded",
+      "outputSpace": "film_raw_linear"
+    },
+    "development": {
+      "file": "development.f32",
+      "size": 65,
+      "bytes": 3295500,
+      "sha256": "93199550a6e831b8ae68a7631f35f1add1e816405e9429d40542cb77c36c5ca2",
+      "minimum": [
+        -4.0,
+        -4.0,
+        -4.0
+      ],
+      "maximum": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_log10_exposure",
+      "outputSpace": "film_cmy_density"
+    },
+    "scan": {
+      "file": "scan.f32",
+      "size": 41,
+      "bytes": 827052,
+      "sha256": "5fa90265cb7a7feed05ad895c4c21aff1f5a681178ce1cb5dfc4c392691008a6",
+      "minimum": [
+        -0.2,
+        -0.2,
+        -0.2
+      ],
+      "maximum": [
+        2.7303521960602213,
+        2.949092051995035,
+        3.850980916630033
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_cmy_density",
+      "outputSpace": "srgb_encoded"
+    }
+  },
+  "grainReference": {
+    "active": true,
+    "sublayers_active": true,
+    "particle_area_um2": 0.2,
+    "particle_scale": [
+      1.6,
+      1.6,
+      3.2
+    ],
+    "particle_scale_layers": [
+      2.0,
+      1.0,
+      0.5
+    ],
+    "density_min": [
+      0.03,
+      0.03,
+      0.03
+    ],
+    "uniformity": [
+      0.97,
+      0.99,
+      0.97
+    ],
+    "blur": 0.65,
+    "blur_dye_clouds_um": 1.0,
+    "micro_structure": [
+      0.2,
+      30
+    ],
+    "n_sub_layers": 1,
+    "density_maximum": [
+      1.99179637953822,
+      1.7988370707022954,
+      2.1639109464828126
+    ]
+  },
+  "halationReference": {
+    "active": true,
+    "scatter_amount": 1.0,
+    "scatter_spatial_scale": 1.0,
+    "halation_amount": 1.0,
+    "halation_spatial_scale": 1.0,
+    "scatter_core_um": [
+      2.2,
+      2.0,
+      1.6
+    ],
+    "scatter_tail_um": [
+      9.3,
+      9.7,
+      9.1
+    ],
+    "scatter_tail_weight": [
+      0.78,
+      0.65,
+      0.67
+    ],
+    "boost_ev": 0.0,
+    "boost_range": 0.3,
+    "protect_ev": 4.0,
+    "halation_strength": [
+      0.015,
+      0.005,
+      0.0
+    ],
+    "halation_first_sigma_um": [
+      65.0,
+      65.0,
+      65.0
+    ],
+    "halation_n_bounces": 3,
+    "halation_bounce_decay": 0.5,
+    "halation_renormalize": true
+  },
+  "settingsSnapshot": {
+    "camera": {
+      "film_format_mm": 36.0
+    },
+    "profileRequest": {
+      "kind": "film",
+      "width": 1536,
+      "height": 1024,
+      "medium": "endura-premier",
+      "format": "35mm",
+      "controls": {
+        "grain": 0,
+        "digitalReference": "reference-exposure"
+      }
+    }
+  },
+  "mobileAdaptation": {
+    "monochrome": false,
+    "fullEngineParity": false,
+    "sampledCurves": true,
+    "sceneMetering": false,
+    "spatialDIR": false,
+    "donorRecord": null,
+    "grain": "existing-density-statistical-approximation",
+    "effectsSourceModelVersion": "sf-3bb2c2d-print-presets-v2",
+    "effectsSourceManifestSha256": "e67343b756f6b970a8c577a675bfe8fb0e9fb6a826816fcc972d343ec277307c"
+  }
+}

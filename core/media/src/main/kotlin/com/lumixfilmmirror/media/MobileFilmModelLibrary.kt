@@ -105,6 +105,7 @@ internal class MobileFilmModelLibrary(context: Context) {
         val spectral = readIndex(ROOT, MODEL_VERSION, FilmModelOrigin.SPEKTRAFILM)
         val monochrome = readIndex(MONO_ROOT, MONO_VERSION, FilmModelOrigin.PROJECT_MONOCHROME)
         val fotufilm = readIndex(FOTU_ROOT, FOTU_VERSION, FilmModelOrigin.FOTUFILM_MOBILE)
+        require(spectral.keys == FALLBACK_STOCKS && fotufilm.keys == FOTU_STOCKS) { "胶片模型迁移目录不完整" }
         require((spectral.keys + monochrome.keys + fotufilm.keys).size == spectral.size + monochrome.size + fotufilm.size) {
             "移动胶片目录标识重复"
         }
@@ -135,7 +136,7 @@ internal class MobileFilmModelLibrary(context: Context) {
             if (origin == FilmModelOrigin.PROJECT_MONOCHROME) require(id in MONO_STOCKS && printId == "lfm_silver_paper" &&
                 !item.getBoolean("positive")) { "自有黑白目录条目无效" }
             if (origin == FilmModelOrigin.FOTUFILM_MOBILE) require(id in FOTU_STOCKS && printId == "fotu_fixed_print" &&
-                !item.getBoolean("positive")) { "Fotufilm 移动目录条目无效" }
+                item.getBoolean("positive") == (id in FOTU_POSITIVE_STOCKS)) { "Fotufilm 移动目录条目无效" }
             result[id] = Entry(MobileFilmModelInfo(id, printId, item.getBoolean("positive"), version,
                 when (origin) {
                     FilmModelOrigin.SPEKTRAFILM -> SOURCE_COMMIT
@@ -224,7 +225,8 @@ internal class MobileFilmModelLibrary(context: Context) {
             } }
         }
         // v1 generators reserve 0.2 above the declared density ceiling.
-        val maximum = triple(scan, "maximum", .21f, 10f).also { for (c in 0..2) it[c] -= .2f }
+        val maximum = if (grain.has("density_maximum")) triple(grain, "density_maximum", .01f, 10f)
+            else triple(scan, "maximum", .21f, 10f).also { for (c in 0..2) it[c] -= .2f }
         fun scatter(key: String, fallback: FloatArray, high: Float): FloatArray =
             if (halation.has(key)) triple(halation, key, 0f, high) else fallback
         require(halation.optBoolean("halation_renormalize", true)) { "移动模型需要归一化返光" }
@@ -273,10 +275,17 @@ internal class MobileFilmModelLibrary(context: Context) {
         private const val MONO_VERSION = "lfm-silver-three-stage-v1"
         private val MONO_STOCKS = setOf("lfm_silver_neutral", "lfm_silver_contrast")
         private const val FOTU_ROOT = "film/mobile-fotufilm-v1"
-        private const val FOTU_VERSION = "lfm-fotufilm-5207-curves-v2"
-        private const val FOTU_COMMIT = "12c8efea259e4cea70ec22166e504634d401a0cd"
+        private const val FOTU_VERSION = "lfm-fotufilm-catalogue-v3"
+        private const val FOTU_COMMIT = "e15b09815a83b0e00ba9381b65d31d253667a1b1"
         private val FOTU_STOCKS = setOf("cinestill_800t", "cinestill_400d", "fujifilm_acros_100_ii",
-            "kodak_tri_x_400", "ilford_hp5_plus_400", "ilford_delta_3200")
+            "kodak_tri_x_400", "ilford_hp5_plus_400", "ilford_delta_3200",
+            "fujifilm_c200", "fujifilm_pro_400h", "fujifilm_xtra_400", "fujifilm_provia_100f",
+            "kodak_ektachrome_100", "kodak_ektar_100", "kodak_gold_200", "kodak_kodachrome_64",
+            "kodak_portra_400", "kodak_ultramax_400", "kodak_verita_200d",
+            "kodak_vision3_250d", "kodak_vision3_500t")
+        private val FOTU_POSITIVE_STOCKS = setOf("fujifilm_provia_100f", "kodak_ektachrome_100", "kodak_kodachrome_64")
+        private val FALLBACK_STOCKS = setOf("fujifilm_velvia_100", "kodak_portra_160", "kodak_portra_800",
+            "kodak_vision3_200t", "kodak_vision3_50d")
         private const val MAX_JSON_BYTES = 256 * 1024
         private const val MAX_MODEL_BYTES = 12L * 1024 * 1024
         private const val CACHE_BYTES = 12L * 1024 * 1024

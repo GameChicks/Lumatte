@@ -1,55 +1,159 @@
 {
   "schema": 1,
-  "modelVersion": "lfm-fotufilm-5207-curves-v2",
+  "modelVersion": "lfm-fotufilm-catalogue-v3",
   "origin": "fotufilm_public_pack_adapter",
-  "sourceCommit": "12c8efea259e4cea70ec22166e504634d401a0cd",
+  "sourceCommit": "e15b09815a83b0e00ba9381b65d31d253667a1b1",
   "models": [
+    {
+      "stockId": "fujifilm_c200",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "49ba2a9aba3b39f983750e814d67f09cdf1a067caacec52da747b592f72842b9",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "fujifilm_pro_400h",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "0e6eef6dd74359087acbbbef6b8af3921e197ed9eb06f9434e73ad45898e405c",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "fujifilm_provia_100f",
+      "printId": "fotu_fixed_print",
+      "positive": true,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "dc48866ee782544e4262420a2d0b26bb5dc8e30c7422c41895a41da177f2474b",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "fujifilm_xtra_400",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "d428ee08c0f6a5148cf41b2b8ff783b528614fa4ebf5cdd1f2abf5e4a15a3bc1",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_ektachrome_100",
+      "printId": "fotu_fixed_print",
+      "positive": true,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "c90661675d42a06cba84e63a90486335d87a5437aee3b5be5d017ff3e6c08dfa",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_ektar_100",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "8da19367bb26b09936fc59d7ba3b5a36535291de215d7c4b4edc90a2e979ae29",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_gold_200",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "76c5d5e50a48f8a946fc815d2eb15d88094c113dd228fc798390041cd33d9090",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_kodachrome_64",
+      "printId": "fotu_fixed_print",
+      "positive": true,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "2d4047137cd8d8dcd76845322f4fdfddc32d798dd68c04a48d310b05a93061b2",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_portra_400",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "25bcea74b7e7999c47f2840d720ce45b2240ab90ea7489f6611c103c5a702891",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_ultramax_400",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "1a061eb664b91f1e3f0fb69b53e8f7fc92872d2fafc81b2eab28c5afe33d438a",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_verita_200d",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "ee1f030b56d8664f46c1896f642eb2d25805ad4d16a0dc9d208f1d6d765d5a23",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_vision3_250d",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "1903d46b65555e3fc256170d60bafc9fbe10d911884a6b478e6213325584d8aa",
+      "tableBytes": 4553796
+    },
+    {
+      "stockId": "kodak_vision3_500t",
+      "printId": "fotu_fixed_print",
+      "positive": false,
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "1a96e4a25041994e4128e25bf0a9a6858ff13ede12d7bdd8264073eb04e23fce",
+      "tableBytes": 4553796
+    },
     {
       "stockId": "cinestill_800t",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-5207-curves-v2",
-      "manifestSha256": "fe590962153f445b6adde4fa2ee0299ccec0565fb3c88098c6a44766c2c60ade",
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "9a65ec51442d489da3855f3b3f8d9c504f2726decec13245a7327cc43b31bafd",
       "tableBytes": 4553796
     },
     {
       "stockId": "cinestill_400d",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-5207-curves-v2",
-      "manifestSha256": "7583ee5444bd01eb8ee2b8e76d81f5ed0778182fb972a6849a5a158fc3a225df",
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "b9722432aa82131b40ce65eb446be0da44ab8376010bd1af021baf259982f736",
       "tableBytes": 4553796
     },
     {
       "stockId": "fujifilm_acros_100_ii",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-5207-curves-v2",
-      "manifestSha256": "e8729c3234271c1ea030261048197b8128c70c04c440ee8ed9ca70ff0f6696b2",
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "1f9a1667d1547b204c4501489ca83281144eefc4e55c71e99a03d85b768ef623",
       "tableBytes": 4553796
     },
     {
       "stockId": "kodak_tri_x_400",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-5207-curves-v2",
-      "manifestSha256": "91b165ecacb5c93398acd3995677c4148378c7a4fcdbc950bb915602f72c85df",
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "3ed9d2a0303f65c5c1cdbb6a2483f91f25fa61452fdde35b2a36457b5d71601d",
       "tableBytes": 4553796
     },
     {
       "stockId": "ilford_hp5_plus_400",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-5207-curves-v2",
-      "manifestSha256": "34456eac7056b14e1d729d2f211126ab48e785f98ef07513ea70725b3c5a9ffe",
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "66ebe5276953368c1d8fab962c06ea7c066024ecf97355667c5f81dfd28c5a48",
       "tableBytes": 4553796
     },
     {
       "stockId": "ilford_delta_3200",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-5207-curves-v2",
-      "manifestSha256": "37881c957c4322a98c6336092bf6fa905790f02a12b3f48b208261a3d3b8a209",
+      "modelVersion": "lfm-fotufilm-catalogue-v3",
+      "manifestSha256": "bd89e068365edb2f307c9b85acfdd1e1f68affff18c87fc62d968f5a9c00aef4",
       "tableBytes": 4553796
     }
   ]

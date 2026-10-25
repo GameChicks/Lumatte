@@ -1,0 +1,189 @@
+{
+  "schema": 1,
+  "modelVersion": "lfm-fotufilm-catalogue-v3",
+  "stockId": "fujifilm_c200",
+  "printId": "fotu_fixed_print",
+  "positive": false,
+  "source": {
+    "origin": "fotufilm_public_pack_adapter",
+    "repository": "https://github.com/DhaliwalX/fotufilm-engine",
+    "commit": "e15b09815a83b0e00ba9381b65d31d253667a1b1",
+    "builderCommitNotPublished": true,
+    "builderSha256": "d14b767d2a21ae82792d678d90f74160f370bcc13f8de17348709639321c607e",
+    "packSha256": "14a042dca04b410c09823d40907c23b28d37f2e183a3358ef43e47de4190ace5",
+    "profileSha256": "efebc59eb3d0f750fdec3440d2d748a8522817501270ff849f7584d28330d54f",
+    "author": "Fotufilm / MUAStudio Inc.",
+    "license": "CC-BY-SA-4.0"
+  },
+  "storage": "float32_le_rgb_x_fastest",
+  "dir": "baked_local_only",
+  "spatialEffectsBaked": false,
+  "grainBaked": false,
+  "tables": {
+    "response": {
+      "file": "response.f32",
+      "size": 33,
+      "bytes": 431244,
+      "sha256": "7a0470e2e00f72d9a9d5c5b86221c99dde3db2e219789dfcf6e2b15aab4bae5e",
+      "minimum": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "maximum": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "srgb_encoded",
+      "outputSpace": "film_raw_linear"
+    },
+    "development": {
+      "file": "development.f32",
+      "size": 65,
+      "bytes": 3295500,
+      "sha256": "76a489ce45c46e122491c1a662234873b8571648ba0a6049fb3ceb28533b3a4d",
+      "minimum": [
+        -4.0,
+        -4.0,
+        -4.0
+      ],
+      "maximum": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_log10_exposure",
+      "outputSpace": "film_cmy_density"
+    },
+    "scan": {
+      "file": "scan.f32",
+      "size": 41,
+      "bytes": 827052,
+      "sha256": "681665131578a685f8e8fb7f09774a1ef1145cdb9bf004264dbaf98580cd9e60",
+      "minimum": [
+        -0.2,
+        -0.2,
+        -0.2
+      ],
+      "maximum": [
+        2.315821168294076,
+        3.232660876568187,
+        4.0578913943031205
+      ],
+      "shaper": "linear",
+      "inputSpace": "film_cmy_density",
+      "outputSpace": "srgb_encoded"
+    }
+  },
+  "grainReference": {
+    "active": true,
+    "sublayers_active": true,
+    "particle_area_um2": 0.2,
+    "particle_scale": [
+      1.6,
+      1.6,
+      3.2
+    ],
+    "particle_scale_layers": [
+      2.0,
+      1.0,
+      0.5
+    ],
+    "density_min": [
+      0.03,
+      0.03,
+      0.03
+    ],
+    "uniformity": [
+      0.97,
+      0.99,
+      0.97
+    ],
+    "blur": 0.65,
+    "blur_dye_clouds_um": 1.0,
+    "micro_structure": [
+      0.2,
+      30
+    ],
+    "n_sub_layers": 1,
+    "density_maximum": [
+      1.7039116837244785,
+      2.0405283670507677,
+      2.643089598545579
+    ]
+  },
+  "halationReference": {
+    "active": true,
+    "scatter_amount": 1.0,
+    "scatter_spatial_scale": 1.0,
+    "halation_amount": 1.0,
+    "halation_spatial_scale": 1.0,
+    "scatter_core_um": [
+      2.2,
+      2.0,
+      1.6
+    ],
+    "scatter_tail_um": [
+      9.3,
+      9.7,
+      9.1
+    ],
+    "scatter_tail_weight": [
+      0.78,
+      0.65,
+      0.67
+    ],
+    "boost_ev": 0.0,
+    "boost_range": 0.3,
+    "protect_ev": 4.0,
+    "halation_strength": [
+      0.08,
+      0.02,
+      0.0
+    ],
+    "halation_first_sigma_um": [
+      65.0,
+      65.0,
+      65.0
+    ],
+    "halation_n_bounces": 3,
+    "halation_bounce_decay": 0.5,
+    "halation_renormalize": true
+  },
+  "settingsSnapshot": {
+    "camera": {
+      "film_format_mm": 36.0
+    },
+    "profileRequest": {
+      "kind": "film",
+      "width": 1536,
+      "height": 1024,
+      "medium": "crystal-archive",
+      "format": "35mm",
+      "controls": {
+        "grain": 0,
+        "digitalReference": "reference-exposure"
+      }
+    }
+  },
+  "mobileAdaptation": {
+    "monochrome": false,
+    "fullEngineParity": false,
+    "sampledCurves": true,
+    "sceneMetering": false,
+    "spatialDIR": false,
+    "donorRecord": {
+      "method": "inverse-exposure-chromaticity-interpolation",
+      "faceSamples": 65,
+      "uniqueChromaticities": 12481,
+      "outsideCaptureGamut": "nearest-boundary",
+      "fullEngineParity": false
+    },
+    "grain": "existing-density-statistical-approximation",
+    "effectsSourceModelVersion": "sf-3bb2c2d-print-presets-v2",
+    "effectsSourceManifestSha256": "7c4a9708bc519e4cf3b4bba485898a86b4f4554f6d1fab0f7331005a39e93938"
+  }
+}

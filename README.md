@@ -208,7 +208,7 @@
 - 分阶段模型：响应（response）→ 显影（development）→ 印相 / 直扫（scan）。
 - 控制：曝光 −3.0…+3.0 EV、Halation 开关、黑柔（关闭 / 1/8 / 1/4 / 1/2）。
 - 逐张独立编辑，或让整批继承第一张的处理参数。
-- CineStill 800T / 400D 使用专用 Fotufilm 物理返光与 JPEG 高光红晕；其他胶卷保留 SpektraFilm 默认与有界空间采样。
+- CineStill 800T / 400D 使用专用 Fotufilm 物理返光与 JPEG 高光红晕；胶片色彩模型按同型号优先使用 Fotufilm，普通胶卷仍保留既有光晕参数与有界空间采样。
 - 显影 / 反转播放动效，每批一次、可跳过，可在设置中关闭。
 - 目录中的模型是移动端的风格模拟，不是对真实胶卷或桌面引擎的逐像素复刻。
 
@@ -286,7 +286,7 @@ flowchart LR
   <img src="assets/readme/film-halation.jpg" width="480" alt="CineStill 800T 胶片模拟与 Halation 效果，照片来源：@凡">
 </p>
 
-- 胶片数据不是把 `.cube` 换个名字：模型拆成响应、显影、印相 / 直扫三个阶段，由预先生成并校验来源的数值表驱动；18 款 SpektraFilm 派生模型 + 6 款 Fotufilm 模型组成当前 24 款目录。
+- 胶片数据不是把 `.cube` 换个名字：模型拆成响应、显影、印相 / 直扫三个阶段，由预先生成并校验来源的数值表驱动；19 款 Fotufilm 派生模型 + 5 款原有 SpektraFilm 模型组成当前 24 款目录。同型号存在于 Fotufilm 就迁移，缺少的 Portra 160 / 800、Velvia 100、Vision3 50D / 200T 保留原模型；详见 [固定模型输入与映射](research/fotufilm/model-reference-e15b098/README.md)。
 - 渲染后端优先使用 GLES 3 图块扫描；遇到可识别的 GPU / 驱动类失败时，丢弃未完成结果，从原始 JPEG 重新用同模型 CPU 后端重做。CPU 与 GPU 使用同一配方与模型，但浮点计算与 8-bit 编码差异意味着不承诺逐像素完全相同。
 - 空间效果（黑柔、Halation）使用有界的分析网格，普通胶卷沿用默认空间采样；只有 CineStill 800T / 400D 使用 Fotufilm 物理返光方程拟合的专用光晕核和更高空间采样预算，并叠加 JPEG 高光红晕修正。
 - 胶片颗粒由模型内部按每张照片的种子生成，**没有独立的胶片颗粒强度 UI**；继承首张只共享参数，不复制噪声种子。
@@ -507,8 +507,8 @@ gradle :app:assembleDebug
 | 组件 | 版本 / 固定点 | 许可 | 用途 |
 | --- | --- | --- | --- |
 | [LibRaw](https://www.libraw.org/) | 0.22.2（固定 commit `b93f6e45…`） | LGPL-2.1（本项目选择的许可选项） | 读取相机内嵌 JPEG 预览，不做 RAW 显影 |
-| [SpektraFilm](https://github.com/andreavolpato/spektrafilm)（Andrea Volpato） | 固定 commit `3bb2c2d2…` | CC BY-SA 4.0 | 18 款移动胶片三阶段模型来源 |
-| [Fotufilm](https://fotufilm.com/)（MUAStudio Inc.） | 固定 commit `12c8efea…` | 配置 / 派生表 CC BY-SA 4.0，光晕方程适配 Apache-2.0 | 6 款移动胶片模型与 CineStill 物理返光 |
+| [SpektraFilm](https://github.com/andreavolpato/spektrafilm)（Andrea Volpato） | 固定 commit `3bb2c2d2…` | CC BY-SA 4.0 | 5 款尚无同型号 Fotufilm 配置的模型；保留既有颗粒／空间参数的来源署名 |
+| [Fotufilm](https://fotufilm.com/)（MUAStudio Inc.） | 配置固定 commit `e15b0981…`，公开生成器另记 SHA-256 | 配置 / 派生表 CC BY-SA 4.0，方程适配 Apache-2.0 | 19 款移动胶片模型与 CineStill 物理返光；颗粒参数保持原设置 |
 
 ### Android / Kotlin 生态
 

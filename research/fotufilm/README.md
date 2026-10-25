@@ -13,3 +13,5 @@
 此处资料与派生模型均不构成实测胶卷校准、完整 Fotufilm 引擎一致性或手机性能证据。
 
 2026-10-17：`halation-reference/` 保存默认光晕方程、渲染调度与格式的固定版本原始源码及 SHA-256；遵循上文 Apache-2.0 许可与原始 NOTICE。`tools/produce_fotufilm_halation.py` 移植带明确物理 profile 的默认求解分支，离线生成两个 CineStill 的折射/吸收/多反射核、分色权重与返光矩阵，并更新其 manifest 哈希。单独运行只更新这两卷的说明与索引，不重烘其他卷或任何色彩表。三阶段完整生成器也引用同一函数，避免再次覆盖成旧艺术参数。Layered Transport 是上游另选的实验模型，默认 legacy 光晕不会启用它。
+
+2026-10-25：当前运行目录已迁移为 19 款 Fotufilm + 5 款保留模型。上文六款资料作为历史原始输入继续保留，不再是现行完整目录；当前固定配置、许可、原始效果说明及生成流程见 [model-reference-e15b098](model-reference-e15b098/README.md)。

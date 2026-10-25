@@ -1,5 +1,7 @@
 """Produce Android film assets, not tests or a performance/visual comparison.
 
+Produces only the five unmatched stocks in film/catalogue.json. Fotufilm owns
+the other nineteen stock IDs; this tool must not replace that catalogue.
 Uses a clean Git export of the pinned spektrafilm source. Does not modify the
 user's deployment, execute its launchers, or import its GUI/session settings.
 Run explicitly with that deployment's Python; never run from a build hook.

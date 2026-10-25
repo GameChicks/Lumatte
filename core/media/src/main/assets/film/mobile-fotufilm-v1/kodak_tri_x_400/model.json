@@ -1,15 +1,16 @@
 {
   "schema": 1,
-  "modelVersion": "lfm-fotufilm-5207-curves-v2",
+  "modelVersion": "lfm-fotufilm-catalogue-v3",
   "stockId": "kodak_tri_x_400",
   "printId": "fotu_fixed_print",
   "positive": false,
   "source": {
     "origin": "fotufilm_public_pack_adapter",
     "repository": "https://github.com/DhaliwalX/fotufilm-engine",
-    "commit": "12c8efea259e4cea70ec22166e504634d401a0cd",
-    "packSnapshot": "fotufilm-public-demo-20261016",
-    "packSha256": "8a16b2071cbbafd2b5d4a4d346510439211b7d11da1dd55aaa8d1322cc20e403",
+    "commit": "e15b09815a83b0e00ba9381b65d31d253667a1b1",
+    "builderCommitNotPublished": true,
+    "builderSha256": "d14b767d2a21ae82792d678d90f74160f370bcc13f8de17348709639321c607e",
+    "packSha256": "0647098fb654d28c37a03ac3fdd349c1519a45039b5f905d53eedab2a0be1bfe",
     "profileSha256": "9d83989cb617a545ca934dc6bb053da1b5ce23f2639218c297a757f499c3e9bf",
     "author": "Fotufilm / MUAStudio Inc.",
     "license": "CC-BY-SA-4.0"
@@ -61,7 +62,7 @@
       "file": "scan.f32",
       "size": 41,
       "bytes": 827052,
-      "sha256": "c4dcf01b42a7a3519ac58ffbc41730ba20cd82da503b7a9df3ce63d37e6829c3",
+      "sha256": "2c57304dad9cbd0dc6a947e9d0ad709027d95742cac4070ba1664ad294fbed57",
       "minimum": [
         -0.2,
         -0.2,
@@ -95,7 +96,12 @@
       0.9,
       0.9
     ],
-    "spacing_um": 8.0
+    "spacing_um": 8.0,
+    "density_maximum": [
+      2.4931017767930967,
+      2.4931017767930967,
+      2.4931017767930967
+    ]
   },
   "halationReference": {
     "halation_strength": [
@@ -112,19 +118,31 @@
     "halation_bounce_decay": 0.5,
     "halation_renormalize": true
   },
-  "curveCorrection": null,
   "settingsSnapshot": {
     "camera": {
       "film_format_mm": 36.0
+    },
+    "profileRequest": {
+      "kind": "film",
+      "width": 1536,
+      "height": 1024,
+      "medium": "screen",
+      "format": "35mm",
+      "controls": {
+        "grain": 0,
+        "digitalReference": "reference-exposure"
+      }
     }
   },
   "mobileAdaptation": {
     "monochrome": true,
-    "halationModel": "spektrafilm_default_shape",
     "fullEngineParity": false,
     "sampledCurves": true,
     "sceneMetering": false,
     "spatialDIR": false,
-    "grain": "density-statistical-approximation"
+    "donorRecord": null,
+    "grain": "existing-density-statistical-approximation",
+    "effectsSourceModelVersion": "lfm-fotufilm-5207-curves-v2",
+    "effectsSourceManifestSha256": "91b165ecacb5c93398acd3995677c4148378c7a4fcdbc950bb915602f72c85df"
   }
 }

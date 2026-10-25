@@ -1,0 +1,83 @@
+Fotufilm film profiles
+Copyright 2026 MUAStudio Inc.
+
+The following 47 runtime film profiles, distributed in
+Sources/FotufilmCore/Stocks/, are licensed under Creative Commons
+Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+
+  acros100.json
+  aerochrome1443.json
+  aerocolor2460.json
+  agfachrome100.json
+  agfachrome200.json
+  agfachrome50.json
+  astia100f.json
+  c200.json
+  cinestill400d.json
+  cinestill800t.json
+  delta3200.json
+  doublex5222.json
+  ektachromee100.json
+  ektar100.json
+  eterna500.json
+  eternavivid500.json
+  f64d.json
+  fp4plus125.json
+  gold200.json
+  hp5plus400.json
+  infraredcolor.json
+  instaxmini.json
+  instaxwide.json
+  kodachrome200.json
+  kodachrome25.json
+  kodachrome64.json
+  kodacolor100.json
+  lomochromemetropolis.json
+  lomochromepurple.json
+  lomochrometurquoise.json
+  lomocolor100.json
+  phoenix200.json
+  portra400.json
+  pro160ns.json
+  pro400h.json
+  provia100f.json
+  reala100.json
+  reala500d.json
+  superia200.json
+  superia400.json
+  tmax100.json
+  trix400.json
+  ultramax400.json
+  velvia50.json
+  verita200d.json
+  vision250d.json
+  vision500t.json
+
+Attribution name: Fotufilm
+Attribution website: https://fotufilm.com
+Source and profile manifest: https://github.com/DhaliwalX/fotufilm-engine
+License: https://creativecommons.org/licenses/by-sa/4.0/
+The full license is included in CC-BY-SA-4.0.txt.
+
+You may use, copy, modify, and redistribute these profiles, including
+commercially, with attribution to Fotufilm (https://fotufilm.com), a license
+link, and an indication of changes. Retain the copyright and license notices.
+If you distribute adapted profiles, you must license the adaptations under
+CC BY-SA 4.0 or an officially compatible license. See the full license for
+its terms and exceptions. Private modifications need not be published.
+
+You may use these profiles to process photographs and videos, including paid
+work. MUAStudio Inc. claims no rights in your rendered photographs or videos
+merely because you used these profiles. Neither ShareAlike nor attribution
+is required on your rendered work solely for using the profiles.
+
+This license covers the listed profile files. It does not cover engine
+code, synthetic example profiles, software branding, or third-party publications.
+Film and manufacturer names identify simulated film types. They remain their
+owners' trademarks and do not imply endorsement.
+
+The included inferred Layered Transport fields are covered by the same license.
+They are estimates, not measured film constructions. Aerocolor's generic PET
+optical constants use the CC0 RefractiveIndex.INFO Zhang dataset:
+https://refractiveindex.info/?shelf=organic&book=polyethylene_terephthalate&page=Zhang
+See docs/layered-transport.md in the source repository for assumptions and limits.

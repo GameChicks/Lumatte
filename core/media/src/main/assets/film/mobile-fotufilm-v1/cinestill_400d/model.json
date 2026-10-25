@@ -1,16 +1,17 @@
 {
   "schema": 1,
-  "modelVersion": "lfm-fotufilm-5207-curves-v2",
+  "modelVersion": "lfm-fotufilm-catalogue-v3",
   "stockId": "cinestill_400d",
   "printId": "fotu_fixed_print",
   "positive": false,
   "source": {
     "origin": "fotufilm_public_pack_adapter",
     "repository": "https://github.com/DhaliwalX/fotufilm-engine",
-    "commit": "12c8efea259e4cea70ec22166e504634d401a0cd",
-    "packSnapshot": "fotufilm-public-demo-20261016",
-    "packSha256": "9c98602708c83471a4cb5205867a487055aaca74b6166aa9c4e21d26862d4267",
-    "profileSha256": "814a7d8253abc0dc3471ae1bd778a6e3991d042de52bf40c02563b0924841f3f",
+    "commit": "e15b09815a83b0e00ba9381b65d31d253667a1b1",
+    "builderCommitNotPublished": true,
+    "builderSha256": "d14b767d2a21ae82792d678d90f74160f370bcc13f8de17348709639321c607e",
+    "packSha256": "247506beb310527a0c93edb9359bf759846dec444108c3e0a8d74fe01c358904",
+    "profileSha256": "237bcba277f68594651452432c1487f440088a99b960f6b96716c30b25008ba0",
     "author": "Fotufilm / MUAStudio Inc.",
     "license": "CC-BY-SA-4.0"
   },
@@ -42,7 +43,7 @@
       "file": "development.f32",
       "size": 65,
       "bytes": 3295500,
-      "sha256": "912ae03e4a8b0eee347f5fee601d2f7ff40f0855edc10115901c41a451d860b2",
+      "sha256": "529f64a06cb53616f8c6c1c773637090bec083eda328105af699fb3fc0e9053f",
       "minimum": [
         -4.0,
         -4.0,
@@ -61,16 +62,16 @@
       "file": "scan.f32",
       "size": 41,
       "bytes": 827052,
-      "sha256": "5c4a82d97e3875c2ccd19a35fa108107b176f0f86ffea145fc98d67c1908a5ad",
+      "sha256": "45731cb977f842e365d409e1412c4f248cef4d12e080ef392450d585d9885717",
       "minimum": [
         -0.2,
         -0.2,
         -0.2
       ],
       "maximum": [
-        2.12154997587204,
-        2.7920879222030637,
-        2.8259621010606297
+        2.0856267519974905,
+        2.8348694653834263,
+        2.9894392520439608
       ],
       "shaper": "linear",
       "inputSpace": "film_cmy_density",
@@ -95,7 +96,12 @@
       0.9,
       0.9
     ],
-    "spacing_um": 4.0
+    "spacing_um": 4.0,
+    "density_maximum": [
+      1.92154997587204,
+      2.5920879222030635,
+      2.6259621010606295
+    ]
   },
   "halationReference": {
     "halation_strength": [
@@ -216,34 +222,31 @@
       "analysis_long_edge": 1536
     }
   },
-  "curveCorrection": {
-    "commit": "079844387659045a39ef4e5005191b0d77b81606",
-    "profile": "cinestill400d.json",
-    "license": "CC-BY-SA-4.0",
-    "adaptation": "two-group-curves-with-original-pack-spectral-coordinates",
-    "fullEngineParity": false,
-    "receiverBalance": {
-      "paperMidpoints": [
-        -1.575730812766957,
-        -1.5239093803343904,
-        -1.3640301248130478
-      ],
-      "neutralTargetSRGB": 0.46135612950044164,
-      "neutralMaxEncodedResidual": 2.0539125955565396e-14
-    }
-  },
   "settingsSnapshot": {
     "camera": {
       "film_format_mm": 36.0
+    },
+    "profileRequest": {
+      "kind": "film",
+      "width": 1536,
+      "height": 1024,
+      "medium": "ektacolor-edge",
+      "format": "35mm",
+      "controls": {
+        "grain": 0,
+        "digitalReference": "reference-exposure"
+      }
     }
   },
   "mobileAdaptation": {
     "monochrome": false,
-    "halationModel": "fotufilm-legacy-physical-v1",
     "fullEngineParity": false,
     "sampledCurves": true,
     "sceneMetering": false,
     "spatialDIR": false,
-    "grain": "density-statistical-approximation"
+    "donorRecord": null,
+    "grain": "existing-density-statistical-approximation",
+    "effectsSourceModelVersion": "lfm-fotufilm-5207-curves-v2",
+    "effectsSourceManifestSha256": "7583ee5444bd01eb8ee2b8e76d81f5ed0778182fb972a6849a5a158fc3a225df"
   }
 }

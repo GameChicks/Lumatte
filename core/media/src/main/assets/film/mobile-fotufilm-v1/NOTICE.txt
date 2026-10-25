@@ -1,7 +1,7 @@
 Fotufilm profiles and derived tables: CC BY-SA 4.0. Copyright MUAStudio Inc.
 Attribution: Fotufilm, https://fotufilm.com, https://github.com/DhaliwalX/fotufilm-engine
-Pointwise equations adapted from Fotufilm, Apache-2.0; original NOTICE preserved in research/fotufilm/licenses.
-Changes: fixed public-demo pack snapshot to three sRGB mobile tables; no scene auto levels, spatial DIR or full-engine grain; CineStill physical default halation kernel adapted from pinned upstream, with bounded mobile spatial sampling.
-400D normal-development curves updated from commit 079844387659045a39ef4e5005191b0d77b81606, with new printer balance; original pack spectral coordinates and grain parameters retained.
-Source profiles, public pack hashes and adapter are preserved in research/fotufilm and tools/produce_fotufilm_models.py.
-Not calibrated physical-film, full-engine-parity, rendered-photo or device-performance verification.
+Profiles and equations pinned to e15b09815a83b0e00ba9381b65d31d253667a1b1; WASI builder identified separately by SHA-256, its source commit is not published.
+Changes: three bounded sRGB mobile tables, local coupler chemistry, fixed stock-appropriate physical print or direct scan; normal development, no image metering.
+400D and Vision3 250D use the pinned profiles directly, including the 5207 corrections; no SpektraFilm dye-basis projection.
+Existing grain and halation parameters retained from the prior shipped models; their original notices remain in film/mobile-v1 and research/fotufilm.
+No spatial DIR, upstream crystal grain or full-engine parity. No rendered-photo or device verification.

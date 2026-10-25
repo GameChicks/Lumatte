@@ -1,7 +1,7 @@
-"""Bake six licensed Fotufilm profiles into the Android three-stage transport.
+"""Bake matching licensed Fotufilm profiles into the Android three-stage transport.
 
 Explicit asset production, not a test, image render, benchmark or APK build.
-Inputs are preserved public FSWP demo packs, not encrypted distribution containers.
+Inputs are offline FSWP packs produced by the pinned public WASI profile builder.
 Pointwise curve/coupler/print equations adapted from Fotufilm (Apache-2.0).
 Profiles and derived tables: CC-BY-SA-4.0, MUAStudio Inc., https://fotufilm.com.
 The bounded mobile spatial/grain approximation is NOT full-engine parity.
@@ -15,23 +15,15 @@ import shutil
 import struct
 
 import numpy as np
-from scipy.optimize import least_squares
-from produce_fotufilm_halation import halation_reference, ALGORITHM as HALATION_ALGORITHM
-from film_curve_correction import apply_cinestill400d
+from scipy.interpolate import LinearNDInterpolator
+from scipy.spatial import cKDTree
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "research/fotufilm"
+SOURCE = ROOT / "research/fotufilm/model-reference-e15b098"
 DEST = ROOT / "core/media/src/main/assets/film/mobile-fotufilm-v1"
-VERSION = "lfm-fotufilm-5207-curves-v2"
-COMMIT = "12c8efea259e4cea70ec22166e504634d401a0cd"
-STOCKS = (
-    ("cinestill800t", "cinestill_800t", "CineStill 800T", "CINEMA", "钨丝灯夜景；独立红橙光晕，保留明亮灯芯。"),
-    ("cinestill400d", "cinestill_400d", "CineStill 400D", "NEGATIVE", "日光彩色负片；暖色返光比 800T 克制。"),
-    ("acros100", "fujifilm_acros_100_ii", "Fujifilm Acros 100 II", "MONOCHROME", "细腻颗粒与平顺灰阶，适合建筑和日常光影。"),
-    ("trix400", "kodak_tri_x_400", "Kodak Tri-X 400", "MONOCHROME", "鲜明的黑白层次与可见颗粒，适合街头纪实。"),
-    ("hp5plus400", "ilford_hp5_plus_400", "Ilford HP5 Plus 400", "MONOCHROME", "宽容的中间调与柔和过渡，适合人像和日常。"),
-    ("delta3200", "ilford_delta_3200", "Ilford Delta 3200", "MONOCHROME", "明显颗粒与低照度气氛，适合夜间和室内。"),
-)
+VERSION = "lfm-fotufilm-catalogue-v3"
+COMMIT = "e15b09815a83b0e00ba9381b65d31d253667a1b1"
+PACKS = ROOT / "tools/.cache/fotufilm-profile-builder"
 SRGB_2020 = np.array([[.627403896,.329283038,.043313066],[.069097289,.919540395,.011362316],[.016391439,.088013308,.895595253]])
 DOMAIN = np.array([[.670231843,.152168745,.177599412],[.044501114,.854482372,.101016514],[0,.025777047,.974222953]])
 P3_SRGB = np.array([[1.22494018,-.224940176,0],[-.042056955,1.04205695,0],[-.019637555,-.078636046,1.09827360]])
@@ -51,13 +43,13 @@ def grid(size, low, high):
     return np.stack((x,y,z), axis=-1).reshape(-1,3)
 
 
-def sample(cube, rgb):
+def sample(cube, rgb, channels=3):
     n = cube.shape[0]
     q = np.clip(rgb,0,1)*(n-1)
     lo = np.floor(q).astype(int)
     hi = np.minimum(lo+1,n-1)
     f = q-lo
-    out = np.zeros_like(rgb)
+    out = np.zeros((len(rgb),channels))
     for z in (0,1):
         for y in (0,1):
             for x in (0,1):
@@ -65,7 +57,7 @@ def sample(cube, rgb):
                 iy = hi[:,1] if y else lo[:,1]
                 iz = hi[:,2] if z else lo[:,2]
                 weight = (f[:,0] if x else 1-f[:,0])*(f[:,1] if y else 1-f[:,1])*(f[:,2] if z else 1-f[:,2])
-                out += cube[iz,iy,ix,:3]*weight[:,None]
+                out += cube[iz,iy,ix,:channels]*weight[:,None]
     return out
 
 
@@ -121,11 +113,20 @@ class Pack:
     def develop(self,x):
         base=self.get("CURVES",18).reshape(3,6)[:,0]
         span=self.curve_range()
-        if self.mask & 8:  # FOTUFILM_FRAME_COUPLERS; local term only.
+        donor=getattr(self,"donor_read",None)
+        if self.mask & 8 or donor is not None:  # Local inhibition; no spatial diffusion.
             a=np.clip((self.density(x)-base)/span,0,1)
             gamma=self.get("COUPLER_RELEASE_GAMMA",3)
             release=a**gamma/np.maximum(a**gamma+(1-a)**gamma,1e-8)
-            u=x-release@self.get("COUPLER",9).reshape(3,3).T*self.get("COUPLER_SCALE")
+            inhibition=release@self.get("COUPLER",9).reshape(3,3).T if self.mask & 8 else np.zeros_like(x)
+            if donor is not None:
+                dp=self.get("DONOR_CURVE",6)
+                donor_log=np.log10(np.maximum(donor(10**x),1e-6))
+                a=np.clip((self.analytic(dp,donor_log)-dp[0])/(dp[1]*(dp[4]-dp[2])),0,1)
+                g=self.get("DONOR_RELEASE_GAMMA")
+                released=a**g/np.maximum(a**g+(1-a)**g,1e-8)
+                inhibition+=released[:,None]*self.get("DONOR_RELEASE",3)
+            u=x-inhibition*self.get("COUPLER_SCALE")
             q=np.clip((u+4)*(127/8),0,127)
             i=np.minimum(q.astype(int),126); f=q-i
             nonlinear=np.any(gamma!=1) or self.get("DONOR_RELEASE_GAMMA")!=1
@@ -143,11 +144,47 @@ class Pack:
         out=self.density(x)
         return 2*base+span-out if self.get("DEVELOP_COMPLEMENT")>.5 else out
 
-    def response(self,rgb):
+    def response(self,rgb,channels=3):
         linear=np.where(rgb<=.04045,rgb/12.92,((rgb+.055)/1.055)**2.4)
         domain=(linear@SRGB_2020.T)@DOMAIN.T
         peak=np.maximum(domain.max(axis=1,keepdims=True),1e-6)
-        return np.maximum(sample(self.exposure,domain/peak)*peak*self.get("EXPOSURE_GAIN")/.18,0)
+        return np.maximum(sample(self.exposure,domain/peak,channels)*peak*self.get("EXPOSURE_GAIN")/.18,0)
+
+    def prepare_donor(self,profile):
+        if not profile.get("donorLayers") or not np.any(self.get("DONOR_RELEASE",3)):
+            return None
+        # Exposure is homogeneous in radiance. Invert its chromaticity map on the three
+        # illuminated sRGB cube faces, then read the fourth record from that same table.
+        # This keeps the fourth layer's spectral selectivity, rather than substituting green
+        # or fitting a three-coefficient colour matrix. The donor-inclusive neutral warp stays.
+        a,b=np.meshgrid(np.linspace(0,1,65),np.linspace(0,1,65))
+        faces=[]
+        for channel in range(3):
+            face=np.ones((a.size,3))
+            other=[c for c in range(3) if c!=channel]
+            face[:,other[0]]=a.ravel(); face[:,other[1]]=b.ravel()
+            faces.append(face)
+        linear=np.concatenate(faces)
+        encoded=np.where(linear<=.0031308,linear*12.92,1.055*linear**(1/2.4)-.055)
+        light=self.response(encoded,4)
+        total=np.maximum(light[:,:3].sum(axis=1),1e-12)
+        chroma=light[:,:2]/total[:,None]
+        _,indices=np.unique(np.round(chroma,10),axis=0,return_index=True)
+        points=chroma[indices]; values=light[indices,3]/total[indices]
+        inverse=LinearNDInterpolator(points,values)
+        boundary=cKDTree(points)
+        def read(raw):
+            total=np.maximum(raw.sum(axis=1),1e-12)
+            chroma=raw[:,:2]/total[:,None]
+            ratio=inverse(chroma)
+            outside=~np.isfinite(ratio)
+            if np.any(outside):
+                ratio[outside]=values[boundary.query(chroma[outside])[1]]
+            return np.maximum(ratio,0)*total
+        self.donor_read=read
+        return {"method":"inverse-exposure-chromaticity-interpolation",
+                "faceSamples":65,"uniqueChromaticities":len(points),
+                "outsideCaptureGamut":"nearest-boundary", "fullEngineParity":False}
 
     def scan(self,density,mono):
         base=getattr(self,"scan_base",self.get("CURVES",18).reshape(3,6)[:,0])
@@ -165,7 +202,16 @@ class Pack:
                 activation[:,c]=(self.analytic(p,loge)-p[0])/(p[1]*(p[4]-p[2]))
             relative=sample(self.paper,activation)
         if mono: relative[:]=relative.mean(axis=1,keepdims=True)
-        relative=np.maximum((relative+self.get("GRADE_LIFT",3))*self.get("GRADE_GAIN",3),0)**self.get("GRADE_INV_GAMMA",3)
+        encoded=self.get("GRADE_SPACE")!=0
+        if encoded:
+            relative=np.where(relative<=.0031308,relative*12.92,
+                np.where(relative>=1,1+(relative-1)*(1.055/2.4),1.055*np.maximum(relative,0)**(1/2.4)-.055))
+        lift=self.get("GRADE_LIFT",3); gain=self.get("GRADE_GAIN",3); gamma=self.get("GRADE_INV_GAMMA",3)
+        relative=relative*(gain-lift)+lift
+        relative=np.where(gamma==1,relative,np.maximum(relative,0)**gamma)
+        if encoded:
+            relative=np.where(relative<=.04045,relative/12.92,
+                np.where(relative>=1,1+(relative-1)/(1.055/2.4),np.maximum((relative+.055)/1.055,0)**2.4))
         linear=relative@P3_SRGB.T
         knee=self.get("OUTPUT_SHOULDER")
         if 0<=knee<1:
@@ -187,73 +233,99 @@ def table(folder,name,size,low,high,values,input_space,output_space):
 
 
 def main():
-    config=json.loads((SOURCE/"config-layout.json").read_text())
-    sources=json.loads((SOURCE/"source-index.json").read_text())
+    config=json.loads((SOURCE/"config-layout.json").read_bytes())
+    sources=json.loads((SOURCE/"source-index.json").read_bytes())
+    for path,expected in sources["files"].items():
+        if digest((SOURCE/path).read_bytes())!=expected:
+            raise ValueError(f"Pinned input changed: {path}")
+    constants=(SOURCE/"web/src/engine-constants.js").read_text()
+    if config!=json.JSONDecoder().raw_decode(constants.split("export const CONFIG = ",1)[1])[0]:
+        raise ValueError("Configuration layout no longer matches the pinned equations")
+    production=json.loads((PACKS/"production.json").read_bytes())
+    original=json.loads((SOURCE/"catalogue-before-migration.json").read_bytes())["stocks"]
     stage=ROOT/"tools/.cache/fotufilm-production"/VERSION
     stage.mkdir(parents=True,exist_ok=True)
     entries=[]; catalogue=[]
-    for upstream,stock,name,category,description in STOCKS:
-        pack_path=SOURCE/"public-packs"/f"{upstream}.pack"
+    for stock_info in original:
+        stock=stock_info["id"]
+        upstream=sources["stockMapping"].get(stock)
+        if upstream is None:
+            continue
+        recipe=production[stock]
+        pack_path=PACKS/"packs"/f"{upstream}.pack"
         profile_path=SOURCE/"profiles"/f"{upstream}.json"
-        if digest(pack_path.read_bytes())!=sources["files"][f"public-packs/{upstream}.pack"] or digest(profile_path.read_bytes())!=sources["files"][f"profiles/{upstream}.json"]:
+        previous_path=SOURCE/"existing-effects"/f"{stock}.json"
+        if (digest(pack_path.read_bytes())!=recipe["sha256"] or
+            digest(profile_path.read_bytes())!=sources["files"][f"profiles/{upstream}.json"] or
+            digest(previous_path.read_bytes())!=sources["files"][f"existing-effects/{stock}.json"]):
             raise ValueError("Source snapshot changed; record a new version deliberately")
         pack=Pack(pack_path,config)
-        grain_base=pack.get("CURVES",18).reshape(3,6)[:,0].copy()
-        grain_span=pack.curve_range().copy()
-        grain_maximum=grain_base+grain_span
-        correction = apply_cinestill400d(pack) if upstream == "cinestill400d" else None
-        if correction is not None and pack.has_paper:
-            # New capture/development records need a newly balanced receiver. Retaining the
-            # old pack's printer balance would turn a neutral reference visibly blue.
-            keys = [pack.k[name] for name in ("PAPER_MIDPOINT_RED", "PAPER_MIDPOINT", "PAPER_MIDPOINT_BLUE")]
-            start = pack.c[keys].copy()
-            reference = pack.develop(np.zeros((1, 3)))
-            target = 1.055 * .18 ** (1 / 2.4) - .055
-            def printer_balance(values):
-                pack.c[keys] = values
-                return (pack.scan(reference, False) - target).reshape(3)
-            fitted = least_squares(printer_balance, start, bounds=(start - 2, start + 2), max_nfev=60,
-                                   diff_step=.0001, ftol=1e-10, xtol=1e-10, gtol=1e-10)
-            residual = printer_balance(fitted.x)
-            correction["receiverBalance"] = {"paperMidpoints": fitted.x.tolist(),
-                "neutralTargetSRGB": target, "neutralMaxEncodedResidual": float(np.max(np.abs(residual)))}
-        profile=json.loads(profile_path.read_text())
-        mono=category=="MONOCHROME"
+        if pack.has_paper not in (0,1):
+            raise ValueError("Cineon code-value media cannot be delivered as sRGB")
+        previous=json.loads(previous_path.read_bytes())
+        donor=pack.prepare_donor(json.loads(profile_path.read_bytes()))
+        mono=stock_info["category"]=="MONOCHROME"
+        positive=stock_info["positive"]
         folder=stage/stock; folder.mkdir(exist_ok=True)
         response=table(folder,"response",33,[0]*3,[1]*3,pack.response(grid(33,[0]*3,[1]*3)),"srgb_encoded","film_raw_linear")
-        development=table(folder,"development",65,[-4]*3,[2]*3,pack.develop(grid(65,[-4]*3,[2]*3)),"film_log10_exposure","film_cmy_density")
+        developed=pack.develop(grid(65,[-4]*3,[2]*3))
+        development=table(folder,"development",65,[-4]*3,[2]*3,developed,"film_log10_exposure","film_cmy_density")
         base=pack.get("CURVES",18).reshape(3,6)[:,0]
-        maximum=grain_maximum
+        maximum=np.maximum(base+pack.curve_range(),developed.max(axis=0))
         scan=table(folder,"scan",41,[-.2]*3,maximum+.2,pack.scan(grid(41,[-.2]*3,maximum+.2),mono),"film_cmy_density","srgb_encoded")
-        weights=np.array(profile["grainLayerWeights"])
-        anchor=np.minimum(1,grain_span*.8)
-        p=anchor/np.maximum(maximum,1e-5)
-        area=(profile["grainStrength"]*weights)**2*48**2/np.maximum(maximum**2*p*(1-p*.9),1e-6)
-        grain={"active":True,"particle_area_um2":.1,"particle_scale":np.clip(area/.1,.0001,20).tolist(),"density_min":[.02]*3,"uniformity":[.9]*3,
-               "spacing_um":min(40,max(.1,float(profile["grainSizeMM"])*1000))}
-        cine=upstream.startswith("cinestill")
-        halo=halation_reference(profile) if cine else {"halation_strength":[.05,.015,0],
-              "halation_first_sigma_um":[65]*3,"halation_n_bounces":3,
-              "halation_bounce_decay":.5,"halation_renormalize":True}
-        metadata={"schema":1,"modelVersion":VERSION,"stockId":stock,"printId":"fotu_fixed_print","positive":False,
-                  "source":{"origin":"fotufilm_public_pack_adapter","repository":"https://github.com/DhaliwalX/fotufilm-engine","commit":COMMIT,"packSnapshot":sources["snapshot"],"packSha256":digest(pack.bytes),"profileSha256":digest(profile_path.read_bytes()),"author":"Fotufilm / MUAStudio Inc.","license":"CC-BY-SA-4.0"},
+        # Preserve the previously shipped grain controls, statistical algorithm and calibration.
+        # The new colour model's density span must not silently become a new grain maximum.
+        grain=dict(previous["grainReference"])
+        grain["density_maximum"]=grain.get("density_maximum",[x-.2 for x in previous["tables"]["scan"]["maximum"]])
+        metadata={"schema":1,"modelVersion":VERSION,"stockId":stock,"printId":"fotu_fixed_print","positive":positive,
+                  "source":{"origin":"fotufilm_public_pack_adapter","repository":sources["repository"],"commit":COMMIT,
+                    "builderCommitNotPublished":True,"builderSha256":sources["publicAssets"]["builder.wasm"],
+                    "packSha256":digest(pack.bytes),"profileSha256":digest(profile_path.read_bytes()),
+                    "author":"Fotufilm / MUAStudio Inc.","license":"CC-BY-SA-4.0"},
                   "storage":"float32_le_rgb_x_fastest","dir":"baked_local_only","spatialEffectsBaked":False,"grainBaked":False,
-                  "tables":{"response":response,"development":development,"scan":scan},"grainReference":grain,"halationReference":halo,
-                  "curveCorrection":correction,
-                  "settingsSnapshot":{"camera":{"film_format_mm":36.0}},
-                  "mobileAdaptation":{"monochrome":mono,"halationModel":HALATION_ALGORITHM if cine else "spektrafilm_default_shape","fullEngineParity":False,"sampledCurves":True,"sceneMetering":False,"spatialDIR":False,"grain":"density-statistical-approximation"}}
+                  "tables":{"response":response,"development":development,"scan":scan},"grainReference":grain,
+                  "halationReference":previous["halationReference"],
+                  "settingsSnapshot":{"camera":{"film_format_mm":36.0},"profileRequest":recipe["request"]},
+                  "mobileAdaptation":{"monochrome":mono,"fullEngineParity":False,"sampledCurves":True,
+                    "sceneMetering":False,"spatialDIR":False,"donorRecord":donor,
+                    "grain":"existing-density-statistical-approximation",
+                    "effectsSourceModelVersion":previous["modelVersion"],"effectsSourceManifestSha256":digest(previous_path.read_bytes())}}
         write_json(folder/"model.json",metadata)
-        entries.append(dict(stockId=stock,printId="fotu_fixed_print",positive=False,modelVersion=VERSION,manifestSha256=digest((folder/"model.json").read_bytes()),tableBytes=sum(t["bytes"] for t in (response,development,scan))))
-        catalogue.append(dict(id=stock,name=name,category=category,printId="fotu_fixed_print",positive=False,description=description+" 移动近似风格，非实测胶卷或完整上游引擎一致性声明。"))
-        print(f"Produced {name}: {entries[-1]['tableBytes']} bytes; fixed grey={pack.scan(pack.develop(np.zeros((1,3))),mono)[0].round(4)}",flush=True)
+        entries.append(dict(stockId=stock,printId="fotu_fixed_print",positive=positive,modelVersion=VERSION,manifestSha256=digest((folder/"model.json").read_bytes()),tableBytes=sum(t["bytes"] for t in (response,development,scan))))
+        catalogue.append({**stock_info,"printId":"fotu_fixed_print"})
+        print(f"Produced {stock}: {entries[-1]['tableBytes']} bytes; receiver={recipe['request']['medium']}",flush=True)
+    if len(entries)!=len(sources["stockMapping"]):
+        raise ValueError("Migration mapping does not cover the requested stock set")
     write_json(stage/"index.json",dict(schema=1,modelVersion=VERSION,origin="fotufilm_public_pack_adapter",sourceCommit=COMMIT,models=entries))
     write_json(stage/"catalogue.json",dict(stocks=catalogue))
-    shutil.copyfile(SOURCE/"licenses/CC-BY-SA-4.0.txt",stage/"CC-BY-SA-4.0.txt")
-    shutil.copyfile(SOURCE/"licenses/LICENSE",stage/"Apache-2.0.txt")
-    shutil.copyfile(SOURCE/"licenses/NOTICE",stage/"UPSTREAM-NOTICE.txt")
-    (stage/"NOTICE.txt").write_text("Fotufilm profiles and derived tables: CC BY-SA 4.0. Copyright MUAStudio Inc.\nAttribution: Fotufilm, https://fotufilm.com, https://github.com/DhaliwalX/fotufilm-engine\nPointwise equations adapted from Fotufilm, Apache-2.0; original NOTICE preserved in research/fotufilm/licenses.\nChanges: fixed public-demo pack snapshot to three sRGB mobile tables; no scene auto levels, spatial DIR or full-engine grain; CineStill physical default halation kernel adapted from pinned upstream, with bounded mobile spatial sampling.\n400D normal-development curves updated from commit 079844387659045a39ef4e5005191b0d77b81606, with new printer balance; original pack spectral coordinates and grain parameters retained.\nSource profiles, public pack hashes and adapter are preserved in research/fotufilm and tools/produce_fotufilm_models.py.\nNot calibrated physical-film, full-engine-parity, rendered-photo or device-performance verification.\n",encoding="utf-8")
+    for original_name,destination in (("licenses/CC-BY-SA-4.0.txt","CC-BY-SA-4.0.txt"),
+                                      ("LICENSE","Apache-2.0.txt"),("NOTICE","UPSTREAM-NOTICE.txt"),
+                                      ("licenses/FILM-PROFILES.txt","FILM-PROFILES.txt"),
+                                      ("THIRD_PARTY_NOTICES.md","UPSTREAM-THIRD-PARTY-NOTICES.md")):
+        shutil.copyfile(SOURCE/original_name,stage/destination)
+    (stage/"NOTICE.txt").write_text(
+        "Fotufilm profiles and derived tables: CC BY-SA 4.0. Copyright MUAStudio Inc.\n"
+        "Attribution: Fotufilm, https://fotufilm.com, https://github.com/DhaliwalX/fotufilm-engine\n"
+        f"Profiles and equations pinned to {COMMIT}; WASI builder identified separately by SHA-256, its source commit is not published.\n"
+        "Changes: three bounded sRGB mobile tables, local coupler chemistry, fixed stock-appropriate physical print or direct scan; normal development, no image metering.\n"
+        "400D and Vision3 250D use the pinned profiles directly, including the 5207 corrections; no SpektraFilm dye-basis projection.\n"
+        "Existing grain and halation parameters retained from the prior shipped models; their original notices remain in film/mobile-v1 and research/fotufilm.\n"
+        "No spatial DIR, upstream crystal grain or full-engine parity. No rendered-photo or device verification.\n",
+        encoding="utf-8",newline="\n")
     DEST.mkdir(parents=True,exist_ok=True)
     shutil.copytree(stage,DEST,dirs_exist_ok=True)
+    # The five unmatched stocks keep their existing manifest/table bytes and version.
+    fallback_root=ROOT/"core/media/src/main/assets/film/mobile-v1"
+    fallback_index=json.loads((fallback_root/"index.json").read_bytes())
+    fallback_index["models"]=[m for m in fallback_index["models"] if m["stockId"] not in sources["stockMapping"]]
+    if len(fallback_index["models"])!=5:
+        raise ValueError("Expected exactly five unmatched SpektraFilm stocks")
+    write_json(fallback_root/"index.json",fallback_index)
+    base_catalogue=ROOT/"core/media/src/main/assets/film/catalogue.json"
+    fallback_catalogue=json.loads(base_catalogue.read_bytes())
+    fallback_catalogue["stocks"]=[s for s in original if s["id"] not in sources["stockMapping"]]
+    write_json(base_catalogue,fallback_catalogue)
+    print(f"Published {len(entries)} Fotufilm models; retained five original models",flush=True)
 
 
 if __name__=="__main__":

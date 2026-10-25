@@ -35,7 +35,9 @@ third_party/libraw/upstream/** -text whitespace=-blank-at-eol,-blank-at-eof,-spa
 *.pack binary
 research/fotufilm/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
 research/fotufilm/halation-reference/** -text
+research/fotufilm/model-reference-e15b098/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
 core/media/src/main/assets/film/mobile-fotufilm-v1/*.txt -text whitespace=-blank-at-eol,-blank-at-eof
+core/media/src/main/assets/film/mobile-fotufilm-v1/UPSTREAM-THIRD-PARTY-NOTICES.md -text whitespace=-blank-at-eol,-blank-at-eof
 core/media/src/main/assets/film/mobile-v1/SPEKTRAFILM_LICENSE.txt -text whitespace=-blank-at-eol,-blank-at-eof
 core/media/src/main/assets/film/mobile-monochrome-v1/LICENSE.txt -text whitespace=-blank-at-eol,-blank-at-eof
 LICENSE -text whitespace=-blank-at-eol,-blank-at-eof

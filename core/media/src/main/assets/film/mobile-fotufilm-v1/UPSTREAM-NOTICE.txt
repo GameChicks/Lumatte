@@ -3,7 +3,7 @@ https://fotufilm.com
 Copyright 2026 MUAStudio Inc.
 
 Project-authored code is licensed under the Apache License, Version 2.0.
-The 46 film profiles have separate CC BY-SA 4.0 terms;
+The 47 film profiles have separate CC BY-SA 4.0 terms;
 see licenses/FILM-PROFILES.txt.
 The editor glyphs have separate CC BY-SA 4.0 terms;
 see licenses/GLYPHS.txt. Third-party components retain their own licences;

@@ -5,8 +5,8 @@
 | 内容 | 来源与许可记录 |
 | --- | --- |
 | LibRaw 0.22.2 | [LibRaw 源码与原始许可](third_party/libraw/)；保留原始 COPYRIGHT、LGPL/CDDL 文本，本项目选择其 [LGPL 2.1](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html) 选项 |
-| spektrafilm 派生移动模型 | Andrea Volpato，固定 `3bb2c2d2801ff68b92019cf1dbcbb133d60832bc`；[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)，原许可见 [原许可文本](core/media/src/main/assets/film/mobile-v1/SPEKTRAFILM_LICENSE.txt) |
-| Fotufilm 参数、公开 demo 表与派生表 | Fotufilm / MUAStudio Inc.；[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)，[Fotufilm 原始许可](research/fotufilm/licenses/) 和运行资产 NOTICE 保留署名、哈希与修改说明 |
+| spektrafilm 保留模型与既有空间／颗粒参数 | 5 款无同型号 Fotufilm 的胶卷保留其三阶段表；已迁移胶卷仍保留既有颗粒／光晕参数及署名。Andrea Volpato，固定 `3bb2c2d2801ff68b92019cf1dbcbb133d60832bc`；[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)，原许可见 [原许可文本](core/media/src/main/assets/film/mobile-v1/SPEKTRAFILM_LICENSE.txt) |
+| Fotufilm 参数、公开生成器与派生表 | 19 款同型号胶卷直接使用固定 `e15b09815a83b0e00ba9381b65d31d253667a1b1` 配置；[来源、映射与生成器哈希](research/fotufilm/model-reference-e15b098/README.md)。Fotufilm / MUAStudio Inc.；[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)，[Fotufilm 原始许可](research/fotufilm/licenses/) 和运行资产 NOTICE 保留署名、哈希与修改说明 |
 | Fotufilm 光晕方程适配 | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)，固定原始源码与 NOTICE 位于 `research/fotufilm/`；不声明完整引擎逐像素一致 |
 | OFL 字体 | Cormorant Garamond、Dancing Script、Great Vibes、Instrument Serif、Playfair Display、Source Han Serif，以及画框字体；原 OFL 保存在 [界面字体许可](core/design/src/main/assets/licenses/) / [画框字体许可](core/media/src/main/assets/frames/licenses/) |
 | 栗壳坚坚体（LikeJianJianTi） | 栗壳字库；本机原始字体文件，name table 记录 `Version 2.001; July 4, 2025`；SHA-256 与来源见 [字体来源与哈希](third_party/provenance/font-sources.json)。作者来源页说明免费商用，猫啃网收录页列明 Android 等嵌入式应用；应用内附来源说明。维护者授权该副本随 GameChicks/Lumatte 项目和 APK 公开分发。字体不属于 [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html)。 |
