@@ -41,3 +41,8 @@ core/media/src/main/assets/film/mobile-monochrome-v1/LICENSE.txt -text whitespac
 LICENSE -text whitespace=-blank-at-eol,-blank-at-eof
 app/src/main/assets/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
 core/design/src/main/assets/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof
+research/fotufilm/edge-reference-e15b098/PrintFrame.swift -text
+research/fotufilm/edge-reference-e15b098/print-frame-model.md -text
+core/media/src/main/assets/frames/stock-edges/LICENSE -text whitespace=-blank-at-eol,-blank-at-eof
+core/media/src/main/assets/frames/stock-edges/NOTICE -text whitespace=-blank-at-eol,-blank-at-eof
+core/media/src/main/assets/frames/stock-edges/CC-BY-SA-4.0.txt -text whitespace=-blank-at-eol,-blank-at-eof
