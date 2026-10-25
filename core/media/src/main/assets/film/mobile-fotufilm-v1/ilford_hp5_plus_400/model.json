@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+  "modelVersion": "lfm-fotufilm-5207-curves-v2",
   "stockId": "ilford_hp5_plus_400",
   "printId": "fotu_fixed_print",
   "positive": false,
@@ -112,6 +112,7 @@
     "halation_bounce_decay": 0.5,
     "halation_renormalize": true
   },
+  "curveCorrection": null,
   "settingsSnapshot": {
     "camera": {
       "film_format_mm": 36.0

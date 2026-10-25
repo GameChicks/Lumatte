@@ -151,7 +151,7 @@ internal fun SwipePhotoPreview(state: WorkspaceState, workspace: WorkspaceViewMo
 @Composable
 internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel, frame: Boolean = false,
     original: Boolean = false, colourFilter: ColorFilter? = null, onReady: ((Bitmap) -> Unit)? = null, compactHeight: Dp? = null,
-    compareOnHold: Boolean = false) {
+    compareOnHold: Boolean = false, matte: Color? = null) {
     val source = state.current ?: return
     var held by remember(source.id) { mutableStateOf(false) }
     var originalBitmap by remember(source.id) { mutableStateOf<Bitmap?>(null) }
@@ -196,7 +196,7 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
     val ratio = if (frame) runCatching { workspace.exportLayout(source.id).canvas.let { it.width.toFloat() / it.height } }.getOrDefault(1f)
         else source.size.width.toFloat() / source.size.height
     val previewModifier = Modifier.fillMaxWidth().let { if(compactHeight != null) it.height(compactHeight) else it.aspectRatio(ratio.coerceIn(.65f,1.8f)) }
-    Box(previewModifier.background(LocalFilmMaterials.current.paperHighlight).then(if(compareOnHold)Modifier.pointerInput(source.id) {
+    Box(previewModifier.background(matte ?: LocalFilmMaterials.current.paperHighlight).then(if(compareOnHold)Modifier.pointerInput(source.id) {
         awaitEachGesture {
             val down=awaitFirstDown(requireUnconsumed=false)
             val longPress=awaitLongPressOrCancellation(down.id)
@@ -360,33 +360,40 @@ private fun ParameterSlider(title: String, valueLabel: String, value: Float, ran
 
 @Composable
 internal fun FilmReveal(state: WorkspaceState, workspace: WorkspaceViewModel, onFinish: () -> Unit) {
-    var ready by remember { mutableStateOf(false) }
+    var ready by remember(state.current?.id) { mutableStateOf(false) }
     var label by remember { mutableStateOf("准备显影预览") }
     val progress = remember { Animatable(0f) }
     val reduced = LocalMirrorReducedMotion.current
     val film = state.selected?.let { id -> runCatching { workspace.filmPlan(state, id).preset }.getOrNull() }
     val negative = film?.positive == false
+    val finish by rememberUpdatedState(onFinish)
     LaunchedEffect(ready) {
         if (ready) {
             label = "显影"; delay(if (reduced) 0 else 650)
             label = if (negative) "反转 · 让色彩显现" else "色彩显现"
             progress.animateTo(1f, tween(if (reduced) 0 else 1600, easing = MirrorEase))
-            delay(if (reduced) 0 else 180); onFinish()
+            delay(if (reduced) 0 else 600); finish()
         }
     }
     val p = if (!negative) 1f else progress.value
     val a = 2f * p - 1f
     val b = (1f - p) * 255f
     val matrix = ColorMatrix(floatArrayOf(a, 0f, 0f, 0f, b, 0f, a, 0f, 0f, b, 0f, 0f, a, 0f, b, 0f, 0f, 0f, 1f, 0f))
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Film / $label", Modifier.weight(1f), fontFamily = MirrorFonts.Editorial, fontSize = 26.sp)
+            Column(Modifier.weight(1f)) {
+                Text("The Darkroom", fontFamily = MirrorFonts.Editorial, fontSize = 34.sp)
+                Text("$label · ${film?.name.orEmpty()}", color = LocalFilmMaterials.current.secondaryInk,
+                    style = MaterialTheme.typography.bodySmall)
+            }
             TextButton(onClick = onFinish) { Text("跳过") }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            EditedPreview(state, workspace, colourFilter = ColorFilter.colorMatrix(matrix), onReady = { ready = true })
+            DevelopmentCamera(state, workspace, ColorFilter.colorMatrix(matrix), progress.value, onReady = { ready = true })
         }
-        Text("${state.photos.size} 张照片 · 一次显影", color = LocalFilmMaterials.current.secondaryInk)
+        Text("${state.photos.size} 张照片 · 一次显影", color = LocalFilmMaterials.current.secondaryInk,
+            style = MaterialTheme.typography.labelLarge)
         Text("效果预览完成后选择画框，确认导出才会保存成片。", style = MaterialTheme.typography.bodySmall)
     }
 }

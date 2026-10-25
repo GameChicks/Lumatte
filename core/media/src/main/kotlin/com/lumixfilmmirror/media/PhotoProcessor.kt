@@ -71,7 +71,7 @@ class PhotoProcessor(context: Context) {
     /** Explicit download action; returns a normal offline asset usable in either LUT slot. */
     fun officialLutLanguage(): String = LumixLabLanguages.forContext(applicationContext)
 
-    /** Examples shortlist candidates; all returned recommendations are evaluated on the user's photo. */
+    /** Official metadata shortlist; compatibility precedes downloading and actual current-photo scoring. */
     suspend fun discoverOfficialLuts(source: SourceImage, assets: List<LutAsset>,
         styles: Set<LutRecommendationStyle> = setOf(LutRecommendationStyle.NATURAL, LutRecommendationStyle.WARM, LutRecommendationStyle.COOL),
         refresh: Boolean = false, allowUnknownInput: Boolean = false): OfficialLutSuggestions {
@@ -93,16 +93,27 @@ class PhotoProcessor(context: Context) {
         } }
         if (photo == null) return OfficialLutSuggestions(emptyList(), 0, 0, listOfNotNull(inputProblem), method = "photo-preview-shortlist-v2")
         val language = officialLutLanguage()
-        val shortlistStyles = LutRecommendationStyle.entries.filter { it != LutRecommendationStyle.MONOCHROME }.toSet()
-        val shortlist = officialLutRecommender.recommend(photo, language, shortlistStyles, excluded, refresh)
+        val pool = officialLutRecommender.candidates(language, excluded, refresh)
         val temporary = mutableListOf<Pair<LumixLabLut, LutAsset>>()
-        val problems = shortlist.problems.toMutableList()
-        // At most five files, fetched sequentially; cancellation stops leaving this page's work.
-        val completed = kotlinx.coroutines.withTimeoutOrNull(30_000) { for (candidate in shortlist.suggestions.take(5)) {
+        val problems = pool.problems.toMutableList()
+        var incompatible = 0
+        var unknown = 0
+        // Inspect bounded metadata until five suitable files are found. A V-Log-heavy newest page
+        // must not consume the five-file budget before JPEG-compatible LUTs can be considered.
+        val completed = kotlinx.coroutines.withTimeoutOrNull(60_000) { for (candidate in pool.items.take(24)) {
             coroutineContext.ensureActive()
-            try { temporary += candidate.lut to officialLutPreviews.asset(candidate.lut.code, language) }
+            if (temporary.size == 5) break
+            try {
+                val detail = officialLutCatalogue.detail(candidate.code, language)
+                when (lutRecommendationInput(detail.photoStyle)) {
+                    LutRecommendationInput.VLOG, LutRecommendationInput.OTHER -> { incompatible++; continue }
+                    LutRecommendationInput.UNKNOWN -> if (!allowUnknownInput) { unknown++; continue }
+                    LutRecommendationInput.SRGB_JPEG -> Unit
+                }
+                temporary += detail.lut to officialLutPreviews.asset(detail, language)
+            }
             catch (error: CancellationException) { throw error }
-            catch (_: Exception) { problems += "${candidate.lut.title}：试套文件暂不可用，未展示替代例图" }
+            catch (error: Exception) { problems += "${candidate.title}：${error.message ?: "官方试套文件暂不可用"}" }
         }; true }
         if (completed == null) problems += "官方试套读取超时，仅保留已完成的候选"
         val evaluated = recommendLuts(source, temporary.map { it.second }, LutRecommendationOptions(
@@ -114,8 +125,11 @@ class PhotoProcessor(context: Context) {
         val suggestions = ranked.mapNotNull { info -> temporary.firstOrNull { it.second.id == info.id }?.let {
             OfficialLutSuggestion(it.first, info.style, info.reasons, info.warnings)
         } }
-        if (evaluated.skipped.isNotEmpty()) problems += "${evaluated.skipped.size} 款候选因输入约定不适用或未确认而跳过"
-        return shortlist.copy(suggestions = suggestions, problems = problems.distinct(), method = "photo-preview-shortlist-v2")
+        if (incompatible > 0) problems += "$incompatible 款官方 LUT 面向其他输入照片风格，已跳过"
+        if (unknown > 0) problems += "$unknown 款官方 LUT 未标明输入约定，可在筛选中开启未确认输入的试看"
+        if (evaluated.skipped.isNotEmpty()) problems += "${evaluated.skipped.size} 款试套因单色或当前照片效果不适用而跳过"
+        if (suggestions.isEmpty() && problems.isEmpty()) problems += "本次官方候选中没有适合当前照片的色彩 LUT，请重试或打开 Lumix Lab 选择"
+        return OfficialLutSuggestions(suggestions, pool.items.size, 0, problems.distinct(), method = "official-photo-preview-v3")
     }
 
     /** Real current-photo preview. The table is session-only until the user explicitly downloads it. */

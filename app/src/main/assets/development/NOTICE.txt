@@ -1,0 +1,13 @@
+Lumatte fictional analogue camera body, v1, 2026-10-25.
+Generated with the built-in ImageGen tool for this application.
+The illustration represents no real Panasonic/LUMIX product or commercial model.
+LUMIX branding and EXIF/connected-camera model labels are rendered separately by the app.
+No user photograph, shutter control or fixed model name is embedded in the asset.
+
+Production prompt:
+Landscape 3:2, straight-on orthographic rear view of a fictional premium analogue
+35mm camera. Midnight charcoal leatherette, brushed dark titanium rails, machined
+metal edges, understated amber alignment mark. Large open transparent film gate,
+recessed brass inner edge, transparent outer background. Blank top-left branding
+rail and lower-right model rail. No photograph, LCD, icons, shutter button, knobs,
+lens, controls, letters, brand or model text. One tactile camera-frame sprite.

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+  "modelVersion": "lfm-fotufilm-5207-curves-v2",
   "stockId": "cinestill_800t",
   "printId": "fotu_fixed_print",
   "positive": false,
@@ -216,6 +216,7 @@
       "analysis_long_edge": 1536
     }
   },
+  "curveCorrection": null,
   "settingsSnapshot": {
     "camera": {
       "film_format_mm": 36.0

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+  "modelVersion": "lfm-fotufilm-5207-curves-v2",
   "origin": "fotufilm_public_pack_adapter",
   "sourceCommit": "12c8efea259e4cea70ec22166e504634d401a0cd",
   "models": [
@@ -8,48 +8,48 @@
       "stockId": "cinestill_800t",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
-      "manifestSha256": "3b5211e4b399665038bf49f88743cfd067a482b3e9cf906382894070ffa874c3",
+      "modelVersion": "lfm-fotufilm-5207-curves-v2",
+      "manifestSha256": "fe590962153f445b6adde4fa2ee0299ccec0565fb3c88098c6a44766c2c60ade",
       "tableBytes": 4553796
     },
     {
       "stockId": "cinestill_400d",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
-      "manifestSha256": "986defb0ec627cfcc61bdee21f4df22132960e8bcba3020658703d88f78e7caf",
+      "modelVersion": "lfm-fotufilm-5207-curves-v2",
+      "manifestSha256": "7583ee5444bd01eb8ee2b8e76d81f5ed0778182fb972a6849a5a158fc3a225df",
       "tableBytes": 4553796
     },
     {
       "stockId": "fujifilm_acros_100_ii",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
-      "manifestSha256": "34f5fd89e28db21c7a6e0b5a73e405e1acfbf2d194370615fb274a880a73ae7e",
+      "modelVersion": "lfm-fotufilm-5207-curves-v2",
+      "manifestSha256": "e8729c3234271c1ea030261048197b8128c70c04c440ee8ed9ca70ff0f6696b2",
       "tableBytes": 4553796
     },
     {
       "stockId": "kodak_tri_x_400",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
-      "manifestSha256": "573b511142243ad0250f9ba41ee31d4d08a7d9bd814e63c601112d7ac023b1c2",
+      "modelVersion": "lfm-fotufilm-5207-curves-v2",
+      "manifestSha256": "91b165ecacb5c93398acd3995677c4148378c7a4fcdbc950bb915602f72c85df",
       "tableBytes": 4553796
     },
     {
       "stockId": "ilford_hp5_plus_400",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
-      "manifestSha256": "fbd87562e05cf6d87c931294c8c893bdbbd213bbf83ca3063281e666997509ee",
+      "modelVersion": "lfm-fotufilm-5207-curves-v2",
+      "manifestSha256": "34456eac7056b14e1d729d2f211126ab48e785f98ef07513ea70725b3c5a9ffe",
       "tableBytes": 4553796
     },
     {
       "stockId": "ilford_delta_3200",
       "printId": "fotu_fixed_print",
       "positive": false,
-      "modelVersion": "lfm-fotufilm-public-three-stage-v1",
-      "manifestSha256": "14deddf7e6260ad8ce6eede4e951b2b43775354e0556136d9ad6769e2723a6a1",
+      "modelVersion": "lfm-fotufilm-5207-curves-v2",
+      "manifestSha256": "37881c957c4322a98c6336092bf6fa905790f02a12b3f48b208261a3d3b8a209",
       "tableBytes": 4553796
     }
   ]

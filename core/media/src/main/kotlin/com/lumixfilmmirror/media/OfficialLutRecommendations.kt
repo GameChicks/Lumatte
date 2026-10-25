@@ -2,6 +2,9 @@ package com.lumixfilmmirror.media
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -13,6 +16,7 @@ data class OfficialLutSuggestion(val lut: LumixLabLut, val style: LutRecommendat
     val reasons: List<String>, val warnings: List<String>)
 data class OfficialLutSuggestions(val suggestions: List<OfficialLutSuggestion>, val catalogueCandidates: Int,
     val analysedExamples: Int, val problems: List<String>, val method: String = "creator-example-discovery-v1")
+internal data class OfficialLutCandidates(val items: List<LumixLabLut>, val problems: List<String>)
 
 /** An example is an aesthetic reference, not a measurement of the LUT's effect on the user's photo. */
 internal object LutExampleSimilarity {
@@ -62,6 +66,34 @@ internal class OfficialLutRecommender(private val source: OfficialDiscoverySourc
     private val gate = Mutex()
     private data class Snapshot(val language: String, val at: Long, val items: List<LumixLabLut>)
     private var snapshot: Snapshot? = null
+    /** Photo recommendations must not depend on thumbnails, example colours or example availability. */
+    suspend fun candidates(language: String, excludedCodes: Set<String>, refresh: Boolean): OfficialLutCandidates = gate.withLock {
+        val now = System.nanoTime()
+        val cached = snapshot?.takeIf { !refresh && it.language == language && now - it.at in 0..TTL }
+        if (cached != null) return@withLock OfficialLutCandidates(cached.items.filter { it.code !in excludedCodes }, emptyList())
+        val collected = linkedMapOf<String, LumixLabLut>()
+        val problems = java.util.Collections.synchronizedList(mutableListOf<String>())
+        suspend fun page(query: LumixLabLutQuery): List<LumixLabLut> =
+            withTimeoutOrNull(12_000) {
+                try { source.luts(query) }
+                catch (error: CancellationException) { throw error }
+                catch (error: Exception) { problems += "官方目录：${error.message ?: "读取失败"}"; emptyList() }
+            } ?: emptyList<LumixLabLut>().also { problems += "官方目录读取超时，可点击重试" }
+        page(LumixLabLutQuery(language, limit = 32)).forEach { collected[it.code] = it }
+        val genres = withTimeoutOrNull(4_000) {
+            try { source.genres().take(4) }
+            catch (error: CancellationException) { throw error }
+            catch (_: Exception) { emptyList() }
+        }.orEmpty()
+        val pages = coroutineScope { genres.map { genre -> async {
+            page(LumixLabLutQuery(language, limit = 8, genreCode = genre.code))
+        } }.awaitAll() }
+        // Round-robin categories before recency; compatible JPEG LUTs may be older than the newest Log uploads.
+        val spread = (0 until 8).flatMap { index -> pages.mapNotNull { it.getOrNull(index) } }
+        val items = (spread + collected.values).distinctBy { it.code }.take(64)
+        if (items.isNotEmpty()) snapshot = Snapshot(language, now, items)
+        OfficialLutCandidates(items.filter { it.code !in excludedCodes }, problems.distinct())
+    }
     private val colours = object : LinkedHashMap<String, LutExampleColours>(128, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, LutExampleColours>?) = size > 128
     }

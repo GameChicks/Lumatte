@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "modelVersion": "sf-3bb2c2d-three-stage-v1",
+  "modelVersion": "sf-3bb2c2d-print-presets-v2",
   "stockId": "fujifilm_c200",
   "printId": "fujifilm_crystal_archive_typeii",
   "positive": false,
@@ -57,7 +57,7 @@
       "file": "scan.f32",
       "size": 41,
       "bytes": 827052,
-      "sha256": "d9496037c26d2f8aa4895b6a98d11c88a7e1d149eb28cf3c670078fa47a5c5e1",
+      "sha256": "ea0d96504ddd9519feccf102dc27dd1b80fc63ee784003043d11215f967d65be",
       "minimum": [
         -0.2,
         -0.2,
@@ -143,6 +143,18 @@
     "halation_bounce_decay": 0.5,
     "halation_renormalize": true
   },
+  "printTuning": {
+    "version": "lfm-print-presets-v2",
+    "receiver": "fujifilm_crystal_archive_typeii",
+    "printGamma": 0.96,
+    "neutralTargetSRGB": 0.46610657463312305,
+    "printExposureEV": -0.012465216910594526,
+    "magentaShift": -0.10677201897322962,
+    "yellowShift": -0.019043566654652868,
+    "neutralMaxEncodedResidual": 2.8366289561709834e-07,
+    "measuredFilmCalibration": false
+  },
+  "curveCorrection": null,
   "settingsSnapshot": {
     "camera": {
       "exposure_compensation_ev": 0.0,
@@ -176,13 +188,13 @@
     },
     "enlarger": {
       "illuminant": "TH-KG3",
-      "print_exposure": 1.0,
+      "print_exposure": 0.9913969895580119,
       "print_exposure_compensation": false,
       "normalize_print_exposure": true,
       "y_filter_shift": 0.0,
       "m_filter_shift": 0.0,
-      "y_filter_neutral": 108.32018060451946,
-      "m_filter_neutral": 85.91380393854578,
+      "y_filter_neutral": 108.3011370378648,
+      "m_filter_neutral": 85.80703191957255,
       "c_filter_neutral": 0.0,
       "lens_blur": 0.0,
       "diffusion_filter": {
@@ -270,6 +282,16 @@
       "deactivate_stochastic_effects": true,
       "print_timings": false,
       "lut_mode": true
+    },
+    "printMorph": {
+      "active": true,
+      "gamma_factor": 0.96,
+      "gamma_factor_fast": 1.0,
+      "gamma_factor_slow": 1.0,
+      "gamma_factor_red": 1.0,
+      "gamma_factor_green": 1.0,
+      "gamma_factor_blue": 1.0,
+      "developer_exhaustion": 0.0
     },
     "dir": {
       "active": true,

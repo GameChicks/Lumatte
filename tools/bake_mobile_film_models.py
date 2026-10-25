@@ -7,7 +7,7 @@ Run explicitly with that deployment's Python; never run from a build hook.
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import hashlib
 import io
 import json
@@ -21,7 +21,7 @@ import zipfile
 COMMIT = "3bb2c2d2801ff68b92019cf1dbcbb133d60832bc"
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / "tools/.cache/mobile-film-bake"
-VERSION = "sf-3bb2c2d-three-stage-v1"
+VERSION = "sf-3bb2c2d-print-presets-v2"
 
 
 def write_json(path: Path, value) -> None:
@@ -62,6 +62,8 @@ def main() -> None:
     source = frozen_source(args.source)
     sys.path.insert(0, str(source / "src"))
     import numpy as np
+    from scipy.optimize import least_squares
+    from film_curve_correction import apply_vision250d
     from spektrafilm.runtime.params_builder import digest_params, init_params
     from spektrafilm.runtime.pipeline import SimulationPipeline
 
@@ -70,6 +72,7 @@ def main() -> None:
     stage.mkdir(parents=True, exist_ok=True)
     catalogue = json.loads((ROOT / "core/media/src/main/assets/film/catalogue.json").read_text(encoding="utf-8"))
     entries = []
+    tuning = json.loads((ROOT / "tools/film_preset_tuning.json").read_text(encoding="utf-8"))
 
     def grid(size: int, low, high):
         # x/first-channel fastest, then y/second, then z/third. Interleaved RGB/CMY.
@@ -93,7 +96,15 @@ def main() -> None:
         print(f"Producing {stock_id} ...", flush=True)
         folder = stage / stock_id
         folder.mkdir(exist_ok=True)
+        preset = tuning["presets"].get(stock_id)
         params = init_params(film_profile=stock_id, print_profile=stock["printId"])
+        correction = apply_vision250d(params) if stock_id == "kodak_vision3_250d" else None
+        if preset:
+            require_paper = preset["paper"]
+            if stock["printId"] != require_paper:
+                raise ValueError(f"Preset paper disagrees with catalogue: {stock_id}")
+            params.print_render.density_curves_morph = replace(params.print_render.density_curves_morph,
+                active=True, gamma_factor=preset["printGamma"])
         params.io.input_color_space = "sRGB"
         params.io.output_color_space = "sRGB"
         params.io.input_cctf_decoding = True
@@ -107,6 +118,26 @@ def main() -> None:
         params.debug.lut_mode = True
         params = digest_params(params, apply_stocks_specifics=False)
         pipeline = SimulationPipeline(params)
+        print_tuning = {"version": tuning["version"], "receiver": "direct_positive_scan" if stock["positive"] else stock["printId"]}
+        if preset:
+            # Fit a single neutral reference while producing the receiver. No photo-dependent
+            # auto levels or per-image white balance is introduced into the runtime model.
+            grey = 1.055 * .184 ** (1 / 2.4) - .055
+            target = np.full((1, 1, 3), grey)
+            start_m = params.enlarger.m_filter_neutral
+            start_y = params.enlarger.y_filter_neutral
+            def neutral_residual(values):
+                pipeline.soft_update(print_exposure=2 ** values[0],
+                    m_filter_neutral=start_m + values[1], y_filter_neutral=start_y + values[2])
+                return (pipeline.process(target) - target).reshape(3)
+            fitted = least_squares(neutral_residual, [0, 0, 0],
+                bounds=([-1.5, -20, -20], [1.5, 20, 20]), diff_step=.01, max_nfev=40,
+                ftol=1e-7, xtol=1e-7, gtol=1e-7)
+            residual = neutral_residual(fitted.x)
+            params.enlarger = pipeline.enlarger
+            print_tuning.update(printGamma=preset["printGamma"], neutralTargetSRGB=grey,
+                printExposureEV=float(fitted.x[0]), magentaShift=float(fitted.x[1]), yellowShift=float(fitted.x[2]),
+                neutralMaxEncodedResidual=float(np.max(np.abs(residual))), measuredFilmCalibration=False)
         # Named public taps keep black/white reference exposure correction in raw.
         log_raw = pipeline.process(grid(33, [0] * 3, [1] * 3), collect="log_e_film")
         raw = np.maximum(np.power(10.0, log_raw) - 1e-10, 0.0)
@@ -135,9 +166,11 @@ def main() -> None:
                     "spatialEffectsBaked": False, "grainBaked": False,
                     "tables": {"response": response, "development": development, "scan": scan},
                     "grainReference": grain_reference, "halationReference": halation_reference,
+                    "printTuning": print_tuning, "curveCorrection": correction,
                     "settingsSnapshot": {"camera": asdict(params.camera), "enlarger": asdict(params.enlarger),
                                          "scanner": asdict(params.scanner), "io": asdict(params.io),
                                          "settings": asdict(params.settings), "debug": asdict(params.debug),
+                                         "printMorph": asdict(params.print_render.density_curves_morph),
                                          "dir": asdict(params.film_render.dir_couplers)}}
         write_json(folder / "model.json", metadata)
         model_bytes = (folder / "model.json").read_bytes()
@@ -154,6 +187,8 @@ def main() -> None:
         "density -> fixed paper/positive scan sRGB (41^3). Exposure is zero at bake.\n"
         "Spatial effects, random grain and automatic exposure are disabled during bake.\n"
         "DIR spatial diffusion is omitted; local chemistry is baked once.\n"
+        "Project print presets: stock-specific receivers, restrained print gamma and a fixed neutral-reference printer balance; reversal stocks remain direct scans.\n"
+        "Vision3 250D curve correction: Fotufilm / MUAStudio Inc., CC BY-SA 4.0, commit 079844387659045a39ef4e5005191b0d77b81606. Spectral-basis projection is a mobile approximation.\n"
         "Sampling and float32 encoding are modifications. No accuracy/performance validation was run.\n",
         encoding="utf-8", newline="\n")
     write_json(stage / "index.json", {"schema": 1, "modelVersion": VERSION, "sourceCommit": COMMIT, "models": entries})

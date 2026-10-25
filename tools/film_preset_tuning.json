@@ -1,0 +1,20 @@
+{
+  "version": "lfm-print-presets-v2",
+  "description": "Project aesthetic starting points, not measured stock calibration. Gamma changes the print receiver only; film grain and halation remain stock defaults.",
+  "presets": {
+    "fujifilm_c200": {"paper": "fujifilm_crystal_archive_typeii", "printGamma": 0.96},
+    "fujifilm_pro_400h": {"paper": "fujifilm_crystal_archive_typeii", "printGamma": 0.94},
+    "fujifilm_xtra_400": {"paper": "fujifilm_crystal_archive_typeii", "printGamma": 0.94},
+    "kodak_ektar_100": {"paper": "kodak_supra_endura", "printGamma": 0.92},
+    "kodak_gold_200": {"paper": "kodak_supra_endura", "printGamma": 0.96},
+    "kodak_ultramax_400": {"paper": "kodak_supra_endura", "printGamma": 0.94},
+    "kodak_portra_160": {"paper": "kodak_portra_endura", "printGamma": 0.98},
+    "kodak_portra_400": {"paper": "kodak_portra_endura", "printGamma": 0.96},
+    "kodak_portra_800": {"paper": "kodak_portra_endura", "printGamma": 0.94},
+    "kodak_verita_200d": {"paper": "kodak_2383", "printGamma": 0.92},
+    "kodak_vision3_200t": {"paper": "kodak_2383", "printGamma": 0.92},
+    "kodak_vision3_250d": {"paper": "kodak_2383", "printGamma": 0.92},
+    "kodak_vision3_500t": {"paper": "kodak_2383", "printGamma": 0.90},
+    "kodak_vision3_50d": {"paper": "kodak_2383", "printGamma": 0.94}
+  }
+}

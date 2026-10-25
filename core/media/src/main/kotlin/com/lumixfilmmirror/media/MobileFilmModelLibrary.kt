@@ -268,12 +268,12 @@ internal class MobileFilmModelLibrary(context: Context) {
     companion object {
         private const val ROOT = "film/mobile-v1"
         private const val SOURCE_COMMIT = "3bb2c2d2801ff68b92019cf1dbcbb133d60832bc"
-        private const val MODEL_VERSION = "sf-3bb2c2d-three-stage-v1"
+        private const val MODEL_VERSION = "sf-3bb2c2d-print-presets-v2"
         private const val MONO_ROOT = "film/mobile-monochrome-v1"
         private const val MONO_VERSION = "lfm-silver-three-stage-v1"
         private val MONO_STOCKS = setOf("lfm_silver_neutral", "lfm_silver_contrast")
         private const val FOTU_ROOT = "film/mobile-fotufilm-v1"
-        private const val FOTU_VERSION = "lfm-fotufilm-public-three-stage-v1"
+        private const val FOTU_VERSION = "lfm-fotufilm-5207-curves-v2"
         private const val FOTU_COMMIT = "12c8efea259e4cea70ec22166e504634d401a0cd"
         private val FOTU_STOCKS = setOf("cinestill_800t", "cinestill_400d", "fujifilm_acros_100_ii",
             "kodak_tri_x_400", "ilford_hp5_plus_400", "ilford_delta_3200")

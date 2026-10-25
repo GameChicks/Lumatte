@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "modelVersion": "sf-3bb2c2d-three-stage-v1",
+  "modelVersion": "sf-3bb2c2d-print-presets-v2",
   "stockId": "kodak_kodachrome_64",
   "printId": "kodak_portra_endura",
   "positive": true,
@@ -143,6 +143,11 @@
     "halation_bounce_decay": 0.5,
     "halation_renormalize": true
   },
+  "printTuning": {
+    "version": "lfm-print-presets-v2",
+    "receiver": "direct_positive_scan"
+  },
+  "curveCorrection": null,
   "settingsSnapshot": {
     "camera": {
       "exposure_compensation_ev": 0.0,
@@ -270,6 +275,16 @@
       "deactivate_stochastic_effects": true,
       "print_timings": false,
       "lut_mode": true
+    },
+    "printMorph": {
+      "active": false,
+      "gamma_factor": 1.0,
+      "gamma_factor_fast": 1.0,
+      "gamma_factor_slow": 1.0,
+      "gamma_factor_red": 1.0,
+      "gamma_factor_green": 1.0,
+      "gamma_factor_blue": 1.0,
+      "developer_exhaustion": 0.0
     },
     "dir": {
       "active": true,

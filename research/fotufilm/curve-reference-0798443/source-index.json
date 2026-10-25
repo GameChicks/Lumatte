@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/DhaliwalX/fotufilm-engine",
+  "commit": "079844387659045a39ef4e5005191b0d77b81606",
+  "author": "MUAStudio Inc.",
+  "license": "CC-BY-SA-4.0",
+  "files": {
+    "cinestill400d.json": "237bcba277f68594651452432c1487f440088a99b960f6b96716c30b25008ba0",
+    "vision250d.json": "73fa4a6313b977812bbdad63fcaa4758420bed0eb5af6e58066c6089ae6c4217"
+  }
+}

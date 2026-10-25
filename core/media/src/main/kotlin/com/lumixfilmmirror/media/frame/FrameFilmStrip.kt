@@ -5,6 +5,9 @@ import com.lumixfilmmirror.model.FrameFont
 import java.io.Closeable
 import java.util.Locale
 import kotlin.math.min
+import kotlin.math.sin
+import kotlin.math.cos
+import kotlin.math.ceil
 
 /** Recovered cylinder label paths, 135/120 physical proportions, perforations and DX-like decoration. */
 internal class FrameFilmStrip(assets: FrameAssets, private val fonts: FrameTypography, roll120: Boolean,
@@ -53,10 +56,31 @@ internal class FrameFilmStrip(assets: FrameAssets, private val fonts: FrameTypog
         paint.shader = LinearGradient(6f, 0f, 83f, 0f,
             intArrayOf(0x70000000, 0x00FFFFFF, 0x20FFFFFF, 0x08000000), floatArrayOf(0f, .3f, .55f, 1f), Shader.TileMode.CLAMP)
         canvas.drawPath(label, paint); paint.shader = null; canvas.restore()
-        vertical(canvas, settings.notes, 49f, 92f, 294f, 12f, FramePalette.contrasting(settings.color))
-        vertical(canvas, if (settings.blackWhite) "Black & White Film" else "Color Negative Film", 106f, 97f, 285f, 12.5f, 0xFFEAE8DD.toInt())
-        vertical(canvas, settings.film, 150f, 95f, 289f, 31f, 0xFFF0EEE4.toInt())
-        vertical(canvas, settings.brand.uppercase(Locale.ROOT), 208f, 96f, 282f, 18f, 0xFFF0EEE4.toInt())
+        // Print on an unwrapped label, then wrap its ink around the photographed cylinder.
+        // Both glyph width and the top/bottom edge follow the cylinder, including its sides.
+        val resolution = scale.coerceIn(1f, 4f)
+        val ink = Bitmap.createBitmap(ceil(240 * resolution).toInt(), ceil(430 * resolution).toInt(), Bitmap.Config.ARGB_8888)
+        try {
+            val labelCanvas = Canvas(ink).apply { scale(resolution, resolution) }
+            vertical(labelCanvas, settings.notes, 49f, 92f, 294f, 12f, FramePalette.contrasting(settings.color))
+            vertical(labelCanvas, if (settings.blackWhite) "Black & White Film" else "Color Negative Film", 106f, 97f, 285f, 12.5f, 0xFFEAE8DD.toInt())
+            vertical(labelCanvas, settings.film, 150f, 95f, 289f, 31f, 0xFFF0EEE4.toInt())
+            vertical(labelCanvas, settings.brand.uppercase(Locale.ROOT), 208f, 96f, 282f, 18f, 0xFFF0EEE4.toInt(), FrameFont.SANS)
+            val columns = 48; val rows = 8
+            val vertices = FloatArray((columns + 1) * (rows + 1) * 2)
+            for (row in 0..rows) for (column in 0..columns) {
+                val angle = (column.toFloat() / columns - .5f) * 2.6f
+                val bulge = cos(angle)
+                val top = 61f + 18f * bulge
+                val bottom = 407f + 14f * bulge
+                val v = (row * 430f / rows - 74f) / 332f
+                val index = (row * (columns + 1) + column) * 2
+                vertices[index] = 120f + 118f * sin(angle)
+                vertices[index + 1] = top + v * (bottom - top)
+            }
+            canvas.drawBitmapMesh(ink, columns, rows, vertices, 0, null, 0,
+                Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+        } finally { ink.recycle() }
         canvas.restore()
     }
 
@@ -70,7 +94,7 @@ internal class FrameFilmStrip(assets: FrameAssets, private val fonts: FrameTypog
         texturePanel(canvas, src, dest, Path().apply { addRect(RectF(9f, 141f, 111f, 295f), Path.Direction.CW) }, settings.color, paint)
         val ink = FramePalette.contrasting(settings.color)
         vertical(canvas, settings.film, 76f, 151f, 134f, 24f, ink)
-        vertical(canvas, settings.brand.uppercase(Locale.ROOT), 37f, 151f, 133f, 13f, ink)
+        vertical(canvas, settings.brand.uppercase(Locale.ROOT), 37f, 151f, 133f, 13f, ink, FrameFont.SANS)
         fonts.text(canvas, "120", RectF(12f, 24f, 108f, 42f), 12f, FrameFont.SPACED, Color.WHITE)
         fonts.text(canvas, "120", RectF(12f, 392f, 108f, 408f), 12f, FrameFont.SPACED, Color.WHITE)
         fonts.text(canvas, if (settings.blackWhite) "Black & White Film" else "Color Negative Film",
@@ -91,9 +115,10 @@ internal class FrameFilmStrip(assets: FrameAssets, private val fonts: FrameTypog
         paint.colorFilter = null
     }
 
-    private fun vertical(canvas: Canvas, text: String, x: Float, y: Float, length: Float, size: Float, color: Int) {
+    private fun vertical(canvas: Canvas, text: String, x: Float, y: Float, length: Float, size: Float, color: Int,
+        font: FrameFont = FrameFont.SPACED) {
         canvas.save(); canvas.translate(x, y); canvas.rotate(90f)
-        fonts.text(canvas, text, RectF(0f, -size * .6f, length, size * .6f), size, FrameFont.SPACED, color, Paint.Align.LEFT)
+        fonts.text(canvas, text, RectF(0f, -size * .6f, length, size * .6f), size, font, color, Paint.Align.LEFT)
         canvas.restore()
     }
 

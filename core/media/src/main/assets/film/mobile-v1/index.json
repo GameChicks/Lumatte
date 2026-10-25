@@ -1,150 +1,150 @@
 {
   "schema": 1,
-  "modelVersion": "sf-3bb2c2d-three-stage-v1",
+  "modelVersion": "sf-3bb2c2d-print-presets-v2",
   "sourceCommit": "3bb2c2d2801ff68b92019cf1dbcbb133d60832bc",
   "models": [
     {
       "stockId": "fujifilm_c200",
       "printId": "fujifilm_crystal_archive_typeii",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "e923a787a152c65637a1f2f92dd7c457106ca8356bf9a3d58c8f95c715036b68",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "7c4a9708bc519e4cf3b4bba485898a86b4f4554f6d1fab0f7331005a39e93938",
       "tableBytes": 1689540
     },
     {
       "stockId": "fujifilm_pro_400h",
       "printId": "fujifilm_crystal_archive_typeii",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "e1772844e63347b5aaf24b8c53d3ba9f3e25d035a1937eb71fb469712b53f273",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "0ed3d1e8d9d798cc1f33d98fc0954ca07aaeb299e06cb15d39e439f0cf449afa",
       "tableBytes": 1689540
     },
     {
       "stockId": "fujifilm_provia_100f",
       "printId": "kodak_portra_endura",
       "positive": true,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "5f478b09b14808ef6c540b79b320bdfa4731b6ed0bdbf5ce04b1fd21fb202519",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "eb7296659b203112d28e60da584aba56caaeb8c16680c9a113ae5bc4d8ac3eb0",
       "tableBytes": 1689540
     },
     {
       "stockId": "fujifilm_velvia_100",
       "printId": "kodak_portra_endura",
       "positive": true,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "da118687c84184f6313d61285767155fa982932effa4732d1128198e9892ded8",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "fcf1b160a1acfde9ec6ad25aa4577eac92c4247c8431a9bf1d98fc9df0b5c95d",
       "tableBytes": 1689540
     },
     {
       "stockId": "fujifilm_xtra_400",
       "printId": "fujifilm_crystal_archive_typeii",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "2260fbc7524c3362ca3ddf611910280bd0b47f0c206821b2b1b38a5c0fd3a20e",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "fa08b8de8186352e20722690bb40dbbb38b963d88ecac2ce6eeaca2c2f543d48",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_ektachrome_100",
       "printId": "kodak_portra_endura",
       "positive": true,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "0e4568607ec2e008a380cce10de47f5182f3bcd7fc725d64ee9d5ec00522f48f",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "31c40d5986806f1ce59874e615c5542ec9e8a31d3cd67d3742479b90c04fa5a5",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_ektar_100",
-      "printId": "kodak_portra_endura",
+      "printId": "kodak_supra_endura",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "bb353bf0f70aa42b897b5bd621d7bf90e2e9ec1e8769f9826a4a7895907691b8",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "b10d3c6bd692f1d12cceac44de8fdcf5bd171f27dc3000a3f334fcaeba46c9b3",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_gold_200",
-      "printId": "kodak_portra_endura",
+      "printId": "kodak_supra_endura",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "b6ee5709f5e340c46efc0ddbf2f468d33d2f6e2b72615c1336c54432598ca0ba",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "5cd3364215f2bde62d9eac9e2beaae8aad4b5e49e0890f6dc2b7df07f0dc2b2e",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_kodachrome_64",
       "printId": "kodak_portra_endura",
       "positive": true,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "6952f798f3649326d70edef141adf58e192b7ee842f57a5880295ee38813886a",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "62f477b76e34f3444e507eb3ddbf24535d77af191125d081db129144ddc06d7c",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_portra_160",
       "printId": "kodak_portra_endura",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "30fc4ca77a16297496cdfbea71fade009b4c36486f535efc733fbdaacc3793d5",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "b90536a48b3e490bbaf774af9a70f1ba863973ad4f5b1cf1e0884814284f913c",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_portra_400",
       "printId": "kodak_portra_endura",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "953d586d5b928fff4edfae0de9d32372cab67110ae5ace7ee69bcf27b5aba9c1",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "e67343b756f6b970a8c577a675bfe8fb0e9fb6a826816fcc972d343ec277307c",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_portra_800",
       "printId": "kodak_portra_endura",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "132e7c122341cc129eccb7980a99892af096295611a540107f0e8e8869059b93",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "99f71fb11238fe1d606c2e9ac784d4161ed4c35146847e42b7c59058e6af2237",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_ultramax_400",
-      "printId": "kodak_portra_endura",
+      "printId": "kodak_supra_endura",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "fa4b473cf688458026e11994455425716495f41de2543516f085750790810413",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "29492ea2dff4a54e683ea2a0e9990c629915cebb1d94439522531f824930754c",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_verita_200d",
       "printId": "kodak_2383",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "d18f854635b5cc253a56ea308c9450206004b8a8d29aacaaf05d762b98c0cce3",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "b086e4f441600c46cee3a95caec4d67b5441ac7eec14a49e1129c61aa30b329e",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_vision3_200t",
       "printId": "kodak_2383",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "0d43cf1603ff57d4fe0696f27c3ebeb031ac8b77cdf57d85b6897f79bce631e7",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "fb989f5a887e79d9fb5b38e58ca56067165325bb488b92db085612f1d5174365",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_vision3_250d",
       "printId": "kodak_2383",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "bf185b5d9b55c012034ea4c0e98a64d86a67ca6b45649754a88da66f87870a66",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "f8a4d1146fd1f72c157255a7545bea422838e13f220b512b093a2033a2353c9f",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_vision3_500t",
       "printId": "kodak_2383",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "40974893dde9928b8b8fb72f226ee56b5a649bb4fd2bf672e9a511a3dc6a831b",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "844ba080def814996fb8d4339354cb4af04bafd0db35e2b87b9451c7c16fadd6",
       "tableBytes": 1689540
     },
     {
       "stockId": "kodak_vision3_50d",
       "printId": "kodak_2383",
       "positive": false,
-      "modelVersion": "sf-3bb2c2d-three-stage-v1",
-      "manifestSha256": "c1d2b10a9158d6beee1aa6dc1eee4f27134540776edae08071796e77900c5e80",
+      "modelVersion": "sf-3bb2c2d-print-presets-v2",
+      "manifestSha256": "c6a466b2308cfff184f7e986d4e24323bc444d9c6e8fec9e79b5e71a3565e4c1",
       "tableBytes": 1689540
     }
   ]

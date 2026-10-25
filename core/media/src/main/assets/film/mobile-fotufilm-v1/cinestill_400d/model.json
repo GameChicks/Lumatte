@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "modelVersion": "lfm-fotufilm-public-three-stage-v1",
+  "modelVersion": "lfm-fotufilm-5207-curves-v2",
   "stockId": "cinestill_400d",
   "printId": "fotu_fixed_print",
   "positive": false,
@@ -42,7 +42,7 @@
       "file": "development.f32",
       "size": 65,
       "bytes": 3295500,
-      "sha256": "991d0c6da3c0189f1c8bba9dae443d111f7d9b3aad8d1dafea23b3a7bf8a2562",
+      "sha256": "912ae03e4a8b0eee347f5fee601d2f7ff40f0855edc10115901c41a451d860b2",
       "minimum": [
         -4.0,
         -4.0,
@@ -61,7 +61,7 @@
       "file": "scan.f32",
       "size": 41,
       "bytes": 827052,
-      "sha256": "4a875798a40bf6c7098079c7a69a83486187cbe1455b0399c5508fd759d740cd",
+      "sha256": "5c4a82d97e3875c2ccd19a35fa108107b176f0f86ffea145fc98d67c1908a5ad",
       "minimum": [
         -0.2,
         -0.2,
@@ -214,6 +214,22 @@
       ],
       "fit_arithmetic": "float64-offline",
       "analysis_long_edge": 1536
+    }
+  },
+  "curveCorrection": {
+    "commit": "079844387659045a39ef4e5005191b0d77b81606",
+    "profile": "cinestill400d.json",
+    "license": "CC-BY-SA-4.0",
+    "adaptation": "two-group-curves-with-original-pack-spectral-coordinates",
+    "fullEngineParity": false,
+    "receiverBalance": {
+      "paperMidpoints": [
+        -1.575730812766957,
+        -1.5239093803343904,
+        -1.3640301248130478
+      ],
+      "neutralTargetSRGB": 0.46135612950044164,
+      "neutralMaxEncodedResidual": 2.0539125955565396e-14
     }
   },
   "settingsSnapshot": {

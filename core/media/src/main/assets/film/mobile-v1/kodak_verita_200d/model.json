@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "modelVersion": "sf-3bb2c2d-three-stage-v1",
+  "modelVersion": "sf-3bb2c2d-print-presets-v2",
   "stockId": "kodak_verita_200d",
   "printId": "kodak_2383",
   "positive": false,
@@ -57,7 +57,7 @@
       "file": "scan.f32",
       "size": 41,
       "bytes": 827052,
-      "sha256": "537770f6ca86f114c6e8045da653ae1dbd4ba3d16225d08e1bca3ed15f29febb",
+      "sha256": "afed440c5ffc4029e243313dcacdb5d93dbb1667cf4720e5c32c4065bf53eae5",
       "minimum": [
         -0.2,
         -0.2,
@@ -143,6 +143,18 @@
     "halation_bounce_decay": 0.5,
     "halation_renormalize": true
   },
+  "printTuning": {
+    "version": "lfm-print-presets-v2",
+    "receiver": "kodak_2383",
+    "printGamma": 0.92,
+    "neutralTargetSRGB": 0.46610657463312305,
+    "printExposureEV": -0.02459431708564349,
+    "magentaShift": -0.08683911933422687,
+    "yellowShift": -0.03034209773335197,
+    "neutralMaxEncodedResidual": 6.277792097275636e-08,
+    "measuredFilmCalibration": false
+  },
+  "curveCorrection": null,
   "settingsSnapshot": {
     "camera": {
       "exposure_compensation_ev": 0.0,
@@ -176,13 +188,13 @@
     },
     "enlarger": {
       "illuminant": "TH-KG3",
-      "print_exposure": 1.0,
+      "print_exposure": 0.9830970045613369,
       "print_exposure_compensation": false,
       "normalize_print_exposure": true,
       "y_filter_shift": 0.0,
       "m_filter_shift": 0.0,
-      "y_filter_neutral": 75.58490842343356,
-      "m_filter_neutral": 67.05962987951338,
+      "y_filter_neutral": 75.55456632570021,
+      "m_filter_neutral": 66.97279076017915,
       "c_filter_neutral": 0.0,
       "lens_blur": 0.0,
       "diffusion_filter": {
@@ -270,6 +282,16 @@
       "deactivate_stochastic_effects": true,
       "print_timings": false,
       "lut_mode": true
+    },
+    "printMorph": {
+      "active": true,
+      "gamma_factor": 0.92,
+      "gamma_factor_fast": 1.0,
+      "gamma_factor_slow": 1.0,
+      "gamma_factor_red": 1.0,
+      "gamma_factor_green": 1.0,
+      "gamma_factor_blue": 1.0,
+      "developer_exhaustion": 0.0
     },
     "dir": {
       "active": true,

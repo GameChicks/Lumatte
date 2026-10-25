@@ -21,6 +21,15 @@ internal class OfficialLutPreviewLibrary(private val client: LumixLabCatalogueCl
         val key = "$language:$code"
         tables[key]?.let { return it }
         val detail = client.detail(code, language)
+        load(detail, key)
+    }
+
+    suspend fun asset(detail: LumixLabLutDetail, language: String): LutAsset = gate.withLock {
+        val key = "$language:${detail.lut.code}"
+        tables[key] ?: load(detail, key)
+    }
+
+    private suspend fun load(detail: LumixLabLutDetail, key: String): LutAsset {
         val cube = client.downloadCube(detail)
         val asset = withContext(Dispatchers.Default) {
             require(cube.size in 1..(4 * 1024 * 1024))
@@ -36,6 +45,6 @@ internal class OfficialLutPreviewLibrary(private val client: LumixLabCatalogueCl
         }
         coroutineContext.ensureActive()
         tables[key] = asset
-        asset
+        return asset
     }
 }

@@ -329,7 +329,7 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
             previousOnlineRetry=retry
             official=workspace.processor.discoverOfficialLuts(photo,state.luts,styles,refresh=refresh,allowUnknownInput=includeUnknown)
         } catch(error:CancellationException) { throw error }
-        catch(_:Exception) { onlineProblem="官方试套暂不可用，仍可使用本地试套推荐。" }
+        catch(error:Exception) { onlineProblem="官方试套：${error.message ?: "暂不可用，请重试"}" }
         finally { discovering=false }
     }
     LaunchedEffect(photo?.id,state.luts,style,includeUnknown,retry) {
@@ -356,7 +356,7 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
             Triple(MirrorLutCard(local=it,photoPreview=true),info.reasons,info.warnings)
         } }
         val remote=official?.suggestions.orEmpty().map { Triple(MirrorLutCard(official=it.lut,photoPreview=true),it.reasons,it.warnings) }
-        (0 until maxOf(local.size,remote.size)).flatMap { index -> listOfNotNull(local.getOrNull(index),remote.getOrNull(index)) }
+        (0 until maxOf(local.size,remote.size)).flatMap { index -> listOfNotNull(remote.getOrNull(index),local.getOrNull(index)) }
             .distinctBy { it.first.key }.take(5)
     }
     val cards=choices.map { it.first }
@@ -445,7 +445,7 @@ internal fun MirrorLutRecommendations(state:WorkspaceState,workspace:WorkspaceVi
                     Column(Modifier.padding(horizontal=24.dp,vertical=16.dp)) {
                         Text("卡片均为你的照片在本机试套的效果，照片不会上传。",fontSize=10.sp,color=tones.secondaryInk)
                         AnimatedVisibility(showFilters) { official?.let {
-                            Text("官方目录候选 ${it.catalogueCandidates} 款，经例图初筛后最多试套 5 款；不是全库效果评选。",fontSize=10.sp,color=tones.secondaryInk)
+                            Text("官方目录候选 ${it.catalogueCandidates} 款，先检查输入风格，再用当前照片试套最多 5 款。",fontSize=10.sp,color=tones.secondaryInk)
                         } }
                         if(state.luts.size>256)Text("本次分析前 256 款本地 LUT。",fontSize=10.sp,color=tones.secondaryInk)
                         MirrorTextAction("换一张照片 →",onImport,enabled=!state.busy)

@@ -15,6 +15,14 @@ import kotlin.math.sqrt
 enum class LutRecommendationStyle { NATURAL, WARM, COOL, MONOCHROME }
 enum class LutRecommendationInput { SRGB_JPEG, VLOG, OTHER, UNKNOWN }
 
+internal fun lutRecommendationInput(photoStyle: String?): LutRecommendationInput =
+    when (photoStyle?.uppercase(java.util.Locale.ROOT)?.replace("-", "")?.replace("_", "")?.replace(" ", "")) {
+        "STD", "STANDARD", "NAT", "NATURAL" -> LutRecommendationInput.SRGB_JPEG
+        "VLOG" -> LutRecommendationInput.VLOG
+        null, "" -> LutRecommendationInput.UNKNOWN
+        else -> LutRecommendationInput.OTHER
+    }
+
 data class LutRecommendationOptions(
     val styles: Set<LutRecommendationStyle> = setOf(LutRecommendationStyle.NATURAL, LutRecommendationStyle.WARM, LutRecommendationStyle.COOL),
     val inputOverrides: Map<String, LutRecommendationInput> = emptyMap(),
@@ -69,12 +77,7 @@ internal class LutRecommender(context: Context) {
         val skipped = linkedMapOf<String, String>()
         val candidates = assets.mapNotNull { asset ->
             checkActive()
-            val input = options.inputOverrides[asset.id] ?: when (asset.photoStyle?.uppercase(java.util.Locale.ROOT)) {
-                "STD", "NAT" -> LutRecommendationInput.SRGB_JPEG
-                "VLOG", "V-LOG", "V_LOG" -> LutRecommendationInput.VLOG
-                null, "" -> LutRecommendationInput.UNKNOWN
-                else -> LutRecommendationInput.OTHER
-            }
+            val input = options.inputOverrides[asset.id] ?: lutRecommendationInput(asset.photoStyle)
             if (input == LutRecommendationInput.VLOG || input == LutRecommendationInput.OTHER ||
                 (input == LutRecommendationInput.UNKNOWN && !options.allowUnknownInput)) {
                 skipped[asset.id] = if (input == LutRecommendationInput.UNKNOWN) "输入约定未确认"

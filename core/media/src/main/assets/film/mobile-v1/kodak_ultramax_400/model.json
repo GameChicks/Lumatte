@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "modelVersion": "sf-3bb2c2d-three-stage-v1",
+  "modelVersion": "sf-3bb2c2d-print-presets-v2",
   "stockId": "kodak_ultramax_400",
-  "printId": "kodak_portra_endura",
+  "printId": "kodak_supra_endura",
   "positive": false,
   "source": {
     "repository": "https://github.com/andreavolpato/spektrafilm",
@@ -57,7 +57,7 @@
       "file": "scan.f32",
       "size": 41,
       "bytes": 827052,
-      "sha256": "d6c8ade16808671d4e19eb08fb8f7dcb03604a1f28bb628e8196f67b0d28ce79",
+      "sha256": "17aae7601f5303e67e108bc7e4526716452a67c76bf69deb32cc92c01d672fa6",
       "minimum": [
         -0.2,
         -0.2,
@@ -143,6 +143,18 @@
     "halation_bounce_decay": 0.5,
     "halation_renormalize": true
   },
+  "printTuning": {
+    "version": "lfm-print-presets-v2",
+    "receiver": "kodak_supra_endura",
+    "printGamma": 0.94,
+    "neutralTargetSRGB": 0.46610657463312305,
+    "printExposureEV": -0.015029701416070301,
+    "magentaShift": -0.10806407353303407,
+    "yellowShift": 0.04831866838772516,
+    "neutralMaxEncodedResidual": 2.4664599251877917e-09,
+    "measuredFilmCalibration": false
+  },
+  "curveCorrection": null,
   "settingsSnapshot": {
     "camera": {
       "exposure_compensation_ev": 0.0,
@@ -176,13 +188,13 @@
     },
     "enlarger": {
       "illuminant": "TH-KG3",
-      "print_exposure": 1.0,
+      "print_exposure": 0.9896362821152253,
       "print_exposure_compensation": false,
       "normalize_print_exposure": true,
       "y_filter_shift": 0.0,
       "m_filter_shift": 0.0,
-      "y_filter_neutral": 59.17049757909685,
-      "m_filter_neutral": 58.66256771946224,
+      "y_filter_neutral": 62.25004086683036,
+      "m_filter_neutral": 57.669081010873214,
       "c_filter_neutral": 0.0,
       "lens_blur": 0.0,
       "diffusion_filter": {
@@ -270,6 +282,16 @@
       "deactivate_stochastic_effects": true,
       "print_timings": false,
       "lut_mode": true
+    },
+    "printMorph": {
+      "active": true,
+      "gamma_factor": 0.94,
+      "gamma_factor_fast": 1.0,
+      "gamma_factor_slow": 1.0,
+      "gamma_factor_red": 1.0,
+      "gamma_factor_green": 1.0,
+      "gamma_factor_blue": 1.0,
+      "developer_exhaustion": 0.0
     },
     "dir": {
       "active": true,

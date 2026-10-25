@@ -15,12 +15,14 @@ import shutil
 import struct
 
 import numpy as np
+from scipy.optimize import least_squares
 from produce_fotufilm_halation import halation_reference, ALGORITHM as HALATION_ALGORITHM
+from film_curve_correction import apply_cinestill400d
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "research/fotufilm"
 DEST = ROOT / "core/media/src/main/assets/film/mobile-fotufilm-v1"
-VERSION = "lfm-fotufilm-public-three-stage-v1"
+VERSION = "lfm-fotufilm-5207-curves-v2"
 COMMIT = "12c8efea259e4cea70ec22166e504634d401a0cd"
 STOCKS = (
     ("cinestill800t", "cinestill_800t", "CineStill 800T", "CINEMA", "钨丝灯夜景；独立红橙光晕，保留明亮灯芯。"),
@@ -148,8 +150,9 @@ class Pack:
         return np.maximum(sample(self.exposure,domain/peak)*peak*self.get("EXPOSURE_GAIN")/.18,0)
 
     def scan(self,density,mono):
-        base=self.get("CURVES",18).reshape(3,6)[:,0]
-        relative=sample(self.film,(density-base)/self.curve_range())
+        base=getattr(self,"scan_base",self.get("CURVES",18).reshape(3,6)[:,0])
+        span=getattr(self,"scan_span",self.curve_range())
+        relative=sample(self.film,(density-base)/span)
         if self.has_paper:
             flashed=self.get("PRINTER_PREFLASH")
             if flashed>0: relative=np.log10(10**relative+flashed)
@@ -195,16 +198,35 @@ def main():
         if digest(pack_path.read_bytes())!=sources["files"][f"public-packs/{upstream}.pack"] or digest(profile_path.read_bytes())!=sources["files"][f"profiles/{upstream}.json"]:
             raise ValueError("Source snapshot changed; record a new version deliberately")
         pack=Pack(pack_path,config)
+        grain_base=pack.get("CURVES",18).reshape(3,6)[:,0].copy()
+        grain_span=pack.curve_range().copy()
+        grain_maximum=grain_base+grain_span
+        correction = apply_cinestill400d(pack) if upstream == "cinestill400d" else None
+        if correction is not None and pack.has_paper:
+            # New capture/development records need a newly balanced receiver. Retaining the
+            # old pack's printer balance would turn a neutral reference visibly blue.
+            keys = [pack.k[name] for name in ("PAPER_MIDPOINT_RED", "PAPER_MIDPOINT", "PAPER_MIDPOINT_BLUE")]
+            start = pack.c[keys].copy()
+            reference = pack.develop(np.zeros((1, 3)))
+            target = 1.055 * .18 ** (1 / 2.4) - .055
+            def printer_balance(values):
+                pack.c[keys] = values
+                return (pack.scan(reference, False) - target).reshape(3)
+            fitted = least_squares(printer_balance, start, bounds=(start - 2, start + 2), max_nfev=60,
+                                   diff_step=.0001, ftol=1e-10, xtol=1e-10, gtol=1e-10)
+            residual = printer_balance(fitted.x)
+            correction["receiverBalance"] = {"paperMidpoints": fitted.x.tolist(),
+                "neutralTargetSRGB": target, "neutralMaxEncodedResidual": float(np.max(np.abs(residual)))}
         profile=json.loads(profile_path.read_text())
         mono=category=="MONOCHROME"
         folder=stage/stock; folder.mkdir(exist_ok=True)
         response=table(folder,"response",33,[0]*3,[1]*3,pack.response(grid(33,[0]*3,[1]*3)),"srgb_encoded","film_raw_linear")
         development=table(folder,"development",65,[-4]*3,[2]*3,pack.develop(grid(65,[-4]*3,[2]*3)),"film_log10_exposure","film_cmy_density")
         base=pack.get("CURVES",18).reshape(3,6)[:,0]
-        maximum=base+pack.curve_range()
+        maximum=grain_maximum
         scan=table(folder,"scan",41,[-.2]*3,maximum+.2,pack.scan(grid(41,[-.2]*3,maximum+.2),mono),"film_cmy_density","srgb_encoded")
         weights=np.array(profile["grainLayerWeights"])
-        anchor=np.minimum(1,pack.curve_range()*.8)
+        anchor=np.minimum(1,grain_span*.8)
         p=anchor/np.maximum(maximum,1e-5)
         area=(profile["grainStrength"]*weights)**2*48**2/np.maximum(maximum**2*p*(1-p*.9),1e-6)
         grain={"active":True,"particle_area_um2":.1,"particle_scale":np.clip(area/.1,.0001,20).tolist(),"density_min":[.02]*3,"uniformity":[.9]*3,
@@ -217,6 +239,7 @@ def main():
                   "source":{"origin":"fotufilm_public_pack_adapter","repository":"https://github.com/DhaliwalX/fotufilm-engine","commit":COMMIT,"packSnapshot":sources["snapshot"],"packSha256":digest(pack.bytes),"profileSha256":digest(profile_path.read_bytes()),"author":"Fotufilm / MUAStudio Inc.","license":"CC-BY-SA-4.0"},
                   "storage":"float32_le_rgb_x_fastest","dir":"baked_local_only","spatialEffectsBaked":False,"grainBaked":False,
                   "tables":{"response":response,"development":development,"scan":scan},"grainReference":grain,"halationReference":halo,
+                  "curveCorrection":correction,
                   "settingsSnapshot":{"camera":{"film_format_mm":36.0}},
                   "mobileAdaptation":{"monochrome":mono,"halationModel":HALATION_ALGORITHM if cine else "spektrafilm_default_shape","fullEngineParity":False,"sampledCurves":True,"sceneMetering":False,"spatialDIR":False,"grain":"density-statistical-approximation"}}
         write_json(folder/"model.json",metadata)
@@ -228,7 +251,7 @@ def main():
     shutil.copyfile(SOURCE/"licenses/CC-BY-SA-4.0.txt",stage/"CC-BY-SA-4.0.txt")
     shutil.copyfile(SOURCE/"licenses/LICENSE",stage/"Apache-2.0.txt")
     shutil.copyfile(SOURCE/"licenses/NOTICE",stage/"UPSTREAM-NOTICE.txt")
-    (stage/"NOTICE.txt").write_text("Fotufilm profiles and derived tables: CC BY-SA 4.0. Copyright MUAStudio Inc.\nAttribution: Fotufilm, https://fotufilm.com, https://github.com/DhaliwalX/fotufilm-engine\nPointwise equations adapted from Fotufilm, Apache-2.0; original NOTICE preserved in research/fotufilm/licenses.\nChanges: fixed public-demo pack snapshot to three sRGB mobile tables; no scene auto levels, spatial DIR or full-engine grain; CineStill physical default halation kernel adapted from pinned upstream, with bounded mobile spatial sampling.\nSource profiles, public pack hashes and adapter are preserved in research/fotufilm and tools/produce_fotufilm_models.py.\nNot calibrated physical-film, full-engine-parity, rendered-photo or device-performance verification.\n",encoding="utf-8")
+    (stage/"NOTICE.txt").write_text("Fotufilm profiles and derived tables: CC BY-SA 4.0. Copyright MUAStudio Inc.\nAttribution: Fotufilm, https://fotufilm.com, https://github.com/DhaliwalX/fotufilm-engine\nPointwise equations adapted from Fotufilm, Apache-2.0; original NOTICE preserved in research/fotufilm/licenses.\nChanges: fixed public-demo pack snapshot to three sRGB mobile tables; no scene auto levels, spatial DIR or full-engine grain; CineStill physical default halation kernel adapted from pinned upstream, with bounded mobile spatial sampling.\n400D normal-development curves updated from commit 079844387659045a39ef4e5005191b0d77b81606, with new printer balance; original pack spectral coordinates and grain parameters retained.\nSource profiles, public pack hashes and adapter are preserved in research/fotufilm and tools/produce_fotufilm_models.py.\nNot calibrated physical-film, full-engine-parity, rendered-photo or device-performance verification.\n",encoding="utf-8")
     DEST.mkdir(parents=True,exist_ok=True)
     shutil.copytree(stage,DEST,dirs_exist_ok=True)
 

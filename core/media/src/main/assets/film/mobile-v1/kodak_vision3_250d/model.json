@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "modelVersion": "sf-3bb2c2d-three-stage-v1",
+  "modelVersion": "sf-3bb2c2d-print-presets-v2",
   "stockId": "kodak_vision3_250d",
   "printId": "kodak_2383",
   "positive": false,
@@ -38,7 +38,7 @@
       "file": "development.f32",
       "size": 33,
       "bytes": 431244,
-      "sha256": "e356eac6ae84204dfe8bac1456daef355c4733eeeb23eb4e68689495f953761d",
+      "sha256": "d0dfa787af0ef4dcc536b1746f1f291f2ae1b118fb8ba022b069c31aa400e642",
       "minimum": [
         -3.5,
         -3.5,
@@ -57,16 +57,16 @@
       "file": "scan.f32",
       "size": 41,
       "bytes": 827052,
-      "sha256": "fe495dfdad378ed2883ae82186b38b2b42e2736e812867711b52b07c4274bbaf",
+      "sha256": "39018f4bce5d4ff0c73e17e4eea8c35b9ff6de39dbb17862ddcb39cde3d10920",
       "minimum": [
         -0.2,
         -0.2,
         -0.2
       ],
       "maximum": [
-        1.8950271718633058,
-        1.9770826018972445,
-        2.1075981467334035
+        1.7255490271475566,
+        1.9182524992877277,
+        2.020983643643029
       ],
       "shaper": "linear",
       "inputSpace": "film_cmy_density",
@@ -143,6 +143,26 @@
     "halation_bounce_decay": 0.5,
     "halation_renormalize": true
   },
+  "printTuning": {
+    "version": "lfm-print-presets-v2",
+    "receiver": "kodak_2383",
+    "printGamma": 0.92,
+    "neutralTargetSRGB": 0.46610657463312305,
+    "printExposureEV": -0.027666313816870264,
+    "magentaShift": -1.2191487996457293,
+    "yellowShift": 1.9847609249299503,
+    "neutralMaxEncodedResidual": 1.9012957874764425e-10,
+    "measuredFilmCalibration": false
+  },
+  "curveCorrection": {
+    "commit": "079844387659045a39ef4e5005191b0d77b81606",
+    "profile": "vision250d.json",
+    "license": "CC-BY-SA-4.0",
+    "adaptation": "nonnegative-spectral-density-basis-projection",
+    "fullEngineParity": false,
+    "commonMeasuredWavelengths": 76,
+    "spectralDensityRmsResidual": 0.049912053344961724
+  },
   "settingsSnapshot": {
     "camera": {
       "exposure_compensation_ev": 0.0,
@@ -176,13 +196,13 @@
     },
     "enlarger": {
       "illuminant": "TH-KG3",
-      "print_exposure": 1.0,
+      "print_exposure": 0.9810058781677703,
       "print_exposure_compensation": false,
       "normalize_print_exposure": true,
       "y_filter_shift": 0.0,
       "m_filter_shift": 0.0,
-      "y_filter_neutral": 54.476948425062304,
-      "m_filter_neutral": 50.75474630493298,
+      "y_filter_neutral": 56.461709349992255,
+      "m_filter_neutral": 49.53559750528725,
       "c_filter_neutral": 0.0,
       "lens_blur": 0.0,
       "diffusion_filter": {
@@ -270,6 +290,16 @@
       "deactivate_stochastic_effects": true,
       "print_timings": false,
       "lut_mode": true
+    },
+    "printMorph": {
+      "active": true,
+      "gamma_factor": 0.92,
+      "gamma_factor_fast": 1.0,
+      "gamma_factor_slow": 1.0,
+      "gamma_factor_red": 1.0,
+      "gamma_factor_green": 1.0,
+      "gamma_factor_blue": 1.0,
+      "developer_exhaustion": 0.0
     },
     "dir": {
       "active": true,
