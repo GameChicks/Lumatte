@@ -47,7 +47,8 @@ internal class FrameTypography(private val assets: FrameAssets) {
         if (value.isEmpty() || box.width() <= 0f || box.height() <= 0f || size <= 0f) return
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = custom?.let(assets::font) ?: face(font)
-            textSize = size; this.color = color; textAlign = Paint.Align.LEFT
+            textSize = size; textScaleX = 1f; isSubpixelText = true
+            this.color = color; textAlign = Paint.Align.LEFT
         }
         val lines = value.take(240).split('\n').take(3)
         // Spacing operates on character clusters, so surrogate pairs and marks stay together.

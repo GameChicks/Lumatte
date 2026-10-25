@@ -15,6 +15,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -23,12 +28,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Constraints
 import com.lumixfilmmirror.design.MirrorFonts
 import com.lumixfilmmirror.media.frame.FrameCameraNames
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
+import kotlin.math.exp
 
 /** Display metadata only: never invent a camera from a filename, remembered device or film preset. */
 internal fun developmentCameraModel(exif: String?, connected: String?): String? {
@@ -63,6 +70,15 @@ private fun developmentGate(availableWidth: Float, availableHeight: Float, ratio
 @Composable
 internal fun DevelopmentCamera(state: WorkspaceState, workspace: WorkspaceViewModel, filter: ColorFilter,
     progress: Float, onReady: (Bitmap) -> Unit) {
+    // Rotate this presentation only. The Activity, controls, source pixels and export stay unchanged.
+    QuarterTurnViewport(clockwise = true, modifier = Modifier.fillMaxSize()) {
+        DevelopmentCameraBody(state, workspace, filter, progress, onReady)
+    }
+}
+
+@Composable
+private fun DevelopmentCameraBody(state: WorkspaceState, workspace: WorkspaceViewModel, filter: ColorFilter,
+    progress: Float, onReady: (Bitmap) -> Unit) {
     val context = LocalContext.current
     val camera by workspace.cameraState.collectAsState()
     val model = developmentCameraModel(state.current?.metadata?.camera, camera.device?.model?.takeIf { camera.connected })
@@ -78,18 +94,34 @@ internal fun DevelopmentCamera(state: WorkspaceState, workspace: WorkspaceViewMo
             awaitCancellation()
         } finally { owned?.recycle() }
     }
-    BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp), contentAlignment = Alignment.Center) {
         val source = state.current ?: return@BoxWithConstraints
         if (maxWidth <= 0.dp || maxHeight <= 0.dp) return@BoxWithConstraints
-        val ratio = source.size.width.toFloat() / source.size.height
+        val turnPhoto = source.size.width < source.size.height
+        val ratio = maxOf(source.size.width, source.size.height).toFloat() / minOf(source.size.width, source.size.height)
         val gate = developmentGate(maxWidth.value, maxHeight.value, ratio)
         Box(Modifier.width(gate.width.dp).height(gate.height.dp).graphicsLayer {
             translationY = (1f - progress) * 5.dp.toPx()
         }) {
+            Canvas(Modifier.fillMaxSize()) {
+                val unit = gate.scale.dp.toPx()
+                val offset = 6.dp.toPx()
+                // Layered low-opacity contours approximate a diffuse shadow on API 30 as well.
+                // They avoid a hard opaque rectangle or an unsupported hardware blur fallback.
+                for (layer in 24 downTo 1) {
+                    val t = layer / 24f
+                    val spread = 20.dp.toPx() * t
+                    drawRoundRect(Color.Black.copy(alpha = .012f * exp(-3f * t * t)),
+                        topLeft = Offset(52f * unit + offset - spread, 110f * unit - spread),
+                        size = Size(size.width - 104f * unit + spread * 2,
+                            size.height - 200f * unit + spread * 2),
+                        cornerRadius = CornerRadius(72f * unit + spread))
+                }
+            }
             Box(Modifier.offset(gate.left.dp, gate.top.dp).width(gate.photoWidth.dp).height(gate.photoHeight.dp)
                 .clip(RoundedCornerShape((12f * gate.scale).dp)).background(Color.Black)) {
                 EditedPreview(state, workspace, colourFilter = filter, onReady = onReady,
-                    compactHeight = gate.photoHeight.dp, matte = Color.Black)
+                    compactHeight = gate.photoHeight.dp, matte = Color.Black, rotatePhotoForDevelopment = turnPhoto)
             }
             body?.let { bitmap -> Canvas(Modifier.fillMaxSize()) {
                 val unit = gate.scale.dp.toPx()
@@ -116,6 +148,22 @@ internal fun DevelopmentCamera(state: WorkspaceState, workspace: WorkspaceViewMo
                 .width(gate.photoWidth.dp), color = Color(0xFFCCC4B7), fontFamily = MirrorFonts.Body,
                 fontSize = (74f * gate.scale).sp, lineHeight = (90f * gate.scale).sp,
                 textAlign = TextAlign.End, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+    }
+}
+
+/** Swap layout constraints before rotating, so Fit uses the displayed axes rather than letterboxing. */
+@Composable
+internal fun QuarterTurnViewport(clockwise: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content = content, modifier = modifier) { children, constraints ->
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val child = children.single().measure(Constraints.fixed(height, width))
+        layout(width, height) {
+            child.placeWithLayer((width - height) / 2, (height - width) / 2) {
+                transformOrigin = TransformOrigin.Center
+                rotationZ = if (clockwise) 90f else -90f
+            }
         }
     }
 }

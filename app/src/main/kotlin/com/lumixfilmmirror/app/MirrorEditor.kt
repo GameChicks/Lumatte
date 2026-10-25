@@ -39,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -153,7 +155,7 @@ internal fun SwipePhotoPreview(state: WorkspaceState, workspace: WorkspaceViewMo
 @Composable
 internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel, frame: Boolean = false,
     original: Boolean = false, colourFilter: ColorFilter? = null, onReady: ((Bitmap) -> Unit)? = null, compactHeight: Dp? = null,
-    compareOnHold: Boolean = false, matte: Color? = null) {
+    compareOnHold: Boolean = false, matte: Color? = null, rotatePhotoForDevelopment: Boolean = false) {
     val source = state.current ?: return
     var held by remember(source.id) { mutableStateOf(false) }
     var originalBitmap by remember(source.id) { mutableStateOf<Bitmap?>(null) }
@@ -215,8 +217,13 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
         }
     } else Modifier),
         contentAlignment = Alignment.Center) {
-        (if(held)originalBitmap else bitmap)?.let { Image(it.asImageBitmap(), source.name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
-            colorFilter = if(held)null else colourFilter) }
+        (if(held)originalBitmap else bitmap)?.let { image ->
+            if (rotatePhotoForDevelopment) QuarterTurnViewport(clockwise = false, modifier = Modifier.fillMaxSize()) {
+                Image(image.asImageBitmap(), source.name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
+                    colorFilter = if (held) null else colourFilter)
+            } else Image(image.asImageBitmap(), source.name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
+                colorFilter = if (held) null else colourFilter)
+        }
         if(held && originalBitmap==null)CircularProgressIndicator(Modifier.size(24.dp))
         if(held)Text("原图",Modifier.align(Alignment.TopStart).padding(8.dp).background(Color.Black.copy(.55f),RoundedCornerShape(10.dp))
             .padding(horizontal=10.dp,vertical=5.dp),color=Color.White,fontSize=11.sp)
@@ -381,22 +388,28 @@ internal fun FilmReveal(state: WorkspaceState, workspace: WorkspaceViewModel, on
     val a = 2f * p - 1f
     val b = (1f - p) * 255f
     val matrix = ColorMatrix(floatArrayOf(a, 0f, 0f, 0f, b, 0f, a, 0f, 0f, b, 0f, 0f, a, 0f, b, 0f, 0f, 0f, 1f, 0f))
-    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    // The parent already applies safe drawing insets. Keep controls upright around the turned body.
+    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("The Darkroom", fontFamily = MirrorFonts.Editorial, fontSize = 34.sp)
+            Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                Text("Darkroom", fontFamily = MirrorFonts.FilmDisplay, fontStyle = FontStyle.Italic,
+                    fontSize = 32.sp, lineHeight = 36.sp, letterSpacing = .15.sp)
                 Text("$label · ${film?.name.orEmpty()}", color = LocalFilmMaterials.current.secondaryInk,
-                    style = MaterialTheme.typography.bodySmall)
+                    fontFamily = MirrorFonts.Body, fontWeight = FontWeight.Light,
+                    style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             TextButton(onClick = onFinish) { Text("跳过") }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             DevelopmentCamera(state, workspace, ColorFilter.colorMatrix(matrix), progress.value, onReady = { ready = true })
         }
-        Text("${state.photos.size} 张照片 · 一次显影", color = LocalFilmMaterials.current.secondaryInk,
-            style = MaterialTheme.typography.labelLarge)
-        Text("效果预览完成后选择画框，确认导出才会保存成片。", style = MaterialTheme.typography.bodySmall)
+        Column(Modifier.padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("${state.photos.size} 张照片 · 一次显影", color = LocalFilmMaterials.current.secondaryInk,
+                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Normal)
+            Text("完成后选择画框，确认导出才会保存。", style = MaterialTheme.typography.bodySmall,
+                color = LocalFilmMaterials.current.secondaryInk, fontWeight = FontWeight.Light)
+        }
     }
 }
 
