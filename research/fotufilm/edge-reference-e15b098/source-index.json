@@ -1,0 +1,31 @@
+{
+  "repository": "https://github.com/DhaliwalX/fotufilm-engine",
+  "commit": "e15b09815a83b0e00ba9381b65d31d253667a1b1",
+  "originalProfileCache": "tools/.cache/film-edges/profiles",
+  "files": {
+    "Sources/FotufilmCore/Stocks/c200.json": "efebc59eb3d0f750fdec3440d2d748a8522817501270ff849f7584d28330d54f",
+    "Sources/FotufilmCore/Stocks/pro400h.json": "1aa10323f30c17b97572fcd63e68ec5b6ca38076782b7f1bb2f051b78a5eb28f",
+    "Sources/FotufilmCore/Stocks/provia100f.json": "c8809179561958abc6064d5b59bad23b708b4c36bc03f8783c1194949dd3a599",
+    "Sources/FotufilmCore/Stocks/superia400.json": "22c94c05bf1b21b80b1c612fdb0b6bb33734ab878032a0d151d2cc570bce71a0",
+    "Sources/FotufilmCore/Stocks/ektachromee100.json": "aac4d69b16970c57d151872df7d2861613f45ba5ebd40648423bbd33ce3a53f9",
+    "Sources/FotufilmCore/Stocks/ektar100.json": "5ec4973f8c7f65c4679bf1187e2d105784c94bc56dfefeb5597b641ca2a21cf3",
+    "Sources/FotufilmCore/Stocks/gold200.json": "b2d6c67bce9a61011239bbed8526b5c6a54001b40cd026b1db4744b2c22d3cf6",
+    "Sources/FotufilmCore/Stocks/kodachrome64.json": "5a5c491c469249e4e2f40b0b8f793eada29398d7f455aa5732870903b967591b",
+    "Sources/FotufilmCore/Stocks/portra400.json": "6a98433bc13fb36b6bf33968506ffaea055c00179c0b90b33d63f97d8ac8cafc",
+    "Sources/FotufilmCore/Stocks/ultramax400.json": "17a8169c3a9accb276f2ea88f99c0c9b0dfb8604e9f80f6f0b788b5d432846ad",
+    "Sources/FotufilmCore/Stocks/verita200d.json": "08cb8a23e07e42e8dd2a712e828a9537264daf341dcec5d65fe74cf97b95b871",
+    "Sources/FotufilmCore/Stocks/vision250d.json": "73fa4a6313b977812bbdad63fcaa4758420bed0eb5af6e58066c6089ae6c4217",
+    "Sources/FotufilmCore/Stocks/vision500t.json": "85b370f8c10f5e7952db9aee752c9c5d2068ca97c4e1f315b97b4a6ede6928c4",
+    "Sources/FotufilmCore/Stocks/cinestill800t.json": "2509b7cadcc5db478a74bfb995887255f3d055e0038184b8ea3339c398481226",
+    "Sources/FotufilmCore/Stocks/cinestill400d.json": "237bcba277f68594651452432c1487f440088a99b960f6b96716c30b25008ba0",
+    "Sources/FotufilmCore/Stocks/acros100.json": "592e2463a0c1d01db35e6f1515c87a6cb134234677bbec7adde8db4002be338c",
+    "Sources/FotufilmCore/Stocks/trix400.json": "9d83989cb617a545ca934dc6bb053da1b5ce23f2639218c297a757f499c3e9bf",
+    "Sources/FotufilmCore/Stocks/hp5plus400.json": "c6a9db0f138409eccc86f2fd019bafd3df57e491e43eaff54f84b828b03f8cec",
+    "Sources/FotufilmCore/Stocks/delta3200.json": "19d6913321d32cf8fe2c68f376278232595db9fee8ee126f809960bee5fd7d75",
+    "Sources/FotufilmCore/PrintFrame.swift": "1c86668b304eb4ceb266afe21e454419be2cbce5f6f573ba65294a6785687692",
+    "docs/print-frame-model.md": "5586af72272e6c8bd58b8f5e92312d4999c1db362c4f4c723fbc32397ae978e5",
+    "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "NOTICE": "29b40b650c923921effc961522501edfeed1c1fc3e281b8fa9325a394f28fdd6",
+    "licenses/CC-BY-SA-4.0.txt": "28a9529c7d0bb4dc51f4bf5c116a3d16ef247a052f7591466768ddf563fd1cf5"
+  }
+}

@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 package com.lumixfilmmirror.app
 
 import android.content.Intent
@@ -18,6 +18,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -405,8 +407,9 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var frameTab by rememberSaveable { mutableStateOf("frame") }
-    var largeFramePreview by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(state.current?.id) { if(state.current==null)largeFramePreview=false }
+    LaunchedEffect(Unit) { if (frameTab !in setOf("frame", "output")) frameTab = "frame" }
+    var framePanel by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.current?.id) { if(state.current==null)framePanel=null }
     val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) try {
             context.contentResolver.takePersistableUriPermission(uri,
@@ -465,60 +468,8 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
             else EmptyImport("给照片一个归属。", "导入照片后选择画框与签名。", onImport)
         }
         else {
-        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp)
-            .clip(RoundedCornerShape(22.dp)).background(LocalFilmMaterials.current.paperHighlight)
-            .clickable { largeFramePreview = true }, contentAlignment = Alignment.Center) {
-            SwipePhotoPreview(state, workspace, frame = true, compactHeight = 136.dp)
-        }
-        MirrorTextAction("放大构图 ↗", { largeFramePreview = true }, Modifier.fillMaxWidth())
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            for ((key, title) in listOf("frame" to "画框", "details" to "文字与细节", "output" to "输出"))
-                MirrorChoice(frameTab == key, { frameTab = key }, Modifier.weight(1f), label = { Text(title, maxLines = 1, fontSize = 13.sp) })
-        }
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            if (frameTab == "frame") {
-            item {
-                Row(verticalAlignment=Alignment.CenterVertically) {
-                    Text("选择画框",Modifier.weight(1f),fontFamily=MirrorFonts.ChineseEditorial,fontSize=22.sp)
-                    Text("${FramePreset.entries.size} 款",style=MaterialTheme.typography.bodySmall,color=LocalFilmMaterials.current.secondaryInk)
-                }
-                Text("本批全部照片使用同一款画框", color = LocalFilmMaterials.current.secondaryInk, style = MaterialTheme.typography.bodySmall)
-            }
-            for (row in FramePreset.entries.chunked(3)) item(key = "frame-row:${row.first().name}") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { preset -> FrameSample(preset, state, workspace, Modifier.weight(1f)) }
-                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                }
-            }
-            }
-            item { if(state.photos.size>1)PhotoStrip(state,workspace) else PhotoManagementActions(state,workspace) }
-            if (frameTab == "details") item(key = "frame-details") {
-                MirrorFrameDetails(state, workspace,
-                    onFont = { target -> fontTarget = target; fontPicker.launch(arrayOf("*/*")) },
-                    onArt = { art.launch(arrayOf("image/*")) })
-            }
-            if (frameTab == "output") {
-            item { OutputControls(state, workspace, showFormat = true) }
-            item {
-                MirrorControlSection("保存位置") {
-                    Text(if (state.destination is ExportDestination.Gallery) "相册 / Pictures/LumixFilmMirror" else "当前使用所选文件夹",
-                        color = LocalFilmMaterials.current.secondaryInk, style = MaterialTheme.typography.bodySmall)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MirrorChoice(state.destination is ExportDestination.Gallery, { workspace.destination(ExportDestination.Gallery) },
-                            enabled = !state.busy, label = { Text("相册") })
-                        MirrorChoice(state.destination is ExportDestination.Folder, { folder.launch(null) }, enabled = !state.busy,
-                            label = { Text("选择文件夹 ↗") })
-                    }
-                }
-            }
-            if (state.exported.isNotEmpty()) item { Text("已保存 ${state.exported.size} 张照片", color = MaterialTheme.colorScheme.primary) }
-            state.failures.forEach { failure -> item { Text("${failure.name}：${failure.reason}", color = MaterialTheme.colorScheme.error) } }
-            if (!state.busy && state.failures.any { it.id != null }) item {
-                TextButton(onClick = { workspace.export(retryOnly = true) }) { Text("重试失败照片") }
-            }
-            }
-        }
+        FrameEditingContent(state, workspace, frameTab, { frameTab = it }, { framePanel = it },
+            { folder.launch(null) }, Modifier.weight(1f))
         }
         if (state.current != null) MirrorButton(enabled = !state.busy, onClick = { workspace.export() },
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp), shape = RoundedCornerShape(28.dp)) {
@@ -527,19 +478,106 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
         }
         }
     }
-    if (largeFramePreview && state.current != null) MirrorDialog("构图预览", onDismiss = { largeFramePreview = false }) { close ->
-        if (state.photos.size > 1) PhotoStrip(state, workspace)
-        SwipePhotoPreview(state, workspace, frame = true,
-            compactHeight = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * .56f).dp)
-        Text("${state.frame.preset.title} · 本批 ${state.photos.size} 张", color = LocalFilmMaterials.current.secondaryInk)
-        MirrorTextAction("继续选择", close, Modifier.fillMaxWidth())
+    if (framePanel != null && state.current != null) ModalBottomSheet(onDismissRequest = { framePanel = null },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = LocalFilmMaterials.current.paper) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(.92f).navigationBarsPadding().padding(horizontal = 20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(if (framePanel == "text") "文字与字体" else "构图与信息", Modifier.weight(1f),
+                    fontFamily = MirrorFonts.ChineseEditorial, fontSize = 24.sp)
+                TextButton(onClick = { framePanel = null }) { Text("完成") }
+            }
+            if (framePanel == "text") MirrorFrameTextEditor(state, workspace, onFont = { target ->
+                fontTarget = target; fontPicker.launch(arrayOf("*/*"))
+            }) else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)) {
+                item { Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
+                    SwipePhotoPreview(state, workspace, frame = true, compactHeight = 180.dp)
+                } }
+                item { MirrorFrameDetails(state, workspace, textControls = false,
+                    onFont = { target -> fontTarget = target; fontPicker.launch(arrayOf("*/*")) },
+                    onArt = { art.launch(arrayOf("image/*")) }) }
+                item { if (state.photos.size > 1) PhotoStrip(state, workspace) else PhotoManagementActions(state, workspace) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FrameEditingContent(state: WorkspaceState, workspace: WorkspaceViewModel, tab: String,
+    onTab: (String) -> Unit, onPanel: (String) -> Unit, onFolder: () -> Unit, modifier: Modifier) {
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val wide = maxWidth > maxHeight
+        val preview: @Composable (Modifier) -> Unit = { area ->
+            Column(area.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                    .background(LocalFilmMaterials.current.paperHighlight), contentAlignment = Alignment.Center) {
+                    SwipePhotoPreview(state, workspace, frame = true, compactHeight = maxHeight)
+                }
+                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Text(state.frame.preset.title, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+                    Text("本批 ${state.photos.size} 张", style = MaterialTheme.typography.labelMedium,
+                        color = LocalFilmMaterials.current.secondaryInk)
+                }
+            }
+        }
+        if (wide) Row(Modifier.fillMaxSize()) {
+            preview(Modifier.weight(1.4f).fillMaxHeight())
+            FrameFinishingControls(state, workspace, tab, onTab, onPanel, onFolder, Modifier.weight(1f).fillMaxHeight())
+        } else Column(Modifier.fillMaxSize()) {
+            preview(Modifier.weight(1f))
+            FrameFinishingControls(state, workspace, tab, onTab, onPanel, onFolder,
+                if (tab == "output") Modifier.weight(.85f) else Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun FrameFinishingControls(state: WorkspaceState, workspace: WorkspaceViewModel, tab: String,
+    onTab: (String) -> Unit, onPanel: (String) -> Unit, onFolder: () -> Unit, modifier: Modifier) {
+    val presets = FramePreset.entries.filter { it != FramePreset.STOCK_FILM || state.treatment == PhotoTreatment.FILM }
+    val controls = if (tab == "output") modifier else modifier.verticalScroll(rememberScrollState())
+    Column(controls, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for ((key, label) in listOf("frame" to "边框水印", "output" to "导出设置"))
+                MirrorChoice(tab == key, { onTab(key) }, Modifier.weight(1f), label = { Text(label, fontSize = 13.sp) })
+        }
+        if (tab != "output") {
+            LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(presets, key = { it.name }) { preset -> FrameSample(preset, state, workspace, Modifier.width(108.dp)) }
+            }
+            Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MirrorChoice(false, { onPanel("text") }, Modifier.weight(1f),
+                    enabled = !state.busy && state.frame.preset !in setOf(FramePreset.NONE, FramePreset.STOCK_FILM),
+                    label = { Text("文字与字体", fontSize = 13.sp) })
+                MirrorChoice(false, { onPanel("layout") }, Modifier.weight(1f), enabled = !state.busy,
+                    label = { Text("构图与信息", fontSize = 13.sp) })
+            }
+        } else LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            item { OutputControls(state, workspace, showFormat = true) }
+            item { MirrorControlSection("保存位置") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MirrorChoice(state.destination is ExportDestination.Gallery, { workspace.destination(ExportDestination.Gallery) },
+                        enabled = !state.busy, label = { Text("相册") })
+                    MirrorChoice(state.destination is ExportDestination.Folder, onFolder, enabled = !state.busy,
+                        label = { Text("选择文件夹 ↗") })
+                }
+            } }
+            state.failures.forEach { failure -> item { Text("${failure.name}：${failure.reason}", color = MaterialTheme.colorScheme.error) } }
+            if (!state.busy && state.failures.any { it.id != null }) item {
+                TextButton(onClick = { workspace.export(retryOnly = true) }) { Text("重试失败照片") }
+            }
+        }
     }
 }
 
 @Composable
 private fun FrameSample(preset: FramePreset, state: WorkspaceState, workspace: WorkspaceViewModel, modifier: Modifier = Modifier) {
     val source = state.current ?: return
-    val options = state.exportOptions.copy(frame = state.frame.copy(preset = preset),
+    val choice = if (preset == FramePreset.STOCK_FILM && state.frame.preset != preset)
+        state.frame.copy(preset = preset, ratio = FrameRatio.ORIGINAL, portrait = null) else state.frame.copy(preset = preset)
+    val options = state.exportOptions.copy(frame = choice,
         jpeg = state.output.copy(compressionQuality = 100))
     // A preset thumbnail is independent of the currently selected preset and other photos' edits.
     val recipe = workspace.photoRecipe(state, source.id)
@@ -558,7 +596,7 @@ private fun FrameSample(preset: FramePreset, state: WorkspaceState, workspace: W
     val shape = RoundedCornerShape(14.dp)
     Column(modifier.clip(shape).background(tones.paperHighlight)
         .border(if (selected) 2.dp else 1.dp, if (selected) tones.amber else tones.rim.copy(.5f), shape)
-        .selectable(selected, enabled = !state.busy, role = Role.RadioButton) { workspace.updateFrame(state.frame.copy(preset = preset)) },
+        .selectable(selected, enabled = !state.busy, role = Role.RadioButton) { workspace.updateFrame(choice) },
         horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().aspectRatio(1.45f), contentAlignment = Alignment.Center) {
             thumbnail?.let { Image(it.asImageBitmap(), preset.title, Modifier.fillMaxSize().padding(4.dp), contentScale = ContentScale.Fit) }

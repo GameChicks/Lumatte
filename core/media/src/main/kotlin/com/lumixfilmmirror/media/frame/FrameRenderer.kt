@@ -18,6 +18,7 @@ internal data class FrameIdentity(val camera: String, val brand: String, val fil
 internal class FrameRenderer(context: Context) {
     val assets = FrameAssets(context)
     private val fonts = FrameTypography(assets)
+    private val stockEdges by lazy { FrameStockEdge(context, fonts) }
 
     /** NONE returns the borrowed input. Other presets return a new owned bitmap; input is never recycled. */
     fun render(photo: Bitmap, source: SourceImage, options: FrameOptions, layout: FrameLayout,
@@ -31,6 +32,14 @@ internal class FrameRenderer(context: Context) {
         val transparent = transparentBackground && options.preset in setOf(FramePreset.FILM, FramePreset.TICKET)
         try {
             val canvas = Canvas(pixels)
+            if (options.preset == FramePreset.STOCK_FILM) {
+                val film = requireNotNull(stock) { "胶卷片边仅适用于胶片模拟" }
+                val imageBox = layout.photo.rect()
+                stockEdges.draw(canvas, imageBox, film, frameNumber, transparentBackground, checkActive)
+                checkActive()
+                canvas.drawBitmap(photo, null, imageBox, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+                return pixels
+            }
             // Opaque exports keep the full canvas filled; PNG cut-outs leave the margins empty.
             val colors = if (options.fixedColorArgb == null && options.preset in setOf(FramePreset.PALETTE, FramePreset.FILM))
                 FramePalette.extract(photo) else emptyMap()

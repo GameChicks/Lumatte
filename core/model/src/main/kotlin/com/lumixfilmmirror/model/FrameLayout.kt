@@ -8,12 +8,14 @@ enum class FramePreset(val title: String) {
     NONE("无边框"), PAPER("白色相纸"), BLACK("黑色画廊"), FILM("胶片暗盒"),
     TICKET("记忆票根"), INSTANT("拍立得"), DUSK("暮色"), MIST("雾面"),
     PALETTE("取色相框"), MUSEUM("典藏纸框"), SLIDE("幻灯片夹"),
+    STOCK_FILM("胶卷片边"),
 }
 
 enum class FrameRatio(val title: String, val landscape: Float?) {
     ORIGINAL("原比例", null), SQUARE("1:1", 1f), THREE_TWO("3:2", 1.5f),
     FOUR_THREE("4:3", 4f / 3f), SEVEN_SIX("7:6", 7f / 6f),
     FIVE_FOUR("5:4", 1.25f), FIFTEEN_NINE("15:9", 15f / 9f), TWO_ONE("2:1", 2f),
+    XPAN("65:24", 65f / 24f),
 }
 
 enum class FrameFont(val title: String) {
@@ -33,6 +35,23 @@ object FrameLayouts {
     fun plan(content: PixelSize, frame: FrameOptions, stockArtwork: Boolean = false): FrameLayout {
         val pw = content.width.toFloat()
         val ph = content.height.toFloat()
+        if (frame.preset == FramePreset.STOCK_FILM) {
+            require(stockArtwork) { "胶卷片边仅适用于胶片模拟" }
+            val portrait = pw < ph
+            val mm = min(pw, ph) / 24f
+            val railX = mm * if (portrait) 5.5f else 1f
+            val railY = mm * if (portrait) 1f else 5.5f
+            var width = pw + 2 * railX
+            var height = ph + 2 * railY
+            frame.ratio.landscape?.let {
+                val ratio = if (frame.portrait ?: portrait) 1 / it else it
+                if (width / height < ratio) width = height * ratio else height = width / ratio
+            }
+            val canvas = PixelSize(ceil(width.toDouble()).toInt(), ceil(height.toDouble()).toInt())
+            val x = round((canvas.width - pw) / 2)
+            val y = round((canvas.height - ph) / 2)
+            return FrameLayout(canvas, FloatBox(x, y, x + pw, y + ph), FloatBox(0f, 0f, 0f, 0f), null)
+        }
         if (frame.preset == FramePreset.NONE) {
             return FrameLayout(content, FloatBox(0f, 0f, pw, ph), FloatBox(0f, ph, pw, ph), null)
         }

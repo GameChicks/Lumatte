@@ -2,6 +2,11 @@
 package com.lumixfilmmirror.app
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -10,6 +15,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import com.lumixfilmmirror.design.MirrorFonts
 import com.lumixfilmmirror.design.LocalFilmMaterials
 import com.lumixfilmmirror.model.*
 import androidx.compose.ui.unit.dp
@@ -17,14 +26,14 @@ import kotlin.math.roundToInt
 
 @Composable
 internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewModel,
-    onFont: (String) -> Unit, onArt: () -> Unit) {
+    onFont: (String) -> Unit, onArt: () -> Unit, textControls: Boolean = true) {
     val frame = state.frame
     val enabled = !state.busy
     val tones = LocalFilmMaterials.current
     val assets = LocalContext.current.applicationContext.assets
     // Match the bundled typefaces used by FrameTypography; load once, not on selection.
-    val signatureFaces = remember(assets) {
-        FrameFont.entries.associateWith { font ->
+    val signatureFaces = remember(assets, textControls) {
+        if (!textControls) emptyMap() else FrameFont.entries.associateWith { font ->
             val file = when (font) {
                 FrameFont.SANS -> "film_sans_regular.otf"
                 FrameFont.TYPEWRITER -> "print_typewriter.ttf"
@@ -38,12 +47,28 @@ internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewM
         }
     }
     var extra by rememberSaveable { mutableStateOf(false) }
+    if (frame.preset == FramePreset.STOCK_FILM) {
+        MirrorControlSection("胶卷片边", "跟随每张照片实际使用的胶卷，不支持手动套用其他卷的代码。") {
+            val name = state.selected?.let { runCatching { workspace.filmPlan(state, it).preset.name }.getOrNull() }
+            name?.let { Text(it, fontFamily = MirrorFonts.Editorial, fontSize = 24.sp) }
+            Text("字样、片号与 DX 采用该胶卷已有的资料；无可靠记录的部分留空。片号用于本次模拟展示，不是原始胶卷底片编号。",
+                style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
+            Text("照片按原比例完整保留，片边顺着长边延伸。正片使用黑色片基；齿孔在 PNG 中透明。",
+                style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
+            Text("画布比例", style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FrameRatio.entries.forEach { ratio -> MirrorChoice(frame.ratio == ratio,
+                    { workspace.updateFrame(frame.copy(ratio = ratio)) }, enabled = enabled, label = { Text(ratio.title) }) }
+            }
+        }
+        return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (frame.preset == FramePreset.NONE) {
             MirrorControlSection("照片本身") { Text("选择画框后，可添加签名、拍摄信息与纸边。", color = tones.secondaryInk) }
         } else {
             MirrorControlSection("签名与拍摄信息") {
-                MirrorTextField(frame.signature, { workspace.updateFrame(frame.copy(signature = it.take(240))) }, "签名 / 水印文字", enabled = enabled)
+                if (textControls) MirrorTextField(frame.signature, { workspace.updateFrame(frame.copy(signature = it.take(240))) }, "签名 / 水印文字", enabled = enabled)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("显示文字与拍摄信息", Modifier.weight(1f))
                     MirrorToggle(frame.showPhotoMetadata, "显示标题与拍摄信息", enabled) { workspace.updateFrame(frame.copy(showPhotoMetadata = it)) }
@@ -72,6 +97,7 @@ internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewM
                     }
                 }
                 Text("开关应用于整批；每张照片只显示实际检测到的数据。", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
+                if (textControls) {
                 Text("签名字体", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     FrameFont.entries.forEach { font ->
@@ -82,6 +108,7 @@ internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewM
                 }
                 MirrorTextAction(if (frame.signatureFontKey == null) "导入签名字体 ↗" else "更换已导入的字体 ↗",
                     { onFont("signature") }, enabled = enabled)
+                }
             }
             MirrorControlSection("构图与纸边") {
                 Text("画布比例", style = MaterialTheme.typography.labelLarge)
@@ -129,10 +156,10 @@ internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewM
                             label = { Text(label) })
                 }
             }
-            MirrorChoice(extra, { extra = !extra }, Modifier.fillMaxWidth(), label = {
+            if (textControls) MirrorChoice(extra, { extra = !extra }, Modifier.fillMaxWidth(), label = {
                 Text(if (extra) "收起更多文字与字体 ↑" else "更多文字与字体 ↓")
             })
-            if (extra) {
+            if (extra && textControls) {
                 MirrorControlSection("标题与注记", "不同画框使用各自的文字区域。") {
                     if (!frame.showPhotoMetadata) Text("打开上方“显示标题与拍摄信息”后，这些文字会出现在成片中。",
                         color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall)
@@ -152,6 +179,93 @@ internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewM
                         Text(if (frame.imageKey == null) "导入装饰图 ↗" else "更换装饰图 ↗")
                     })
                     if (frame.imageKey != null) MirrorTextAction("移除装饰图", { workspace.updateFrame(frame.copy(imageKey = null)) }, enabled = enabled)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun MirrorFrameTextEditor(state: WorkspaceState, workspace: WorkspaceViewModel, onFont: (String) -> Unit) {
+    var target by rememberSaveable { mutableStateOf("title") }
+    val frame = state.frame
+    val tones = LocalFilmMaterials.current
+    val assets = LocalContext.current.applicationContext.assets
+    val faces = remember(assets) { FrameFont.entries.associateWith { font ->
+        val file = when (font) {
+            FrameFont.SANS -> "film_sans_regular.otf"; FrameFont.TYPEWRITER -> "print_typewriter.ttf"
+            FrameFont.SCRIPT -> "print_script.ttf"; FrameFont.SERIF -> "print_serif.ttf"
+            FrameFont.DISPLAY -> "print_display.ttf"; FrameFont.SPACED -> "print_spaced.ttf"
+            FrameFont.GREAT_VIBES -> "print_great_vibes.ttf"
+        }
+        FontFamily(android.graphics.Typeface.createFromAsset(assets, "frames/fonts/$file"))
+    } }
+    val base = when (frame.preset) {
+        FramePreset.FILM, FramePreset.SLIDE -> FrameFont.TYPEWRITER
+        FramePreset.TICKET -> FrameFont.GREAT_VIBES
+        FramePreset.MUSEUM -> FrameFont.SERIF
+        else -> FrameFont.SPACED
+    }
+    val face = when (target) {
+        "title" -> frame.titleFont ?: base
+        "subtitle" -> frame.subtitleFont ?: if (frame.preset == FramePreset.TICKET) FrameFont.SPACED else base
+        "footer" -> frame.footerFont ?: if (frame.preset == FramePreset.TICKET) FrameFont.TYPEWRITER else FrameFont.SANS
+        else -> frame.signatureFont
+    }
+    val custom = when (target) { "title" -> frame.titleFontKey; "subtitle" -> frame.subtitleFontKey
+        "footer" -> frame.footerFontKey; else -> frame.signatureFontKey }
+    val value = when (target) { "title" -> frame.title; "subtitle" -> frame.subtitle
+        "footer" -> frame.footer; else -> frame.signature }.orEmpty()
+    val example = value.ifBlank { when (target) {
+        "title" -> if (frame.preset == FramePreset.TICKET) "Where the light lingers" else state.current?.metadata?.frameCameraName.orEmpty()
+        "subtitle" -> state.selected?.let { runCatching { workspace.filmPlan(state, it).preset.name }.getOrNull() }.orEmpty()
+        "footer" -> if (frame.preset == FramePreset.TICKET) "A moment, kept in light." else state.current?.metadata?.detail.orEmpty()
+        else -> "Your signature"
+    } }.ifBlank { "光影 / Aa" }
+    val enabled = !state.busy && (target == "signature" || frame.showPhotoMetadata)
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().weight(.8f).clip(RoundedCornerShape(18.dp))
+            .background(tones.paperHighlight), contentAlignment = Alignment.Center) {
+            EditedPreview(state, workspace, frame = true, compactHeight = maxHeight)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            for ((key, name) in listOf("title" to "主标题", "subtitle" to "副标题", "footer" to "底部小字", "signature" to "签名"))
+                MirrorChoice(target == key, { target = key }, Modifier.weight(1f), label = { Text(name, fontSize = 12.sp, maxLines = 1) })
+        }
+        MirrorTextField(value, { text -> workspace.updateFrame(when (target) {
+            "title" -> frame.copy(title = text.take(240).ifBlank { null })
+            "subtitle" -> frame.copy(subtitle = text.take(240).ifBlank { null })
+            "footer" -> frame.copy(footer = text.take(240).ifBlank { null })
+            else -> frame.copy(signature = text.take(240))
+        }) }, if (target == "signature") "签名，可留空" else "留空使用当前照片的信息", enabled = enabled)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("显示文字与拍摄信息", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+            MirrorToggle(frame.showPhotoMetadata, "显示文字与拍摄信息", !state.busy) {
+                workspace.updateFrame(frame.copy(showPhotoMetadata = it))
+            }
+        }
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
+            item { MirrorTextAction(if (custom == null) "导入字体 ↗" else "已使用导入字体 · 更换 ↗", { onFont(target) }, enabled = enabled) }
+            for (row in FrameFont.entries.chunked(2)) item(key = row.first().name) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { font ->
+                        val selected = face == font && custom == null
+                        val shape = RoundedCornerShape(16.dp)
+                        Column(Modifier.weight(1f).clip(shape).background(tones.paperHighlight)
+                            .border(if (selected) 2.dp else 1.dp, if (selected) tones.amber else tones.rim, shape)
+                            .clickable(enabled = enabled) { workspace.updateFrame(when (target) {
+                                "title" -> frame.copy(titleFont = font, titleFontKey = null)
+                                "subtitle" -> frame.copy(subtitleFont = font, subtitleFontKey = null)
+                                "footer" -> frame.copy(footerFont = font, footerFontKey = null)
+                                else -> frame.copy(signatureFont = font, signatureFontKey = null)
+                            }) }.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(example, Modifier.heightIn(min = 58.dp), fontFamily = faces.getValue(font),
+                                fontSize = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(font.title + if (selected) " ✓" else "", style = MaterialTheme.typography.labelSmall,
+                                color = if (selected) tones.amber else tones.secondaryInk)
+                        }
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }

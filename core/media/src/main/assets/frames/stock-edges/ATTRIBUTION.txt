@@ -1,0 +1,5 @@
+Stock edge records: Fotufilm / MUAStudio Inc., CC BY-SA 4.0.
+https://github.com/DhaliwalX/fotufilm-engine/tree/e15b09815a83b0e00ba9381b65d31d253667a1b1
+DX encoding adapted from PrintFrame.swift, Apache-2.0; original NOTICE and LICENSE preserved.
+Changes: extracted 135 records, Android vector lettering, decorative developed-film colours, original-photo aspect without crop.
+Undocumented stock edges and DX codes stay blank; no emulsion or roll serial is invented.

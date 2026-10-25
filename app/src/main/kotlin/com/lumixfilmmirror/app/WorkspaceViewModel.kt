@@ -427,8 +427,13 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         val snapshot = mutable.value
         val id = snapshot.processingBatchId ?: return
         if (snapshot.busy || snapshot.frame == frame) return
+        if (frame.preset == com.lumixfilmmirror.model.FramePreset.STOCK_FILM && snapshot.treatment != PhotoTreatment.FILM) {
+            notice("胶卷片边仅适用于胶片模拟")
+            return
+        }
         if (frame.preset != snapshot.frame.preset && frame.preset in setOf(
-                com.lumixfilmmirror.model.FramePreset.FILM, com.lumixfilmmirror.model.FramePreset.TICKET)) {
+                com.lumixfilmmirror.model.FramePreset.FILM, com.lumixfilmmirror.model.FramePreset.TICKET,
+                com.lumixfilmmirror.model.FramePreset.STOCK_FILM)) {
             output(snapshot.output.copy(format = com.lumixfilmmirror.model.ExportFormat.PNG))
         }
         frameDrafts[id] = frame
@@ -454,6 +459,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun saveEdit(treatment: PhotoTreatment, film: FilmBatch?) {
         val id = mutable.value.processingBatchId ?: return
+        if (treatment != PhotoTreatment.FILM && mutable.value.frame.preset == com.lumixfilmmirror.model.FramePreset.STOCK_FILM)
+            updateFrame(mutable.value.frame.copy(preset = com.lumixfilmmirror.model.FramePreset.NONE))
         editDrafts[id] = treatment to film
         mutable.update { it.copy(treatment = treatment, filmBatch = film, processingBatches = it.processingBatches.map { batch ->
             if (batch.id == id) batch.copy(treatment = treatment, film = film) else batch

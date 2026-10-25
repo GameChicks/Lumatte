@@ -1,0 +1,820 @@
+{
+  "schema": 1,
+  "sourceCommit": "e15b09815a83b0e00ba9381b65d31d253667a1b1",
+  "author": "Fotufilm / MUAStudio Inc.",
+  "license": "CC-BY-SA-4.0",
+  "stocks": [
+    {
+      "stockId": "fujifilm_c200",
+      "name": "Fujifilm C200",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "c200",
+      "edge": {
+        "dx": {
+          "part1": 39,
+          "part2": 1,
+          "source": "https://asset.fujifilm.com/master/emea/files/2020-10/98c3d5087c253f51c132a5d46059f131/films_c200_datasheet_01.pdf"
+        },
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "200",
+            "widthMM": 2.31,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.15,
+            "text": "FUJI",
+            "widthMM": 3.08,
+            "xMM": 17,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.15,
+            "text": "CA24",
+            "widthMM": 3.08,
+            "xMM": 24,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://asset.fujifilm.com/master/emea/files/2020-10/98c3d5087c253f51c132a5d46059f131/films_c200_datasheet_01.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "fujifilm_pro_400h",
+      "name": "Fujifilm Pro 400H",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "pro400h",
+      "edge": {
+        "dx": {
+          "part1": 36,
+          "part2": 8,
+          "source": "https://asset.fujifilm.com/www/za/files/2019-09/d68b00b13f1b6234629342317be9cf2b/films_pro-400h_datasheet_01.pdf"
+        },
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "PRO400H",
+            "widthMM": 5.39,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.15,
+            "text": "FUJI",
+            "widthMM": 3.08,
+            "xMM": 24,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://asset.fujifilm.com/www/za/files/2019-09/d68b00b13f1b6234629342317be9cf2b/films_pro-400h_datasheet_01.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "fujifilm_provia_100f",
+      "name": "Fujifilm Provia 100F",
+      "positive": true,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "provia100f",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "FUJI RDPIII",
+            "widthMM": 8.47,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://asset.fujifilm.com/www/za/files/2019-09/4ca5dfc19ecbea6b26c635b5079d6ff3/films_provia-100f_datasheet_01.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "fujifilm_velvia_100",
+      "name": "Fujifilm Velvia 100",
+      "positive": true,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": null,
+      "edge": null
+    },
+    {
+      "stockId": "fujifilm_xtra_400",
+      "name": "Fujifilm X-Tra 400",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "superia400",
+      "edge": {
+        "dx": {
+          "part1": 39,
+          "part2": 2,
+          "source": "https://asset.fujifilm.com/master/emea/files/2020-10/9a958fdcc6bd1442a06f71e134b811f6/films_superia-xtra400_datasheet_01.pdf"
+        },
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "S-400",
+            "widthMM": 3.85,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.15,
+            "text": "FUJI",
+            "widthMM": 3.08,
+            "xMM": 18,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.15,
+            "text": "CH23",
+            "widthMM": 3.08,
+            "xMM": 24,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://asset.fujifilm.com/master/emea/files/2020-10/9a958fdcc6bd1442a06f71e134b811f6/films_superia-xtra400_datasheet_01.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_ektachrome_100",
+      "name": "Kodak Ektachrome 100",
+      "positive": true,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "ektachromee100",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "KODAK E100",
+            "widthMM": 7.7,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://www.kodakprofessional.com/photographers/film/color/kodak-professional-ektachrome-film-e100/531",
+          "https://www.flickr.com/photos/der_seb/52772215709/"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_ektar_100",
+      "name": "Kodak Ektar 100",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "ektar100",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "KODAK EKTAR 100",
+            "widthMM": 11.55,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://www.kodakprofessional.com/photographers/film/color/kodak-professional-ektar-100-film/530",
+          "https://filmcolors.org/wp-content/uploads/2025/11/2003KodakProfessionalCatalog_L9.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_gold_200",
+      "name": "Kodak Gold 200",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "gold200",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "KODAK GB 200-7",
+            "widthMM": 10.78,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://www.flickr.com/photos/8639818@N02/54931566536/",
+          "https://www.flickr.com/photos/martinssonmartin/49005947743/"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_kodachrome_64",
+      "name": "Kodak Kodachrome 64",
+      "positive": true,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "kodachrome64",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "KODAK 5032",
+            "widthMM": 7.7,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.15,
+            "text": "KR 64",
+            "widthMM": 3.85,
+            "xMM": 26,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://www.flickr.com/photos/michaelraso/4281172153/",
+          "https://petapixel.com/2012/07/17/shooting-kodachrome-film-in-2012/",
+          "https://www.dagiebrundert.de/alle%20Bilder/Kodachromemagicbath.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_portra_160",
+      "name": "Kodak Portra 160",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": null,
+      "edge": null
+    },
+    {
+      "stockId": "kodak_portra_400",
+      "name": "Kodak Portra 400",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "portra400",
+      "edge": {
+        "dx": {
+          "part1": 95,
+          "part2": 13,
+          "source": "https://github.com/Merinorus/Open-source-film-database"
+        },
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "KODAK PORTRA 400",
+            "widthMM": 12.32,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://www.kodakprofessional.com/photographers/film/color/kodak-professional-portra-400-film/516",
+          "https://filmcolors.org/wp-content/uploads/2025/11/2003KodakProfessionalCatalog_L9.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_portra_800",
+      "name": "Kodak Portra 800",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": null,
+      "edge": null
+    },
+    {
+      "stockId": "kodak_ultramax_400",
+      "name": "Kodak Ultramax 400",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "ultramax400",
+      "edge": {
+        "dx": {
+          "part1": 96,
+          "part2": 1,
+          "source": "https://mips.di.unimi.it/photofire/archive/additional_material/IIIA_DX_Codes_for_135-size_film_2009.pdf"
+        },
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "KODAK GC 400",
+            "widthMM": 9.24,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 33.15
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://www.35mmc.com/11/07/2023/fujifilm-400-made-in-the-usa-vs-kodak-ultramax-400-the-same-or-different/"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_verita_200d",
+      "name": "Kodak Verita 200D",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": true,
+      "sourceProfile": "verita200d",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 0.75,
+            "text": "5206",
+            "widthMM": 4.2,
+            "xMM": 17,
+            "yMM": 0.55
+          }
+        ],
+        "sources": [
+          "https://www.kodak.com/content/pdfs/motion/KODAK-VERITA-200D-5206-7206-technical-information.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_vision3_200t",
+      "name": "Kodak Vision3 200T",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": true,
+      "sourceProfile": null,
+      "edge": null
+    },
+    {
+      "stockId": "kodak_vision3_250d",
+      "name": "Kodak Vision3 250D",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": true,
+      "sourceProfile": "vision250d",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 0.75,
+            "text": "EASTMAN",
+            "widthMM": 8.5,
+            "xMM": 1,
+            "yMM": 0.55
+          },
+          {
+            "heightMM": 0.75,
+            "text": "5207",
+            "widthMM": 4.2,
+            "xMM": 17,
+            "yMM": 0.55
+          }
+        ],
+        "sources": [
+          "https://www.kodak.com/content/products-brochures/Film/post-production-35mm-keykode-diagram.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_vision3_500t",
+      "name": "Kodak Vision3 500T",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": true,
+      "sourceProfile": "vision500t",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 0.75,
+            "text": "EASTMAN",
+            "widthMM": 8.5,
+            "xMM": 1,
+            "yMM": 0.55
+          },
+          {
+            "heightMM": 0.75,
+            "text": "5219",
+            "widthMM": 4.2,
+            "xMM": 17,
+            "yMM": 0.55
+          }
+        ],
+        "sources": [
+          "https://www.kodak.com/content/products-brochures/Film/post-production-35mm-keykode-diagram.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "kodak_vision3_50d",
+      "name": "Kodak Vision3 50D",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": true,
+      "sourceProfile": null,
+      "edge": null
+    },
+    {
+      "stockId": "cinestill_800t",
+      "name": "CineStill 800T",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "cinestill800t",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 0.75,
+            "text": "EJ",
+            "widthMM": 2.2,
+            "xMM": 1,
+            "yMM": 0.55
+          }
+        ],
+        "sources": [
+          "https://fstoppers.com/film/how-get-real-sprocket-holes-your-images-556406"
+        ]
+      }
+    },
+    {
+      "stockId": "cinestill_400d",
+      "name": "CineStill 400D",
+      "positive": false,
+      "monochrome": false,
+      "motionPicture": false,
+      "sourceProfile": "cinestill400d",
+      "edge": null
+    },
+    {
+      "stockId": "fujifilm_acros_100_ii",
+      "name": "Fujifilm Acros 100 II",
+      "positive": false,
+      "monochrome": true,
+      "motionPicture": false,
+      "sourceProfile": "acros100",
+      "edge": null
+    },
+    {
+      "stockId": "kodak_tri_x_400",
+      "name": "Kodak Tri-X 400",
+      "positive": false,
+      "monochrome": true,
+      "motionPicture": false,
+      "sourceProfile": "trix400",
+      "edge": {
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "KODAK 400TX",
+            "widthMM": 9.24,
+            "xMM": 2,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://www.kodakprofessional.com/photographers/film/black-white/kodak-professional-tri-x-films/515",
+          "https://filmcolors.org/wp-content/uploads/2025/11/2003KodakProfessionalCatalog_L9.pdf"
+        ]
+      }
+    },
+    {
+      "stockId": "ilford_hp5_plus_400",
+      "name": "Ilford HP5 Plus 400",
+      "positive": false,
+      "monochrome": true,
+      "motionPicture": false,
+      "sourceProfile": "hp5plus400",
+      "edge": {
+        "dx": {
+          "part1": 109,
+          "part2": 9,
+          "source": "https://mips.di.unimi.it/photofire/archive/additional_material/IIIA_DX_Codes_for_135-size_film_2009.pdf"
+        },
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "ILFORD HP5 PLUS",
+            "widthMM": 11.55,
+            "xMM": 2,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://www.ilfordphoto.com/common-film-processing-problems/"
+        ]
+      }
+    },
+    {
+      "stockId": "ilford_delta_3200",
+      "name": "Ilford Delta 3200",
+      "positive": false,
+      "monochrome": true,
+      "motionPicture": false,
+      "sourceProfile": "delta3200",
+      "edge": {
+        "dx": {
+          "part1": 108,
+          "part2": 10,
+          "source": "https://mips.di.unimi.it/photofire/archive/additional_material/IIIA_DX_Codes_for_135-size_film_2009.pdf"
+        },
+        "formatID": "35mm",
+        "marks": [
+          {
+            "heightMM": 1.15,
+            "text": "ILFORD",
+            "widthMM": 4.62,
+            "xMM": 2,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.15,
+            "text": "DELTA 3200 PROFESSIONAL",
+            "widthMM": 17.71,
+            "xMM": 12,
+            "yMM": 33.3
+          },
+          {
+            "heightMM": 1.4,
+            "text": "1",
+            "widthMM": 0.7,
+            "xMM": 9,
+            "yMM": 0.35
+          },
+          {
+            "heightMM": 1.05,
+            "text": "1A",
+            "widthMM": 1.45,
+            "xMM": 28,
+            "yMM": 0.4
+          }
+        ],
+        "sources": [
+          "https://www.flickr.com/photos/ctait/6975514467/",
+          "https://www.flickr.com/photos/hwtstudio/4019514308/"
+        ]
+      }
+    }
+  ]
+}
