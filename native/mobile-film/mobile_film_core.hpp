@@ -129,11 +129,52 @@ struct Effects {
     Colour fotu_sigma_mm;
     std::array<Colour, 3> fotu_weights, fotu_matrix;
     float remjet_look = 0;
+    float contrast = 0;
+    float grain_strength = 1;
+    float brightness = 0, highlights = 0, shadows = 0;
+    float saturation = 0, vibrance = 0, temperature = 0;
 };
 
 inline float decode(float value) { return value <= .04045f ? value / 12.92f : std::pow((value + .055f) / 1.055f, 2.4f); }
 inline float encode(float value) { return value <= .0031308f ? value * 12.92f : 1.055f * std::pow(value, 1.f / 2.4f) - .055f; }
 inline float luminance(const Colour& rgb) { return .2126f * rgb[0] + .7152f * rgb[1] + .0722f * rgb[2]; }
+// Finishing happens after the stock/halation look and before export frames. Neutral is an exact
+// bypass. Exposure stays in the emulsion; brightness/highlights/shadows shape the finished print.
+inline Colour finish_adjustments(Colour rgb, const Effects& effects) {
+    if (effects.contrast == 0 && effects.brightness == 0 && effects.highlights == 0 && effects.shadows == 0 &&
+        effects.saturation == 0 && effects.vibrance == 0 && effects.temperature == 0) return rgb;
+    Colour linear{};
+    for (int c = 0; c < 3; ++c) linear[c] = decode(std::clamp(rgb[c], 0.f, 1.f));
+    const float y = luminance(linear);
+    if (y <= 1e-6f || y >= 1.f-1e-6f) return rgb;
+    if (effects.temperature != 0) {
+        linear[0] *= std::exp2(effects.temperature*.4f);
+        linear[2] *= std::exp2(-effects.temperature*.4f);
+        const float balance = y/std::max(luminance(linear),1e-6f);
+        for (float& c : linear) c *= balance;
+    }
+    auto ease = [](float t) { t=std::clamp(t,0.f,1.f); return t*t*(3-2*t); };
+    const float stops = std::log2(y/.18f);
+    const float shift = effects.brightness*1.5f +
+        2*(effects.highlights*ease(stops/3) + effects.shadows*ease(-stops/4));
+    constexpr float pivot_odds = .18f/.82f;
+    const float odds = std::pow((y/(1-y))/pivot_odds, std::exp2(effects.contrast))*pivot_odds*std::exp2(shift);
+    const float output_y = odds/(1+odds);
+    for (float& c : linear) c *= output_y/y;
+    const float peak = std::max({linear[0],linear[1],linear[2]});
+    const float trough = std::min({linear[0],linear[1],linear[2]});
+    const float colourfulness = std::clamp((peak-trough)/std::max(peak,1e-6f),0.f,1.f);
+    const float chroma = (1+effects.saturation)*(1+effects.vibrance*(1-colourfulness));
+    for (float& c : linear) c = output_y + chroma*(c-output_y);
+    // Walk toward the neutral axis to fit the delivery gamut, preserving hue and luminance.
+    float reach = 1;
+    for (float c : linear) {
+        if (c < 0) reach = std::min(reach,output_y/(output_y-c));
+        if (c > 1) reach = std::min(reach,(1-output_y)/(c-output_y));
+    }
+    for (int c = 0; c < 3; ++c) rgb[c] = encode(std::clamp(output_y+reach*(linear[c]-output_y),0.f,1.f));
+    return rgb;
+}
 inline Colour read_linear(const uint8_t* pixel, const std::array<float, 256>& decode_lut) {
     return {decode_lut[pixel[0]], decode_lut[pixel[1]], decode_lut[pixel[2]]};
 }
@@ -624,7 +665,7 @@ inline void apply_grain(Colour& density, const Effects& effects, double gx, doub
         const float n_inverse = effects.particle_area * effects.particle_scale[c] / pixel_area;
         const float deviation = maximum * std::sqrt(std::max(0.f, p * (1 - p * effects.uniformity[c]) * n_inverse));
         const float noise = .35f * shared + .9367497f * grain_noise(gx, gy, seed, 0x9e3779b9u * uint32_t(c + 1), spacing);
-        density[c] += deviation * noise;
+        density[c] += deviation * noise * effects.grain_strength;
     }
 }
 
@@ -663,6 +704,7 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
             for(float c:result)if(!std::isfinite(c))throw std::runtime_error("Non-finite mobile film output");
             if(!spatial.remjet.values.empty())result=apply_remjet_look(result,spatial.remjet.sample(x,y,image),
                 remjet_seed(read_linear(pixel,decode_lut),effects.exposure_gain),effects.remjet_look);
+            result = finish_adjustments(result, effects);
             for (int c = 0; c < 3; ++c) {
                 if (!std::isfinite(result[c])) throw std::runtime_error("Non-finite mobile film output");
                 pixel[c] = uint8_t(std::lround(std::clamp(result[c], 0.f, 1.f) * 255));

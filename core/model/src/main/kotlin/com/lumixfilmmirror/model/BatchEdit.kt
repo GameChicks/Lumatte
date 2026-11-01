@@ -5,6 +5,7 @@ value class PhotoId(val value: String)
 
 enum class FilmBatchMode { INDIVIDUAL, FIRST_PHOTO }
 enum class DiffusionGrade(val strength: Float) { OFF(0f), EIGHTH(.125f), QUARTER(.25f), HALF(.5f) }
+enum class FilmGrainIntensity(val strength: Float) { LOW(.4f), MEDIUM(1f), HIGH(1.5f) }
 enum class PhotoTreatment { LUT, FILM, ORIGINAL }
 
 object FilmDefaults {
@@ -16,15 +17,27 @@ object FilmDefaults {
     fun halationEnabled(presetId: String): Boolean = presetId == "cinestill_800t" || presetId == "cinestill_400d"
 }
 
-/** Three public controls; exposure uses one EV and professional settings stay inside the engine. */
+/** Per-photo film and finishing controls; neutral defaults preserve previously saved recipes. */
 data class FilmParameters(
     val presetId: String = "kodak_gold_200",
     val exposureEv: Float = 0f,
     val diffusion: DiffusionGrade = DiffusionGrade.OFF,
     val halationEnabled: Boolean = FilmDefaults.halationEnabled(presetId),
+    val contrast: Float = 0f,
+    val grainIntensity: FilmGrainIntensity = FilmGrainIntensity.MEDIUM,
+    val brightness: Float = 0f,
+    val highlights: Float = 0f,
+    val shadows: Float = 0f,
+    val saturation: Float = 0f,
+    val vibrance: Float = 0f,
+    val temperature: Float = 0f,
 ) {
     init {
         require(exposureEv.isFinite() && exposureEv in -3f..3f)
+        require(contrast.isFinite() && contrast in -1f..1f)
+        require(listOf(brightness, highlights, shadows, saturation, vibrance, temperature).all {
+            it.isFinite() && it in -1f..1f
+        })
     }
 
     fun withPreset(id: String): FilmParameters = copy(presetId = id, halationEnabled = FilmDefaults.halationEnabled(id))

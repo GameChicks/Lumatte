@@ -55,7 +55,7 @@ lfm::mobile::Model read_model(JNIEnv* env, jobjectArray tables, jintArray sizes,
     return {stage(0), stage(1), stage(2)};
 }
 lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
-    const auto values = copy(env, controls, 60);
+    const auto values = copy(env, controls, 68);
     if ((values[0] != 0 && values[0] != .125f && values[0] != .25f && values[0] != .5f) ||
         (values[1] != 0 && values[1] != 1) || values[2] < -3 || values[2] > 3 ||
         (values[3] != 0 && values[3] != 1) || values[4] < .0001f || values[4] > 10 || values[23] < 10 || values[23] > 100)
@@ -71,6 +71,14 @@ lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
     if(values[59]<0 || values[59]>2 || (!result.cinestill && values[59]!=0))
         throw std::invalid_argument("Invalid CineStill JPEG halation look");
     result.remjet_look=values[59];
+    if (values[60] < -1 || values[60] > 1 ||
+        (values[61] != .4f && values[61] != 1.f && values[61] != 1.5f))
+        throw std::invalid_argument("Invalid film finishing controls");
+    result.contrast = values[60]; result.grain_strength = values[61];
+    for (size_t i = 62; i < 68; ++i) if (values[i] < -1 || values[i] > 1)
+        throw std::invalid_argument("Invalid film light/colour controls");
+    result.brightness = values[62]; result.highlights = values[63]; result.shadows = values[64];
+    result.saturation = values[65]; result.vibrance = values[66]; result.temperature = values[67];
     if (result.cinestill) {
         for (int c = 0; c < 3; ++c) {
             result.fotu_sigma_mm[c] = values[38+c];

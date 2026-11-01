@@ -206,6 +206,12 @@ public:
         const float spacing = effects.grain_spacing_um > 0 ? std::max(.7f,
             effects.grain_spacing_um * std::max(source_width, source_height) / (effects.format_mm * 1000)) : 1.4f;
         glUniform1f(uniform("uGrainSpacing"), spacing);
+        glUniform1f(uniform("uGrainStrength"), effects.grain_strength);
+        glUniform1f(uniform("uContrast"), effects.contrast);
+        glUniform1f(uniform("uBrightness"), effects.brightness);
+        glUniform1f(uniform("uHighlights"), effects.highlights); glUniform1f(uniform("uShadows"), effects.shadows);
+        glUniform1f(uniform("uSaturation"), effects.saturation); glUniform1f(uniform("uVibrance"), effects.vibrance);
+        glUniform1f(uniform("uTemperature"), effects.temperature);
         glUniform1f(uniform("uRemjetAmount"),spatial.remjet.values.empty()?0.f:effects.remjet_look);
         glUniform1i(uniform("uHalation"), !spatial.halation.values.empty()); glUniform1i(uniform("uGrain"), effects.grain);
         glUniform1ui(uniform("uSeed"), uint32_t(seed) ^ hash(uint32_t(seed >> 32)));

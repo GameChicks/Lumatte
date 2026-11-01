@@ -494,6 +494,17 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         saveEdit(snapshot.treatment, batch.updateParameters(id, parameters))
     }
 
+    /** Preview-local selection preserves finishing settings and follows the batch reference mode. */
+    fun selectPreviewFilm(presetId: String) {
+        val snapshot = mutable.value
+        val batch = snapshot.filmBatch ?: return
+        val selected = snapshot.selected ?: return
+        if (snapshot.busy || snapshot.treatment != PhotoTreatment.FILM ||
+            snapshot.filmPresets.none { it.id == presetId }) return
+        val current = batch.effectiveParameters(selected)
+        if (current.presetId != presetId) updateFilm(current.withPreset(presetId))
+    }
+
     fun useCurrentFilmReference() {
         val snapshot = mutable.value
         val batch = snapshot.filmBatch ?: return

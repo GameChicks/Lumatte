@@ -251,7 +251,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                     }
                     "editor" -> MirrorEditor(state, workspace, onBack = { pane = null },
                         onImport = { importPhotos(state.treatment) }, onChooseLut = { second -> editingLutSecond = second; tab = 2; pane = null },
-                        onChooseFilm = { tab = 1; pane = null }, onNext = {
+                        onNext = {
                             val id = state.processingBatchId
                             if (state.treatment == PhotoTreatment.FILM && personal.revealAnimation && !reduced && id != null && id !in personal.revealedBatches) pane = "reveal"
                             else pane = "export"

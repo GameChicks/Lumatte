@@ -13,7 +13,8 @@ uniform sampler3D uScan;
 uniform vec3 uResponseLow, uResponseHigh, uDevelopmentLow, uDevelopmentHigh, uScanLow, uScanHigh;
 uniform ivec2 uOrigin, uImageSize, uSourceSize;
 uniform float uSoftness, uExposureGain, uPixelArea, uParticleArea;
-uniform float uGrainSpacing;
+uniform float uGrainSpacing, uGrainStrength, uContrast;
+uniform float uBrightness, uHighlights, uShadows, uSaturation, uVibrance, uTemperature;
 uniform float uRemjetAmount;
 uniform bool uHalation, uGrain;
 uniform vec3 uParticleScale, uFloor, uUniformity, uDensityMaximum;
@@ -53,6 +54,37 @@ vec3 field(sampler2D data, ivec2 globalPixel) {
 }
 float decode(float v) { return v <= .04045 ? v / 12.92 : pow((v + .055) / 1.055, 2.4); }
 float encode(float v) { return v <= .0031308 ? v * 12.92 : 1.055 * pow(v, 1.0 / 2.4) - .055; }
+float ease(float t) { t=clamp(t,0.0,1.0); return t*t*(3.0-2.0*t); }
+vec3 finishAdjustments(vec3 rgb) {
+    if (uContrast == 0.0 && uBrightness == 0.0 && uHighlights == 0.0 && uShadows == 0.0 &&
+        uSaturation == 0.0 && uVibrance == 0.0 && uTemperature == 0.0) return rgb;
+    vec3 base = clamp(rgb, 0.0, 1.0);
+    vec3 linear = vec3(decode(base.r), decode(base.g), decode(base.b));
+    float y = dot(linear, vec3(.2126,.7152,.0722));
+    if (y <= 1e-6 || y >= 1.0-1e-6) return rgb;
+    if (uTemperature != 0.0) {
+        linear.rb *= vec2(exp2(uTemperature*.4),exp2(-uTemperature*.4));
+        linear *= y/max(dot(linear,vec3(.2126,.7152,.0722)),1e-6);
+    }
+    float stops = log2(y/.18);
+    float shift = uBrightness*1.5 + 2.0*(uHighlights*ease(stops/3.0) + uShadows*ease(-stops/4.0));
+    float pivotOdds = .18/.82;
+    float odds = pow((y/(1.0-y))/pivotOdds, exp2(uContrast))*pivotOdds*exp2(shift);
+    float outputY = odds/(1.0+odds);
+    linear *= outputY/y;
+    float peak = max(linear.r,max(linear.g,linear.b));
+    float trough = min(linear.r,min(linear.g,linear.b));
+    float colourfulness = clamp((peak-trough)/max(peak,1e-6),0.0,1.0);
+    float chroma = (1.0+uSaturation)*(1.0+uVibrance*(1.0-colourfulness));
+    linear = outputY + chroma*(linear-outputY);
+    float reach = 1.0;
+    for (int c=0;c<3;++c) {
+        if (linear[c]<0.0) reach=min(reach,outputY/(outputY-linear[c]));
+        if (linear[c]>1.0) reach=min(reach,(1.0-outputY)/(linear[c]-outputY));
+    }
+    linear = clamp(outputY+reach*(linear-outputY),0.0,1.0);
+    return vec3(encode(linear.r), encode(linear.g), encode(linear.b));
+}
 float remjetSeed(vec3 linear) {
     float peak=max(linear.r,max(linear.g*.85,linear.b*.65))*uExposureGain;
     float t=clamp((peak-.55)/.40,0.0,1.0);
@@ -105,7 +137,7 @@ void main() {
         vec3 variance = probability * (1.0-probability*uUniformity) * uParticleArea * uParticleScale / uPixelArea;
         vec3 deviation = maximum * sqrt(max(variance, 0.0));
         for (int c = 0; c < 3; ++c)
-            density[c] += deviation[c] * (.35*sharedNoise + .9367497*noiseAt(position, 0x9e3779b9u * uint(c+1)));
+            density[c] += deviation[c] * (.35*sharedNoise + .9367497*noiseAt(position, 0x9e3779b9u * uint(c+1))) * uGrainStrength;
     }
     if (invalid(density)) { failure(inputPixel.a); return; }
     vec3 rgb = cube(uScan, density, uScanLow, uScanHigh);
@@ -117,6 +149,7 @@ void main() {
         vec3 linear=vec3(decode(base.r),decode(base.g),decode(base.b))+vec3(.65,.014,.001)*rim;
         rgb=vec3(encode(linear.r),encode(linear.g),encode(linear.b));
     }
+    rgb = finishAdjustments(rgb);
     if (invalid(rgb)) { failure(inputPixel.a); return; }
     outColour = vec4(clamp(rgb, 0.0, 1.0), inputPixel.a);
 }

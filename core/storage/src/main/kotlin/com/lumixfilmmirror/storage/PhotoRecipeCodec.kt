@@ -21,6 +21,14 @@ internal object PhotoRecipeCodec {
             is PhotoRecipe.Film -> {
                 put("type", "FILM"); put("preset", recipe.parameters.presetId)
                 put("exposure", recipe.parameters.exposureEv.toDouble())
+                put("contrast", recipe.parameters.contrast.toDouble())
+                put("grainIntensity", recipe.parameters.grainIntensity.name)
+                put("brightness", recipe.parameters.brightness.toDouble())
+                put("highlights", recipe.parameters.highlights.toDouble())
+                put("shadows", recipe.parameters.shadows.toDouble())
+                put("saturation", recipe.parameters.saturation.toDouble())
+                put("vibrance", recipe.parameters.vibrance.toDouble())
+                put("temperature", recipe.parameters.temperature.toDouble())
                 put("halation", recipe.parameters.halationEnabled)
                 put("diffusion", recipe.parameters.diffusion.name); put("seed", recipe.grainSeed)
             }
@@ -41,7 +49,15 @@ internal object PhotoRecipeCodec {
                     json.optBoolean("grainEnabled", true), json.optBoolean("ditheringEnabled", false)))
             }
             "FILM" -> PhotoRecipe.Film(FilmParameters(FilmDefaults.currentPresetId(json.getString("preset")), json.getDouble("exposure").toFloat(),
-                DiffusionGrade.valueOf(json.getString("diffusion")), json.getBoolean("halation")), json.getLong("seed"))
+                DiffusionGrade.valueOf(json.getString("diffusion")), json.getBoolean("halation"),
+                contrast = json.optDouble("contrast", 0.0).toFloat(),
+                grainIntensity = FilmGrainIntensity.valueOf(json.optString("grainIntensity", "MEDIUM")),
+                brightness = json.optDouble("brightness", 0.0).toFloat(),
+                highlights = json.optDouble("highlights", 0.0).toFloat(),
+                shadows = json.optDouble("shadows", 0.0).toFloat(),
+                saturation = json.optDouble("saturation", 0.0).toFloat(),
+                vibrance = json.optDouble("vibrance", 0.0).toFloat(),
+                temperature = json.optDouble("temperature", 0.0).toFloat()), json.getLong("seed"))
             else -> error("导出配方类型不支持")
         }
     }

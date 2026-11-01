@@ -60,10 +60,14 @@ import kotlin.math.roundToInt
 
 @Composable
 internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, onBack: () -> Unit,
-    onImport: () -> Unit, onChooseLut: (Boolean) -> Unit, onChooseFilm: () -> Unit, onNext: () -> Unit) {
+    onImport: () -> Unit, onChooseLut: (Boolean) -> Unit, onNext: () -> Unit) {
     val tones = LocalFilmMaterials.current
     var largePreview by rememberSaveable { mutableStateOf(false) }
+    var choosingFilm by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.current?.id) { if(state.current==null)largePreview=false }
+    LaunchedEffect(state.treatment, state.current?.id) {
+        if (state.treatment != PhotoTreatment.FILM || state.current == null) choosingFilm = false
+    }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             RoundAction("返回选型", DotGlyph.LEFT, onClick = onBack)
@@ -72,10 +76,20 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
             }
             RoundAction("导入照片", DotGlyph.PLUS, enabled = !state.busy, onClick = onImport)
         }
+        if (state.current != null && state.treatment == PhotoTreatment.FILM) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+                SwipePhotoPreview(state, workspace, compactHeight =
+                    (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * .23f).coerceIn(132f, 220f).dp)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("长按对比原图", Modifier.weight(1f), fontSize = 11.sp, color = tones.secondaryInk)
+                    MirrorTextAction("放大阅览 ↗", { largePreview = true })
+                }
+            }
+        }
         if (state.current == null) EmptyImport("一张照片，一种新的可能。", "支持多选 JPEG 与 RAW 内嵌 JPEG。", onImport)
         else LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item { Column {
+            if (state.treatment != PhotoTreatment.FILM) item { Column {
                 SwipePhotoPreview(state, workspace, compactHeight =
                     (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp*.30f).coerceIn(164f,260f).dp)
                 Text("长按照片查看原图 · 松手恢复效果",fontSize=11.sp,color=tones.secondaryInk)
@@ -91,7 +105,7 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
                     Text("${failure.name}：${failure.reason}", style = MaterialTheme.typography.bodySmall)
                 }
             }
-            if (state.treatment == PhotoTreatment.FILM) item { FilmControls(state, workspace, onChooseFilm) }
+            if (state.treatment == PhotoTreatment.FILM) item { FilmControls(state, workspace) { choosingFilm = true } }
             else if (state.treatment == PhotoTreatment.LUT) item { LutControls(state, workspace, onChooseLut) }
             item { OutputControls(state, workspace) }
         }
@@ -99,6 +113,9 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
             modifier = Modifier.fillMaxWidth().padding(20.dp).height(56.dp), shape = RoundedCornerShape(28.dp)) {
             Text(if (state.treatment == PhotoTreatment.FILM) "显影与反转 →" else "选择画框与导出 →")
         }
+    }
+    if (choosingFilm && state.treatment == PhotoTreatment.FILM && state.current != null) {
+        MirrorPreviewFilmPicker(state, workspace) { choosingFilm = false }
     }
     if (largePreview && state.current != null) MirrorDialog("照片阅览", onDismiss = { largePreview = false }) {
         SwipePhotoPreview(state, workspace,
@@ -269,8 +286,11 @@ private fun FilmControls(state: WorkspaceState, workspace: WorkspaceViewModel, o
         }
         if (batch.mode == FilmBatchMode.FIRST_PHOTO) Text("整批继承基准照片：${state.photos.firstOrNull { it.id == batch.referenceId }?.name ?: "照片缺失"}",
             style = MaterialTheme.typography.bodySmall, color = LocalFilmMaterials.current.secondaryInk)
-        ParameterSlider("曝光", "${"%.1f".format(parameters.exposureEv)} EV", parameters.exposureEv, -3f..3f,
-            !state.busy) { workspace.updateFilm(parameters.copy(exposureEv = it)) }
+    }
+    Spacer(Modifier.height(16.dp))
+    MirrorFilmFineTuning(parameters, !state.busy, workspace::updateFilm)
+    Spacer(Modifier.height(16.dp))
+    MirrorControlSection("光影质感") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Halation 光晕", Modifier.weight(1f))
             MirrorToggle(parameters.halationEnabled, "Halation 光晕", !state.busy) { workspace.updateFilm(parameters.copy(halationEnabled = it)) }

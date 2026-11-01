@@ -68,7 +68,10 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
             effect.scatterAmount, *effect.scatterCoreUm, *effect.scatterTailUm, *effect.scatterTailWeight,
             *(physical?.sigmaMm ?: FloatArray(3)), *(physical?.weights ?: FloatArray(9)),
             *(physical?.matrix ?: FloatArray(9)),
-            when (plan.preset.id) { "cinestill_800t" -> 1.4f; "cinestill_400d" -> 1f; else -> 0f })
+            when (plan.preset.id) { "cinestill_800t" -> 1.4f; "cinestill_400d" -> 1f; else -> 0f },
+            plan.parameters.contrast, plan.parameters.grainIntensity.strength,
+            plan.parameters.brightness, plan.parameters.highlights, plan.parameters.shadows,
+            plan.parameters.saturation, plan.parameters.vibrance, plan.parameters.temperature)
         val modelKey = "${model.info.modelVersion}:${model.info.sourceCommit}:${model.info.stockId}:${model.info.printId}"
         val task = NativeMobileFilmBridge.createTask()
         check(task != 0L) { "无法建立移动胶片任务" }

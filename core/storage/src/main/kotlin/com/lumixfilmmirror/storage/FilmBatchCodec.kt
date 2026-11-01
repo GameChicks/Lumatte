@@ -15,6 +15,14 @@ internal object FilmBatchCodec {
                 put("seed", photo.grainSeed)
                 put("preset", photo.parameters.presetId)
                 put("exposure", photo.parameters.exposureEv.toDouble())
+                put("contrast", photo.parameters.contrast.toDouble())
+                put("grainIntensity", photo.parameters.grainIntensity.name)
+                put("brightness", photo.parameters.brightness.toDouble())
+                put("highlights", photo.parameters.highlights.toDouble())
+                put("shadows", photo.parameters.shadows.toDouble())
+                put("saturation", photo.parameters.saturation.toDouble())
+                put("vibrance", photo.parameters.vibrance.toDouble())
+                put("temperature", photo.parameters.temperature.toDouble())
                 put("halation", photo.parameters.halationEnabled)
                 put("diffusion", photo.parameters.diffusion.name)
             }) }
@@ -29,7 +37,15 @@ internal object FilmBatchCodec {
             val value = array.getJSONObject(index)
             BatchPhoto(PhotoId(value.getString("id")), FilmParameters(
                 presetId = FilmDefaults.currentPresetId(value.getString("preset")), exposureEv = value.getDouble("exposure").toFloat(),
-                halationEnabled = value.getBoolean("halation"), diffusion = DiffusionGrade.valueOf(value.getString("diffusion"))),
+                halationEnabled = value.getBoolean("halation"), diffusion = DiffusionGrade.valueOf(value.getString("diffusion")),
+                contrast = value.optDouble("contrast", 0.0).toFloat(),
+                grainIntensity = FilmGrainIntensity.valueOf(value.optString("grainIntensity", "MEDIUM")),
+                brightness = value.optDouble("brightness", 0.0).toFloat(),
+                highlights = value.optDouble("highlights", 0.0).toFloat(),
+                shadows = value.optDouble("shadows", 0.0).toFloat(),
+                saturation = value.optDouble("saturation", 0.0).toFloat(),
+                vibrance = value.optDouble("vibrance", 0.0).toFloat(),
+                temperature = value.optDouble("temperature", 0.0).toFloat()),
                 value.getLong("seed"))
         }
         return FilmBatch(photos, PhotoId(json.getString("reference")), FilmBatchMode.valueOf(json.getString("mode")))
