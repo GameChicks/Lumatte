@@ -24,7 +24,7 @@ fun IncomingFollowControl(busy: Boolean, onFollow: () -> Unit, workspace: Worksp
     }
     Text("保持当前相机连接，收到蓝牙发送事件后继续接收；可在通知栏暂停或停止。",
         style = MaterialTheme.typography.labelSmall)
-    TextButton(enabled = !busy, onClick = { if (granted()) onFollow() else launcher.launch(permissions) }) {
+    MirrorActionButton(enabled = !busy, onClick = { if (granted()) onFollow() else launcher.launch(permissions) }) {
         Text("接收当前及后续拍摄")
     }
 }

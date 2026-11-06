@@ -40,7 +40,7 @@ internal fun MirrorTaskProgress(state: WorkspaceState, camera: CameraWorkspaceSt
                     "保存 ${state.completed}/${state.total}".takeIf { state.exporting },
                     "传入 ${camera.transferred}/${camera.transferTotal}".takeIf { transfer }
                 ).joinToString(" · ") else "任务进度", Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                TextButton(onClick = { onCollapse(!collapsed) }) { Text(if (collapsed) "展开进度" else "收起") }
+                MirrorActionButton(onClick = { onCollapse(!collapsed) }) { Text(if (collapsed) "展开进度" else "收起") }
             }
             AnimatedVisibility(visible = !collapsed,
                 enter = fadeIn(tween(duration)) + expandVertically(tween(duration, easing = MirrorEase)),
@@ -49,7 +49,7 @@ internal fun MirrorTaskProgress(state: WorkspaceState, camera: CameraWorkspaceSt
                 if (state.exporting) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("正在保存 ${state.completed} / ${state.total}", Modifier.weight(1f))
-                        TextButton(onClick = workspace::pauseExport) { Text("暂停保存") }
+                        MirrorActionButton(onClick = workspace::pauseExport) { Text("暂停保存") }
                     }
                     if (state.total > 0) LinearProgressIndicator(progress = { (state.completed.toFloat() / state.total).coerceIn(0f, 1f) },
                         modifier = Modifier.fillMaxWidth())
@@ -58,7 +58,7 @@ internal fun MirrorTaskProgress(state: WorkspaceState, camera: CameraWorkspaceSt
                 if (transfer) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("正在传入 ${camera.transferred} / ${camera.transferTotal}", Modifier.weight(1f))
-                        TextButton(onClick = workspace::pauseTransfer) { Text("暂停传入") }
+                        MirrorActionButton(onClick = workspace::pauseTransfer) { Text("暂停传入") }
                     }
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                 }

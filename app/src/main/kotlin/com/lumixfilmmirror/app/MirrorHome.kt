@@ -69,10 +69,12 @@ import androidx.compose.ui.unit.Constraints
 
 @Composable
 internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, personal: MirrorPersonalState,
-    transfers: List<TransferTask>, workspace: WorkspaceViewModel, onCamera: (String?) -> Unit, onAlbum: () -> Unit, onSettings: () -> Unit) {
+    transfers: List<TransferTask>, workspace: WorkspaceViewModel, onCamera: (String?) -> Unit, onAlbum: () -> Unit,
+    onLibrary: () -> Unit, onSettings: () -> Unit) {
     val tones = LocalFilmMaterials.current
     var noteEditing by rememberSaveable { mutableStateOf(false) }
     var note by rememberSaveable { mutableStateOf("") }
+    var managingCards by rememberSaveable { mutableStateOf(false) }
     val homePixels = rememberGraphicsLayer()
     val homeOrigin = remember { mutableStateOf(Offset.Zero) }
     CompositionLocalProvider(LocalMirrorDotArt provides true) {
@@ -85,30 +87,50 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
         .drawWithContent { homePixels.record { this@drawWithContent.drawContent() }; drawLayer(homePixels) }) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) { MirrorLayeredTitle("Lumatte","Darkroom",tones.ink,tones.amber,compact=true) }
+                MirrorTextAction("管理卡片", { managingCards = true })
                 Spacer(Modifier.size(52.dp))
             }
     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 170.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item {
+        if (HomeCard.CAMERA in personal.homeCards) item {
             BoxWithConstraints(Modifier.fillMaxWidth().height(cardHeight + viewportWidth * .40f)) {
                 WelcomePerspective(Modifier.fillMaxWidth().height(maxWidth * .53f).align(Alignment.TopCenter))
                 CameraHero(camera, personal, workspace, onCamera, Modifier.align(Alignment.BottomCenter), cardHeight)
             }
         }
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                ActionAtmosphere("蓝牙\n连接", "连接你的相机", listOf(Color(0xFFFFCF78), Color(0xFFED653B), Color(0xFF428FA6)),
-                    Modifier.weight(1f), actionCardHeight, DotGlyph.BLUETOOTH, "BLUETOOTH\nCONNECT", { onCamera(null) })
-                ActionAtmosphere("手机\n相册", "导入手机照片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
-                    Modifier.weight(1f), actionCardHeight, DotGlyph.ALBUM, "IMPORT\nPHOTOS", onAlbum)
+        listOf(HomeCard.BLUETOOTH, HomeCard.IMPORT, HomeCard.LIBRARY).filter { it in personal.homeCards }.chunked(2).forEach { row ->
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    row.forEach { card -> when (card) {
+                        HomeCard.BLUETOOTH -> ActionAtmosphere("蓝牙\n连接", "连接你的相机", listOf(Color(0xFFFFCF78), Color(0xFFED653B), Color(0xFF428FA6)),
+                            Modifier.weight(1f), actionCardHeight, DotGlyph.BLUETOOTH, "BLUETOOTH\nCONNECT", { onCamera(null) })
+                        HomeCard.IMPORT -> ActionAtmosphere("手机\n相册", "导入手机照片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
+                            Modifier.weight(1f), actionCardHeight, DotGlyph.ALBUM, "IMPORT\nPHOTOS", onAlbum)
+                        else -> ActionAtmosphere("资产\n图库", "已导入 ${state.libraryPhotos.size} 张", listOf(Color(0xFF91B6C9),Color(0xFF577395),Color(0xFF9A80A6)),
+                            Modifier.weight(1f), actionCardHeight, DotGlyph.ALBUM, "PHOTO\nLIBRARY", onLibrary)
+                    } }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
         }
-        item { UsageCard(state, transfers, cardHeight) }
-        item {
+        if (HomeCard.USAGE in personal.homeCards) item { UsageCard(state, transfers, cardHeight) }
+        if (HomeCard.JOURNAL in personal.homeCards) item {
             HomeJournalCard(personal, Modifier.fillMaxWidth(), cardHeight) {
                 note = personal.journal; noteEditing = true
             }
         }
+    }
+    if (managingCards) MirrorDialog("主页卡片", onDismiss = { managingCards = false }) {
+        Text("选择你常用的入口。隐藏卡片会保留照片和记录。", color = tones.secondaryInk)
+        HomeCard.entries.forEach { card ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(card.title, Modifier.weight(1f))
+                MirrorToggle(card in personal.homeCards, card.title, true) { visible -> workspace.updatePersonal {
+                    it.copy(homeCards = if (visible) it.homeCards + card else it.homeCards - card)
+                } }
+            }
+        }
+        MirrorTextAction("恢复全部卡片", { workspace.updatePersonal { it.copy(homeCards = HomeCard.entries.toSet()) } })
     }
     }
     RoundAction("设置", DotGlyph.SETTINGS, Modifier.align(Alignment.TopEnd).padding(end = 20.dp, top = 14.dp)
@@ -204,8 +226,8 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     HomeDisplayText("新增你的\n松下相机", Modifier.fillMaxWidth().weight(1f), 72f, centered = true)
-                    TextButton(enabled = !camera.busy, onClick = { onConnect(null) }) { Text("点按开始连接 →", color = Color.White.copy(.75f)) }
-                    if (personal.cameras.isNotEmpty()) TextButton(onClick = { travelDirection = -1; mode = "normal" }) { Text("返回已有相机", color = Color.White, fontSize = 16.sp) }
+                    MirrorActionButton(enabled = !camera.busy, onClick = { onConnect(null) }) { Text("点按开始连接 →", color = Color.White.copy(.75f)) }
+                    if (personal.cameras.isNotEmpty()) MirrorActionButton(onClick = { travelDirection = -1; mode = "normal" }) { Text("返回已有相机", color = Color.White, fontSize = 16.sp) }
                 }
             } else if (target == "delete") {
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -214,8 +236,8 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
                     Text("移除本机记录，已传入的照片会保留。", color = Color.White)
                     Spacer(Modifier.weight(1f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TextButton(enabled = !camera.busy && currentId != null, onClick = { deleting = currentId }) { Text("移除记录", color = Color.White, fontSize = 16.sp) }
-                        TextButton(onClick = { travelDirection = 1; mode = "normal" }) { Text("返回", color = Color.White, fontSize = 16.sp) }
+                        MirrorActionButton(enabled = !camera.busy && currentId != null, onClick = { deleting = currentId }) { Text("移除记录", color = Color.White, fontSize = 16.sp) }
+                        MirrorActionButton(onClick = { travelDirection = 1; mode = "normal" }) { Text("返回", color = Color.White, fontSize = 16.sp) }
                     }
                 }
             } else {
@@ -228,7 +250,7 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
                                 Text("你的", color = Color.White, fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
                                 Text("松下相机", color = Color.White.copy(.6f), fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
                             }
-                            TextButton(onClick = { travelDirection = 1; mode = "add" }) {
+                            MirrorActionButton(onClick = { travelDirection = 1; mode = "add" }) {
                                 Text("＋ 新增", color = Color.White, fontSize = 16.sp, lineHeight = 20.sp)
                             }
                         }
@@ -246,7 +268,7 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
                                 Text(if (connected) "已连接" else "未连接", color = Color.White, fontSize = 13.sp, lineHeight = 18.sp)
                             }
                             Spacer(Modifier.weight(1f))
-                            TextButton(enabled = !camera.busy, onClick = { onConnect(saved?.id) }) {
+                            MirrorActionButton(enabled = !camera.busy, onClick = { onConnect(saved?.id) }) {
                                 Text(if (connected) "浏览相册 →" else "连接 →", color = Color.White, fontSize = 16.sp, lineHeight = 20.sp)
                             }
                         }

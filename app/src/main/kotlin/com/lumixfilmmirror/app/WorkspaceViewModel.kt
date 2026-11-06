@@ -65,6 +65,7 @@ data class PhotoImportResult(val requestId: String, val batchId: String?, val im
 
 data class WorkspaceState(
     val photos: List<SourceImage> = emptyList(),
+    val libraryPhotos: List<SourceImage> = emptyList(),
     val processingBatches: List<ProcessingBatch> = emptyList(),
     val captureDays: Map<String, Int> = emptyMap(),
     val processingBatchId: String? = null,
@@ -295,10 +296,11 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         storageObservers.clear()
         storageObservers += viewModelScope.launch {
             try { store.photos.collect { photos ->
+                val available = store.available(photos).first
                 val days = photos.mapNotNull { photo ->
                     runCatching { java.time.LocalDate.parse(photo.metadata.capturedAt.take(10).replace(':', '-')).toString() }.getOrNull()
                 }.groupingBy { it }.eachCount()
-                mutable.update { if (it.captureDays == days) it else it.copy(captureDays = days) }
+                mutable.update { it.copy(captureDays = days, libraryPhotos = available) }
             } } catch (e: CancellationException) { throw e }
             catch (_: Exception) { /* Editing remains available if historical usage cannot be read. */ }
         }
@@ -744,6 +746,26 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
             try { showCreatedBatch(store.createProcessingBatch()) }
             catch (error: CancellationException) { throw error }
             catch (error: Exception) { mutable.update { it.copy(notice = error.message ?: "无法新建批次") } }
+            finally { mutable.update { it.copy(batchBusy = false) } }
+        }
+    }
+
+    /** Reuse the app-owned original in a fresh edit batch, without re-importing or modifying it. */
+    fun editLibraryPhoto(id: PhotoId, treatment: PhotoTreatment, onReady: () -> Unit) {
+        val snapshot = mutable.value
+        val photo = snapshot.libraryPhotos.firstOrNull { it.id == id } ?: return
+        if (snapshot.busy) return
+        mutable.update { it.copy(batchBusy = true) }
+        viewModelScope.launch {
+            try {
+                val batch = store.createProcessingBatch()
+                store.reserveLocalPhoto(batch.id, id)
+                val film = syncFilmBatch(null, listOf(photo))
+                store.saveEditRecipe(batch.id, treatment, film)
+                showCreatedBatch(batch.copy(photos = listOf(photo), treatment = treatment, film = film))
+                onReady()
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { notice(error.message ?: "无法打开资产照片") }
             finally { mutable.update { it.copy(batchBusy = false) } }
         }
     }

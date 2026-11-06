@@ -64,9 +64,9 @@ internal fun MirrorFilmFineTuning(parameters: FilmParameters, enabled: Boolean, 
         if (current == FilmAdjustment.TEMPERATURE) Text("负值偏冷，正值偏暖。", fontSize = 12.sp, color = tones.secondaryInk)
         if (current == FilmAdjustment.VIBRANCE) Text("优先增强较淡的色彩。", fontSize = 12.sp, color = tones.secondaryInk)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { onChange(current.change(parameters, 0f)) },
+            MirrorActionButton(onClick = { onChange(current.change(parameters, 0f)) },
                 enabled = enabled && current.value(parameters) != 0f) { Text("重置此项") }
-            TextButton(onClick = { onChange(parameters.copy(exposureEv = 0f, brightness = 0f, contrast = 0f,
+            MirrorActionButton(onClick = { onChange(parameters.copy(exposureEv = 0f, brightness = 0f, contrast = 0f,
                 highlights = 0f, shadows = 0f, saturation = 0f, vibrance = 0f, temperature = 0f)) },
                 enabled = enabled && FilmAdjustment.entries.any { it.value(parameters) != 0f }) { Text("微调归零") }
         }

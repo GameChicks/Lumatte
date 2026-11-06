@@ -53,7 +53,7 @@ internal fun MirrorPreviewFilmPicker(state: WorkspaceState, workspace: Workspace
                     Text("点选即应用，收起后继续微调", style = MaterialTheme.typography.bodySmall,
                         color = tones.secondaryInk)
                 }
-                TextButton(onClick = onDismiss) { Text("完成") }
+                MirrorActionButton(onClick = onDismiss) { Text("完成") }
             }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { MirrorChoice(category == null, { category = null }, label = { Text("全部") }) }

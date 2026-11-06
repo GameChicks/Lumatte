@@ -26,7 +26,7 @@ fun IncomingQueuePanel(runs: List<IncomingTransfer>, tasks: List<TransferTask>, 
             Text("相机待发接收", style = MaterialTheme.typography.titleMedium)
             Text("文件保存与相机确认分别记录。停止接收只停止应用后续处理，已保存结果保留；相机上的发送模式需在相机结束。",
                 style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { history = !history }) { Text(if (history) "隐藏已结束接收" else "显示接收历史") }
+            MirrorActionButton(onClick = { history = !history }) { Text(if (history) "隐藏已结束接收" else "显示接收历史") }
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 300.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(displayed, key = { it.id }) { run ->
                     val saved = tasks.count { it.batchId == run.id && it.completed }
@@ -38,14 +38,14 @@ fun IncomingQueuePanel(runs: List<IncomingTransfer>, tasks: List<TransferTask>, 
                         run.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
                         Row {
                             if (!run.terminal && !active) {
-                                TextButton(enabled = !state.busy, onClick = { onResume(run.id) }) {
+                                MirrorActionButton(enabled = !state.busy, onClick = { onResume(run.id) }) {
                                     Text(if (run.confirmationUnknown) "继续核对待发送目录" else "继续接收")
                                 }
-                                TextButton(enabled = !state.busy, onClick = { workspace.cancelTransferBatch(run.id) }) {
+                                MirrorActionButton(enabled = !state.busy, onClick = { workspace.cancelTransferBatch(run.id) }) {
                                     Text("停止此接收")
                                 }
                             }
-                            if (active) TextButton(onClick = workspace::pauseTransfer) { Text("暂停接收") }
+                            if (active) MirrorActionButton(onClick = workspace::pauseTransfer) { Text("暂停接收") }
                         }
                         HorizontalDivider()
                     }

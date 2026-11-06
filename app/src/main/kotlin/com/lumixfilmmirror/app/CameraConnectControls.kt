@@ -59,8 +59,8 @@ fun CameraConnectControls(busy: Boolean, workspace: WorkspaceViewModel) {
             style = MaterialTheme.typography.bodySmall)
         MirrorButton(enabled = !busy, onClick = { showWifi = true }) { Text("连接相机 Wi-Fi") }
         FlowRow {
-            TextButton(enabled = !busy, onClick = workspace::connectCamera) { Text("已连 Wi-Fi · 查找相机") }
-            TextButton(enabled = !busy, onClick = {
+            MirrorActionButton(enabled = !busy, onClick = workspace::connectCamera) { Text("已连 Wi-Fi · 查找相机") }
+            MirrorActionButton(enabled = !busy, onClick = {
                 runCatching { context.startActivity(Intent(Settings.Panel.ACTION_WIFI)) }
                     .onFailure { context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) }
             }) { Text("系统 Wi-Fi") }
@@ -93,7 +93,7 @@ fun CameraConnectControls(busy: Boolean, workspace: WorkspaceViewModel) {
             }
         },
         confirmButton = {
-            TextButton(enabled = !busy && canConnect, onClick = {
+            MirrorActionButton(enabled = !busy && canConnect, onClick = {
                 val credentials = ManualCameraWifiInput(ssid, password, security)
                 password = ""
                 showWifi = false
@@ -105,6 +105,6 @@ fun CameraConnectControls(busy: Boolean, workspace: WorkspaceViewModel) {
                 }
             }) { Text("连接") }
         },
-        dismissButton = { TextButton(onClick = { showWifi = false; password = "" }) { Text("取消") } },
+        dismissButton = { MirrorActionButton(onClick = { showWifi = false; password = "" }) { Text("取消") } },
     )
 }

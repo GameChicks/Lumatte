@@ -419,7 +419,7 @@ internal fun FilmReveal(state: WorkspaceState, workspace: WorkspaceViewModel, on
                     fontFamily = MirrorFonts.Body, fontWeight = FontWeight.Light,
                     style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            TextButton(onClick = onFinish) { Text("跳过") }
+            MirrorActionButton(onClick = onFinish) { Text("跳过") }
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             DevelopmentCamera(state, workspace, ColorFilter.colorMatrix(matrix), progress.value, onReady = { ready = true })
@@ -518,7 +518,7 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(if (framePanel == "text") "文字与字体" else "构图与信息", Modifier.weight(1f),
                     fontFamily = MirrorFonts.ChineseEditorial, fontSize = 24.sp)
-                TextButton(onClick = { framePanel = null }) { Text("完成") }
+                MirrorActionButton(onClick = { framePanel = null }) { Text("完成") }
             }
             if (framePanel == "text") MirrorFrameTextEditor(state, workspace, onFont = { target ->
                 fontTarget = target; fontPicker.launch(arrayOf("*/*"))
@@ -599,7 +599,7 @@ private fun FrameFinishingControls(state: WorkspaceState, workspace: WorkspaceVi
             } }
             state.failures.forEach { failure -> item { Text("${failure.name}：${failure.reason}", color = MaterialTheme.colorScheme.error) } }
             if (!state.busy && state.failures.any { it.id != null }) item {
-                TextButton(onClick = { workspace.export(retryOnly = true) }) { Text("重试失败照片") }
+                MirrorActionButton(onClick = { workspace.export(retryOnly = true) }) { Text("重试失败照片") }
             }
         }
     }

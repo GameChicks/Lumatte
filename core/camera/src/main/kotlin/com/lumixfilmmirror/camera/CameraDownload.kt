@@ -6,6 +6,8 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.io.BufferedOutputStream
+import android.os.SystemClock
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -72,31 +74,43 @@ internal suspend fun downloadCameraResource(
         CameraConnectionLog.info("LFMDownload", "framing=${if (code == 206) "range" else if (expected != null) "content-length" else "stream"} " +
             "expectedBytes=$expected catalogueMismatch=${expected != null && resource.bytes != null && expected != resource.bytes}")
         var received = start
+        val startedAt = SystemClock.elapsedRealtime()
+        var progressAt = startedAt
+        onProgress(DownloadProgress(received, expected))
         connection.inputStream.use { input ->
             FileOutputStream(partial, start > 0).use { output ->
                 // On HTTP 200 the old partial is truncated BEFORE its validator is replaced.
                 if (nextValidator != null) validatorFile.writeText(nextValidator) else validatorFile.delete()
-                val buffer = ByteArray(64 * 1024)
+                val buffered = BufferedOutputStream(output, 256 * 1024)
+                val buffer = ByteArray(256 * 1024)
                 while (true) {
                     currentCoroutineContext().ensureActive()
                     val count = input.read(buffer)
                     if (count < 0) break
-                    output.write(buffer, 0, count)
+                    buffered.write(buffer, 0, count)
                     received += count
                     require(expected == null || received <= expected) { "相机返回数据超过文件尺寸" }
-                    onProgress(DownloadProgress(received, expected))
+                    val now = SystemClock.elapsedRealtime()
+                    if (now - progressAt >= 100) {
+                        onProgress(DownloadProgress(received, expected))
+                        progressAt = now
+                    }
                 }
+                buffered.flush()
                 output.fd.sync()
             }
         }
         currentCoroutineContext().ensureActive()
         require(expected == null || received == expected) { "传输中断，文件尚未完整" }
         require(received > 0) { "相机返回空文件" }
+        onProgress(DownloadProgress(received, expected ?: received))
         val finished = File(directory, if (durable) "complete.download" else "${UUID.randomUUID()}.download")
         require(!finished.exists()) { "已有完成的传输文件，请先恢复其导入" }
         check(partial.renameTo(finished)) { "无法保存完整的传输文件" }
         validatorFile.delete()
-        CameraConnectionLog.info("LFMDownload", "completed bytes=$received catalogueMismatch=${resource.bytes != null && received != resource.bytes}")
+        val elapsed = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(1)
+        CameraConnectionLog.info("LFMDownload", "completed bytes=$received downloadMs=$elapsed bytesPerSecond=${(received-start)*1000/elapsed} " +
+            "catalogueMismatch=${resource.bytes != null && received != resource.bytes}")
         finished
     } catch (error: Exception) {
         // Type and byte counts only: no URI, file name, credentials or server reply.

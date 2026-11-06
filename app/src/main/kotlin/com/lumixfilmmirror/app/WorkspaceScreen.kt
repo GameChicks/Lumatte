@@ -87,7 +87,7 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                 Text("FILM MIRROR", style = MaterialTheme.typography.labelMedium, color = tones.secondaryInk,
                     fontFamily = FontFamily.Monospace)
             }
-            TextButton(enabled = !state.busy, onClick = { picker.launch(arrayOf("image/jpeg", "image/x-panasonic-rw2", "image/x-panasonic-raw", "application/octet-stream")) }) {
+            MirrorActionButton(enabled = !state.busy, onClick = { picker.launch(arrayOf("image/jpeg", "image/x-panasonic-rw2", "image/x-panasonic-raw", "application/octet-stream")) }) {
                 Text(if (state.photos.isEmpty()) "导入照片" else "继续导入")
             }
         }
@@ -102,7 +102,7 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
             state.storageFailure?.let { message -> item {
                 Column {
                     Text(message, color = MaterialTheme.colorScheme.error)
-                    TextButton(enabled = !state.recovering, onClick = workspace::restoreWorkspace) { Text("重新打开") }
+                    MirrorActionButton(enabled = !state.recovering, onClick = workspace::restoreWorkspace) { Text("重新打开") }
                 }
             } }
             item { CameraTransferPanel(camera, state.busy, state.cameraBusy, state.activeTransferBatch != null,
@@ -122,7 +122,7 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                             Text("把照片带进工作台", style = MaterialTheme.typography.headlineSmall)
                             Text("导入 JPEG，或读取松下 RAW 中的内嵌 JPEG。原始文件保留。",
                                 color = tones.secondaryInk, style = MaterialTheme.typography.bodyMedium)
-                            Button(enabled = !state.busy, onClick = { picker.launch(arrayOf("*/*")) }) { Text("选择照片") }
+                            MirrorButton(enabled = !state.busy, onClick = { picker.launch(arrayOf("*/*")) }) { Text("选择照片") }
                             Spacer(Modifier.height(28.dp))
                         } else {
                             PhotoPreview(state, workspace)
@@ -166,7 +166,7 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                     LinearProgressIndicator(progress = { state.completed.toFloat() / state.total.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("${state.completed} / ${state.total} 张", Modifier.weight(1f), fontFamily = FontFamily.Monospace)
-                        TextButton(onClick = workspace::cancelExport) { Text("取消后续导出") }
+                        MirrorActionButton(onClick = workspace::cancelExport) { Text("取消后续导出") }
                     }
                 }
             }
@@ -176,13 +176,13 @@ fun WorkspaceScreen(workspace: WorkspaceViewModel) {
                     style = MaterialTheme.typography.bodySmall)
             }
             if (!state.busy && state.failures.any { it.id != null }) item {
-                TextButton(onClick = { workspace.export(retryOnly = true) }) { Text("仅重试导出失败的照片") }
+                MirrorActionButton(onClick = { workspace.export(retryOnly = true) }) { Text("仅重试导出失败的照片") }
             }
             item { Spacer(Modifier.height(12.dp)) }
         }
         if (state.photos.isNotEmpty()) {
             Surface(color = tones.paper, shadowElevation = 4.dp) {
-                Button(onClick = { workspace.export() }, enabled = !state.busy,
+                MirrorButton(onClick = { workspace.export() }, enabled = !state.busy,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = FilmSpacing.screen, vertical = 12.dp)
                         .heightIn(min = FilmSpacing.controlMinimum), shape = RoundedCornerShape(16.dp)) {
                     Text("导出这一批 · ${state.photos.size} 张")
@@ -246,9 +246,9 @@ private fun ExportSettingsPanel(state: WorkspaceState, onChange: (JpegOutput) ->
             Text(if (state.destination is ExportDestination.Gallery) "保存到 Pictures/LumixFilmMirror" else "保存到所选文件夹",
                 color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall)
             Row {
-                TextButton(enabled = !state.busy, onClick = onFolder) { Text("选择文件夹") }
+                MirrorActionButton(enabled = !state.busy, onClick = onFolder) { Text("选择文件夹") }
                 if (state.destination !is ExportDestination.Gallery)
-                    TextButton(enabled = !state.busy, onClick = onGallery) { Text("恢复默认相册") }
+                    MirrorActionButton(enabled = !state.busy, onClick = onGallery) { Text("恢复默认相册") }
             }
         }
     }

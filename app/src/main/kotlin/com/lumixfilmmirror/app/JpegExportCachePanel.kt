@@ -27,8 +27,8 @@ fun JpegExportCachePanel(state: WorkspaceState, workspace: WorkspaceViewModel) {
                 if (cache.problems.size > 3) Text("另有 ${cache.problems.size - 3} 项说明", style = MaterialTheme.typography.labelSmall)
             }
             Row {
-                TextButton(enabled = !state.busy, onClick = workspace::inspectExportCache) { Text("查看占用") }
-                TextButton(enabled = !state.busy && state.exportCache?.canClean == true, onClick = workspace::clearExportCache) {
+                MirrorActionButton(enabled = !state.busy, onClick = workspace::inspectExportCache) { Text("查看占用") }
+                MirrorActionButton(enabled = !state.busy && state.exportCache?.canClean == true, onClick = workspace::clearExportCache) {
                     Text("清理导出中间文件")
                 }
             }

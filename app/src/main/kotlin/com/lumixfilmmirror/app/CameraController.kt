@@ -2,6 +2,12 @@ package com.lumixfilmmirror.app
 
 import android.app.Application
 import android.net.Network
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.net.LinkProperties
+import android.os.Handler
+import android.os.Looper
 import android.location.LocationManager
 import android.os.Build
 import com.lumixfilmmirror.camera.*
@@ -62,6 +68,10 @@ class CameraController(private val application: Application) {
     private var networkWatch: Closeable? = null
     private var watchedNetwork: Network? = null
     private var visibleClients = 0
+    private var wifiObserver: ConnectivityManager.NetworkCallback? = null
+    private var autoDiscovery: Job? = null
+    private val autoAttemptedNetworks = mutableSetOf<Long>()
+    private var manuallyDisconnectedNetwork: Long? = null
     private var idleRelease: Job? = null
     // A user-started handshake survives Android's Bluetooth/Wi-Fi confirmation Activity.
     // This is bounded below; it does not enable background scanning or automatic reconnect.
@@ -90,12 +100,66 @@ class CameraController(private val application: Application) {
     fun attachUi() {
         idleRelease?.cancel(); visibleClients++
         CameraConnectionLog.info("LFMActivity", "ui=visible")
+        if (visibleClients == 1) {
+            autoAttemptedNetworks.clear()
+            val manager = application.getSystemService(ConnectivityManager::class.java)
+            val observer = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) = scheduleAutoDiscovery()
+                override fun onLinkPropertiesChanged(network: Network, properties: LinkProperties) = scheduleAutoDiscovery()
+            }
+            runCatching { manager.registerNetworkCallback(NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build(), observer, Handler(Looper.getMainLooper())) }
+                .onSuccess { wifiObserver = observer }
+            scheduleAutoDiscovery()
+        }
+    }
+
+    /** Only current foreground Wi-Fi is inspected. No SSID/password read, network switching or BLE scan. */
+    private fun scheduleAutoDiscovery() {
+        if (visibleClients == 0 || autoDiscovery?.isActive == true || cameraMutable.value.busy || cameraMutable.value.connected) return
+        autoDiscovery = scope.launch {
+            delay(600)
+            try {
+                val snapshot = cameraMutable.value
+                if (visibleClients == 0 || snapshot.busy || snapshot.connected || bluetoothConnectionInProgress) return@launch
+                val networks = discovery.wifiNetworks().filter { it.networkHandle != manuallyDisconnectedNetwork &&
+                    it.networkHandle !in autoAttemptedNetworks }
+                if (networks.isEmpty()) return@launch
+                autoAttemptedNetworks += networks.map { it.networkHandle }
+                val found = withTimeoutOrNull(12_000) {
+                    discovery.discover(networks).ifEmpty { delay(1_000); discovery.discover(networks) }
+                }.orEmpty()
+                if (visibleClients == 0 || cameraMutable.value.busy || cameraMutable.value.connected) return@launch
+                if (found.size == 1) {
+                    val candidate = found.single()
+                    if (candidate.network !in discovery.wifiNetworks()) return@launch
+                    cameraMutable.update { it.copy(operationRunning = true, problem = null, notice = "已发现相机，正在连接…") }
+                    try { prepareExistingWifi(candidate.network); connectTarget(candidate) }
+                    finally { cameraMutable.update { it.copy(operationRunning = false) } }
+                    CameraConnectionLog.info("LFMCamera", "foregroundAutoConnect=ready")
+                } else if (found.isNotEmpty()) {
+                    prepareExistingWifi(found.first().network)
+                    cameraMutable.update { it.copy(discovered = found.filter { item -> item.network == found.first().network },
+                        notice = "当前 Wi-Fi 有多台相机，请选择需要连接的机身") }
+                }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) {
+                CameraConnectionLog.warn("LFMCamera", "foregroundAutoConnect=unavailable type=${error.javaClass.simpleName}")
+            }
+        }
     }
     fun detachUi() {
         visibleClients = (visibleClients - 1).coerceAtLeast(0)
         CameraConnectionLog.info("LFMActivity", "ui=${if (visibleClients == 0) "background" else "visible"} " +
             "connectionInProgress=$bluetoothConnectionInProgress")
         if (visibleClients == 0) thumbnails.cancelRequests()
+        if (visibleClients == 0) {
+            wifiObserver?.let { observer -> runCatching {
+                application.getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(observer)
+            } }
+            wifiObserver = null
+            if (!cameraMutable.value.operationRunning) autoDiscovery?.cancel()
+        }
         releaseIfIdle()
     }
     private fun releaseIfIdle() {
@@ -683,6 +747,7 @@ class CameraController(private val application: Application) {
 
     private fun cameraNetworkLost(network: Network) {
         if (network != watchedNetwork && network != wifiConnection?.network) return
+        autoDiscovery?.cancel()
         CameraConnectionLog.warn("LFMCamera", "selectedNetwork=lost")
         cameraMutable.update { it.copy(connected = false, disconnected = true,
             problem = "相机连接已断开，已传入的照片保留。重新连接后可继续传输。") }
@@ -986,6 +1051,8 @@ class CameraController(private val application: Application) {
 
     private fun cameraOperation(cache: Boolean = false, block: suspend () -> Unit) {
         if (cameraMutable.value.busy) return
+        autoDiscovery?.cancel()
+        manuallyDisconnectedNetwork = null
         CameraConnectionLog.info("LFMCamera", "operation=started cache=$cache")
         thumbnails.cancelRequests()
         cameraMutable.update { it.copy(operationRunning = true, cacheBusy = cache, bluetoothStep = null) }
@@ -1035,6 +1102,8 @@ class CameraController(private val application: Application) {
     }
     fun disconnectCamera() {
         if (cameraMutable.value.busy) return
+        manuallyDisconnectedNetwork = wifiConnection?.network?.networkHandle
+        autoDiscovery?.cancel()
         CameraConnectionLog.info("LFMCamera", "userAction=disconnect")
         clearSendingReconnect()
         clearBluetoothCredentials()

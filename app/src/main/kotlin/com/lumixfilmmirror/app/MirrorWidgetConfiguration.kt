@@ -51,7 +51,7 @@ class MirrorWidgetConfigurationActivity : ComponentActivity() {
                     val data=choices
                     if(data==null)Column(Modifier.fillMaxSize().padding(32.dp),verticalArrangement=Arrangement.Center) {
                         Text(problem ?: "正在准备小组件…")
-                        if(problem!=null)TextButton(onClick={finish()}) { Text("返回") }
+                        if(problem!=null)MirrorActionButton(onClick={finish()}) { Text("返回") }
                     } else WidgetConfiguration(config,data,onCancel={finish()}) { selected ->
                         if(pinning) {
                             val accepted=runCatching { MirrorWidgets.requestPin(this,selected) }.getOrDefault(false)

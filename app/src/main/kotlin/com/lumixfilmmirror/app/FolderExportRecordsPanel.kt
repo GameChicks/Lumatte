@@ -30,7 +30,7 @@ fun FolderExportRecordsPanel(state: WorkspaceState, workspace: WorkspaceViewMode
             Text("自选文件夹导出记录", style = MaterialTheme.typography.titleMedium)
             Text("保留每次创建与写入的记录。中断结果需打开核对，恢复记录时不会自动删除文件夹中的照片。",
                 style = MaterialTheme.typography.bodySmall)
-            TextButton(enabled = !state.busy, onClick = workspace::inspectFolderExports) { Text("刷新记录") }
+            MirrorActionButton(enabled = !state.busy, onClick = workspace::inspectFolderExports) { Text("刷新记录") }
             if (state.folderExports != null && records.isEmpty()) Text("暂无已登记的文件夹导出",
                 style = MaterialTheme.typography.bodySmall)
             state.folderExports?.problems?.forEach { problem ->
@@ -50,7 +50,7 @@ fun FolderExportRecordsPanel(state: WorkspaceState, workspace: WorkspaceViewMode
                 Text("请求文件名 · ${record.requestedName}", style = MaterialTheme.typography.labelSmall,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Row {
-                    if (record.documentUri != null) TextButton(enabled = !state.busy, onClick = {
+                    if (record.documentUri != null) MirrorActionButton(enabled = !state.busy, onClick = {
                         try {
                             val mime = if (record.requestedName.endsWith(".png", ignoreCase = true)) "image/png" else "image/jpeg"
                             context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(record.documentUri, mime)
@@ -61,13 +61,13 @@ fun FolderExportRecordsPanel(state: WorkspaceState, workspace: WorkspaceViewMode
                             workspace.notice("无法打开该文档，可能未完整、已移除或没有可用的图片查看应用")
                         }
                     }) { Text("打开核对") }
-                    TextButton(enabled = !state.busy, onClick = { forgetting = record }) { Text("移除记录") }
+                    MirrorActionButton(enabled = !state.busy, onClick = { forgetting = record }) { Text("移除记录") }
                 }
             }
             if (records.isNotEmpty()) Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                TextButton(enabled = !state.busy && page > 0, onClick = { pageIndex = page - 1 }) { Text("上一页") }
+                MirrorActionButton(enabled = !state.busy && page > 0, onClick = { pageIndex = page - 1 }) { Text("上一页") }
                 Text("${page + 1} / ${lastPage + 1} · ${records.size} 条", style = MaterialTheme.typography.labelSmall)
-                TextButton(enabled = !state.busy && page < lastPage, onClick = { pageIndex = page + 1 }) { Text("下一页") }
+                MirrorActionButton(enabled = !state.busy && page < lastPage, onClick = { pageIndex = page + 1 }) { Text("下一页") }
             }
             Text("提供者可能调整文件名；没有文档地址的记录，请在文件夹中按请求名称与时间核对。",
                 style = MaterialTheme.typography.labelSmall)
@@ -77,10 +77,10 @@ fun FolderExportRecordsPanel(state: WorkspaceState, workspace: WorkspaceViewMode
         AlertDialog(onDismissRequest = { forgetting = null }, title = { Text("移除导出记录？") },
             text = { Text("仅移除这条应用内记录，不删除文件夹中的照片，也不将待核对结果标为成功。\n${record.requestedName}") },
             confirmButton = {
-                TextButton(enabled = !state.busy, onClick = {
+                MirrorActionButton(enabled = !state.busy, onClick = {
                     forgetting = null
                     workspace.forgetFolderExport(record.id)
                 }) { Text("仅移除记录") }
-            }, dismissButton = { TextButton(onClick = { forgetting = null }) { Text("保留") } })
+            }, dismissButton = { MirrorActionButton(onClick = { forgetting = null }) { Text("保留") } })
     }
 }

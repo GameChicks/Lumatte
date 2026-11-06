@@ -18,7 +18,7 @@ fun CameraWifiSelectionDialog(selection: CameraWifiSelection, workspace: Workspa
                     style = MaterialTheme.typography.bodySmall)
                 Column(Modifier.fillMaxWidth().heightIn(max = 280.dp).verticalScroll(rememberScrollState())) {
                     selection.options.forEachIndexed { index, option ->
-                        TextButton(onClick = { workspace.chooseWifiNetwork(selection.id, option.key) },
+                        MirrorActionButton(onClick = { workspace.chooseWifiNetwork(selection.id, option.key) },
                             modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.fillMaxWidth()) {
                                 Text("Wi-Fi ${index + 1}${if (option.isSystemDefault) " · 系统默认" else ""}")
@@ -37,6 +37,6 @@ fun CameraWifiSelectionDialog(selection: CameraWifiSelection, workspace: Workspa
                 Text("网络名称请在系统设置核对。", style = MaterialTheme.typography.labelSmall)
             }
         },
-        confirmButton = { TextButton(onClick = { workspace.refreshWifiSelection(selection.id) }) { Text("刷新网络") } },
-        dismissButton = { TextButton(onClick = { workspace.cancelWifiSelection(selection.id) }) { Text("取消连接") } })
+        confirmButton = { MirrorActionButton(onClick = { workspace.refreshWifiSelection(selection.id) }) { Text("刷新网络") } },
+        dismissButton = { MirrorActionButton(onClick = { workspace.cancelWifiSelection(selection.id) }) { Text("取消连接") } })
 }

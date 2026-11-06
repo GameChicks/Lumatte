@@ -12,11 +12,12 @@ import org.json.JSONObject
 
 data class RememberedCamera(val id: String, val model: String, val name: String)
 enum class MirrorAppearance(val title: String) { SYSTEM("跟随系统"), LIGHT("浅色"), DARK("深色") }
+enum class HomeCard(val title: String) { CAMERA("相机"), BLUETOOTH("蓝牙连接"), IMPORT("手机相册"), LIBRARY("资产库"), USAGE("使用记录"), JOURNAL("创作记录") }
 data class MirrorPersonalState(val cameras: List<RememberedCamera> = emptyList(), val favourites: Set<String> = emptySet(),
     val journal: String = "", val reducedMotion: Boolean = false, val savedLuts: List<LumixLabLut> = emptyList(),
     val revealedBatches: Set<String> = emptySet(), val appearance: MirrorAppearance = MirrorAppearance.SYSTEM,
     val haptics: Boolean = true, val automaticFilmDetails: Boolean = true, val revealAnimation: Boolean = true,
-    val soundEffects: Boolean = true)
+    val soundEffects: Boolean = true, val homeCards: Set<HomeCard> = HomeCard.entries.toSet())
 
 /** App-owned UI preferences only. No camera passwords, addresses or recovered app data. */
 class MirrorPreferences(context: Context) {
@@ -38,7 +39,10 @@ class MirrorPreferences(context: Context) {
             haptics = preferences.getBoolean("haptics", true),
             automaticFilmDetails = preferences.getBoolean("automatic-film-details", true),
             revealAnimation = preferences.getBoolean("reveal-animation", true),
-            soundEffects = preferences.getBoolean("sound-effects", true))
+            soundEffects = preferences.getBoolean("sound-effects", true),
+            homeCards = preferences.getStringSet("home-cards", null)?.mapNotNull { value ->
+                runCatching { HomeCard.valueOf(value) }.getOrNull()
+            }?.toSet() ?: HomeCard.entries.toSet())
     }
     suspend fun save(value: MirrorPersonalState) = withContext(Dispatchers.IO) {
         val cameras = JSONArray(value.cameras.map { JSONObject().put("id", it.id).put("model", it.model).put("name", it.name) })
@@ -48,6 +52,7 @@ class MirrorPreferences(context: Context) {
             .putString("appearance", value.appearance.name).putBoolean("haptics", value.haptics)
             .putBoolean("automatic-film-details", value.automaticFilmDetails).putBoolean("reveal-animation", value.revealAnimation)
             .putBoolean("sound-effects",value.soundEffects)
+            .putStringSet("home-cards",value.homeCards.map { it.name }.toSet())
             .putString("saved-luts", JSONArray(value.savedLuts.map { item -> JSONObject().put("code", item.code)
                 .put("title", item.title).put("creator", item.creator?.name.orEmpty())
                 .put("creator-code", item.creator?.code.orEmpty()).put("avatar", item.creator?.icon?.path.orEmpty())

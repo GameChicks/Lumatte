@@ -262,8 +262,10 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                     }
                     "export" -> MirrorFrames(state, workspace, { importPhotos(state.treatment) }, onBack = { pane = "editor" })
                     "settings" -> MirrorSettings(personal, state, workspace, onBack = { pane = null }, onTools = { pane = "tools" })
+                    "library" -> MirrorAssetLibrary(state, workspace, onBack = { pane = null },
+                        onImport = { importPhotos(PhotoTreatment.ORIGINAL) }, onEdit = { pane = "editor" })
                     "tools" -> Column {
-                        TextButton(onClick = { pane = null }) { Text("← 返回连接页") }
+                        MirrorActionButton(onClick = { pane = null }) { Text("← 返回连接页") }
                         Box(Modifier.weight(1f)) { WorkspaceScreen(workspace) }
                     }
                     else -> AnimatedContent(targetState = tab, label = "main-tab-slide", transitionSpec = {
@@ -276,7 +278,8 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                         when (shownTab) {
                             0 -> MirrorHome(state, camera, personal, transfers, workspace,
                                 onCamera = { id -> requestedCameraId = id; cameraEntry = "bluetooth"; pane = "camera" },
-                                onAlbum = { importPhotos(PhotoTreatment.ORIGINAL) }, onSettings = { pane = "settings" })
+                                onAlbum = { importPhotos(PhotoTreatment.ORIGINAL) }, onLibrary = { pane = "library" },
+                                onSettings = { pane = "settings" })
                             1 -> MirrorFilm(state, workspace, { importPhotos(PhotoTreatment.FILM) }, chooseFilm) { if (shownTab == tab) fullscreen = it }
                             2 -> MirrorLuts(state, workspace, personal, { importPhotos(PhotoTreatment.LUT) },
                                 { luts.launch(arrayOf("*/*")) }, chooseLut, initialSecond = editingLutSecond,
@@ -297,11 +300,11 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                 }
             }
             state.storageFailure?.let { failure -> AlertDialog(onDismissRequest = {}, title = { Text("工作台暂不可用") },
-                text = { Text(failure) }, confirmButton = { TextButton(onClick = workspace::restoreWorkspace) { Text("重试恢复") } }) }
+                text = { Text(failure) }, confirmButton = { MirrorActionButton(onClick = workspace::restoreWorkspace) { Text("重试恢复") } }) }
             // Operational notices remain visible and dismissible in the formal interface.
             if (state.notice != null && !state.recovering) Snackbar(Modifier.align(Alignment.BottomCenter)
                 .padding(start = 20.dp, end = 20.dp, bottom = if (navigation) 110.dp else 12.dp), action = {
-                TextButton(onClick = { workspace.clearNotice() }) { Text("知道了") }
+                MirrorActionButton(onClick = { workspace.clearNotice() }) { Text("知道了") }
             }) { Text(state.notice.orEmpty(), maxLines = 3) }
             if (pane != "tools") camera.wifiSelection?.let { CameraWifiSelectionDialog(it, workspace) }
             }
@@ -309,11 +312,11 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
     }
     transferChoice?.let { target -> AlertDialog(onDismissRequest = { transferChoice = null }, title = { Text("传入后做什么？") },
         text = { Column {
-            TextButton(onClick = { transferDestination = "phone"; transferChoice = null; startTransfer(target) }) { Text("仅导入手机") }
-            TextButton(onClick = { transferDestination = "film"; transferChoice = null; startTransfer(target) }) { Text("进入 Film 编辑") }
-            TextButton(onClick = { transferDestination = "lut"; transferChoice = null; startTransfer(target) }) { Text("进入 LUT 编辑") }
+            MirrorActionButton(onClick = { transferDestination = "phone"; transferChoice = null; startTransfer(target) }) { Text("仅导入手机") }
+            MirrorActionButton(onClick = { transferDestination = "film"; transferChoice = null; startTransfer(target) }) { Text("进入 Film 编辑") }
+            MirrorActionButton(onClick = { transferDestination = "lut"; transferChoice = null; startTransfer(target) }) { Text("进入 LUT 编辑") }
             Text("视频保持原文件保存到相册。", style = MaterialTheme.typography.bodySmall)
-        } }, confirmButton = { TextButton(onClick = { transferChoice = null }) { Text("取消") } }) }
+        } }, confirmButton = { MirrorActionButton(onClick = { transferChoice = null }) { Text("取消") } }) }
     if(importSources) MirrorDialog(pendingFilm?.let { id -> state.filmPresets.firstOrNull { it.id==id }?.name } ?: "从哪里导入？", onDismiss = {
         importSources=false; importRequest=null; selectedImportTreatment=null; pendingFilm=null; pendingLut=null
     }) {

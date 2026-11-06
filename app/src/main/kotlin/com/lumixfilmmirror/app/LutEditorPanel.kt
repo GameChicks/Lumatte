@@ -38,13 +38,13 @@ internal fun LutEditorPanel(state: WorkspaceState, workspace: WorkspaceViewModel
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("LUT 调色", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                TextButton(enabled = !state.busy, onClick = onImport) { Text(if (state.lutImporting) "正在导入…" else "导入 .cube") }
+                MirrorActionButton(enabled = !state.busy, onClick = onImport) { Text(if (state.lutImporting) "正在导入…" else "导入 .cube") }
             }
             Text("LUT 1 → LUT 2 · 应用于本批全部照片", color = tones.secondaryInk, style = MaterialTheme.typography.bodySmall)
             for (number in 1..2) {
                 val slot = if (number == 1) recipe.first else recipe.second
                 val selected = state.luts.firstOrNull { it.id == slot.id }
-                OutlinedButton(enabled = !state.busy, onClick = { choosing = number }, modifier = Modifier.fillMaxWidth()) {
+                MirrorActionButton(enabled = !state.busy, onClick = { choosing = number }, modifier = Modifier.fillMaxWidth()) {
                     Text("LUT $number · ${selected?.name ?: if (slot.id == null) "未选择" else "文件不可用，请重新选择"}")
                 }
                 selected?.photoStyle?.let {
@@ -59,8 +59,8 @@ internal fun LutEditorPanel(state: WorkspaceState, workspace: WorkspaceViewModel
                         else recipe.copy(second = slot.copy(strength = strength))) })
             }
             Row {
-                TextButton(enabled = !state.busy, onClick = { workspace.updateLut(recipe.copy(first = recipe.second, second = recipe.first)) }) { Text("交换顺序") }
-                TextButton(enabled = !state.busy, onClick = { workspace.updateLut(LutRecipe()) }) { Text("清除效果") }
+                MirrorActionButton(enabled = !state.busy, onClick = { workspace.updateLut(recipe.copy(first = recipe.second, second = recipe.first)) }) { Text("交换顺序") }
+                MirrorActionButton(enabled = !state.busy, onClick = { workspace.updateLut(LutRecipe()) }) { Text("清除效果") }
             }
             Row(Modifier.fillMaxWidth()) {
                 Text("颗粒", Modifier.weight(1f))
@@ -102,9 +102,9 @@ private fun LutPicker(state: WorkspaceState, workspace: WorkspaceViewModel, numb
             Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(FilmSpacing.screen),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = back) { Text("返回") }
+                    MirrorActionButton(onClick = back) { Text("返回") }
                     Text("选择 LUT $number", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                    TextButton(onClick = { onSelect(null) }) { Text("不使用") }
+                    MirrorActionButton(onClick = { onSelect(null) }) { Text("不使用") }
                 }
                 val selected = detail
                 if (selected != null) {
@@ -113,7 +113,7 @@ private fun LutPicker(state: WorkspaceState, workspace: WorkspaceViewModel, numb
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         LutImagePreview(selected, state, workspace, longEdge = 1280, fit = true)
                     }
-                    Button(onClick = { onSelect(selected) }, modifier = Modifier.fillMaxWidth().heightIn(min = FilmSpacing.controlMinimum)) {
+                    MirrorButton(onClick = { onSelect(selected) }, modifier = Modifier.fillMaxWidth().heightIn(min = FilmSpacing.controlMinimum)) {
                         Text("选择该 LUT")
                     }
                     return@Column

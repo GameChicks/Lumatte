@@ -30,10 +30,10 @@ fun TransferCachePanel(camera: CameraWorkspaceState, busy: Boolean, onInspect: (
                 }
             }
             Row {
-                TextButton(enabled = !busy, onClick = onInspect) {
+                MirrorActionButton(enabled = !busy, onClick = onInspect) {
                     Text(if (camera.transferCache == null) "查看占用" else "刷新占用")
                 }
-                TextButton(enabled = !busy && camera.transferCache?.canClean == true, onClick = onClean) { Text("清理可释放缓存") }
+                MirrorActionButton(enabled = !busy && camera.transferCache?.canClean == true, onClick = onClean) { Text("清理可释放缓存") }
             }
             if (camera.cacheBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
             Text("只统计已登记任务的传输中间文件与未发布视频，不包含照片、导出成片或整个应用的存储占用。",

@@ -301,7 +301,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                         if (official && (browser.genresError != null || browser.pageError != null)) item {
                             Column(Modifier.padding(20.dp)) {
                                 Text(browser.genresError ?: browser.pageError.orEmpty(), color = MaterialTheme.colorScheme.error)
-                                TextButton(onClick = { workspace.officialLuts.loadGenres(); workspace.refreshOfficialLuts(expanded?.takeUnless { it == "all" }) }) {
+                                MirrorActionButton(onClick = { workspace.officialLuts.loadGenres(); workspace.refreshOfficialLuts(expanded?.takeUnless { it == "all" }) }) {
                                     Text("重试目录")
                                 }
                             }
@@ -357,7 +357,7 @@ internal fun MirrorLuts(state: WorkspaceState, workspace: WorkspaceViewModel, pe
                                     }
                                 if (official && query.isBlank() && focus && browser.query?.genreCode == category.key.takeUnless { it == "all" } && browser.nextOffset != null)
                                     item(key = "more:${category.key}") {
-                                        TextButton(modifier = Modifier.fillMaxWidth().background(category.colour), enabled = !browser.pageLoading,
+                                        MirrorActionButton(modifier = Modifier.fillMaxWidth().background(category.colour), enabled = !browser.pageLoading,
                                             onClick = workspace.officialLuts::loadMore) { Text("加载更多作品") }
                                     }
                             }
@@ -491,7 +491,7 @@ internal fun Polaroid(card: MirrorLutCard, origin: String, state: WorkspaceState
             bitmap?.let { Image(it.asImageBitmap(), card.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
             if (error != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("预览不可用", color = ink, fontSize = 11.sp)
-                TextButton(onClick = { retry++ }) { Text("重试", color = ink) }
+                MirrorActionButton(onClick = { retry++ }) { Text("重试", color = ink) }
             } else if (bitmap == null) {
                 if (loading && (card.official != null || state.current != null)) CircularProgressIndicator(Modifier.size(20.dp), color = ink, strokeWidth = 2.dp)
                 else Text("导入照片\n查看效果", Modifier.padding(8.dp), color = ink, fontSize = 11.sp)
@@ -605,7 +605,7 @@ private fun LutDetail(card: MirrorLutCard, origin: String, state: WorkspaceState
                     else "此 LUT 使用导入照片显示效果，可独立调整强度，并与第二款 LUT 叠加。")
                 (info?.photoStyle ?: card.local?.photoStyle)?.let { Text("建议输入照片风格：$it", color = tones.secondaryInk) }
                 if (card.official != null && browser.detailCode == card.official.code && browser.detailError != null)
-                    TextButton(onClick = { workspace.officialLuts.openDetail(card.official.code) }) { Text("重试加载介绍") }
+                    MirrorActionButton(onClick = { workspace.officialLuts.openDetail(card.official.code) }) { Text("重试加载介绍") }
             }
             if (card.local != null) item {
                 Text("题材分类", style = MaterialTheme.typography.titleSmall)
@@ -626,7 +626,7 @@ private fun LutDetail(card: MirrorLutCard, origin: String, state: WorkspaceState
                     OfficialLutDownloadStatus.SAVED -> "已保存到我的 LUT"
                     OfficialLutDownloadStatus.CANCELLED -> "下载已取消"
                     OfficialLutDownloadStatus.FAILED -> download.error ?: "下载失败，可重试" })
-                if (download.status == OfficialLutDownloadStatus.RUNNING) TextButton(onClick = workspace::cancelOfficialLutDownload) { Text("取消下载") }
+                if (download.status == OfficialLutDownloadStatus.RUNNING) MirrorActionButton(onClick = workspace::cancelOfficialLutDownload) { Text("取消下载") }
             } }
         }
         MirrorButton(enabled = !state.busy && state.officialLutDownload?.status != OfficialLutDownloadStatus.RUNNING,

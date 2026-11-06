@@ -52,7 +52,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 Column(Modifier.fillMaxWidth().padding(12.dp)) {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     if (!camera.connected && camera.device != null && camera.sendingReconnect == null)
-                        TextButton(enabled = !busy, onClick = workspace::reconnectCamera) { Text("重新连接") }
+                        MirrorActionButton(enabled = !busy, onClick = workspace::reconnectCamera) { Text("重新连接") }
                 }
                 HorizontalDivider()
             }
@@ -77,16 +77,16 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                             }
                             if (method == "bluetooth") CameraBluetoothControls(camera, busy, workspace)
                             else CameraConnectControls(busy, workspace)
-                            TextButton(onClick = { guideExpanded = !guideExpanded }) {
+                            MirrorActionButton(onClick = { guideExpanded = !guideExpanded }) {
                                 Text(if (guideExpanded) "收起连接帮助 ↑" else "首次连接？查看步骤 ↓")
                             }
                             if (guideExpanded) MirrorConnectionGuide(method == "bluetooth", requestedCamera?.model)
                             if (camera.problem == null && camera.device != null && camera.sendingReconnect == null &&
                                 (requestedCamera == null || camera.device.rememberedIdentity() == requestedCamera.id))
-                                TextButton(enabled = !busy, onClick = workspace::reconnectCamera) { Text("重新连接 ${camera.device.model}") }
+                                MirrorActionButton(enabled = !busy, onClick = workspace::reconnectCamera) { Text("重新连接 ${camera.device.model}") }
                             if (camera.discovered.size > 1) {
                                 Text("选择相机", style = MaterialTheme.typography.titleSmall)
-                                camera.discovered.forEach { found -> TextButton(enabled = !busy,
+                                camera.discovered.forEach { found -> MirrorActionButton(enabled = !busy,
                                     onClick = { workspace.chooseCamera(found.key) }) {
                                     Text("${found.device.model} · ${found.device.friendlyName}")
                                 } }
@@ -96,16 +96,16 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                             Text(if (camera.accessMode.incoming) "相机发送目录" else "相机相册 · 最新在前",
                                 style = MaterialTheme.typography.bodySmall)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(enabled = !busy, onClick = workspace::refreshCameraPhotos) { Text("刷新") }
+                                MirrorActionButton(enabled = !busy, onClick = workspace::refreshCameraPhotos) { Text("刷新") }
                                 if (!camera.accessMode.incoming) {
-                                    TextButton(enabled = !busy && camera.entries.any { !it.isFolder && it.transferResource != null },
+                                    MirrorActionButton(enabled = !busy && camera.entries.any { !it.isFolder && it.transferResource != null },
                                         onClick = { workspace.selectLoadedCameraPhotos(true) }) { Text("选择已载入") }
-                                    if (camera.selectedIds.isNotEmpty()) TextButton(enabled = !busy,
+                                    if (camera.selectedIds.isNotEmpty()) MirrorActionButton(enabled = !busy,
                                         onClick = { workspace.selectLoadedCameraPhotos(false) }) { Text("取消选择") }
                                 }
-                                TextButton(enabled = !busy, onClick = workspace::disconnectCamera) { Text("断开连接") }
+                                MirrorActionButton(enabled = !busy, onClick = workspace::disconnectCamera) { Text("断开连接") }
                             }
-                            if (camera.folders.size > 1) TextButton(enabled = !busy, onClick = workspace::cameraFolderBack) {
+                            if (camera.folders.size > 1) MirrorActionButton(enabled = !busy, onClick = workspace::cameraFolderBack) {
                                 Text("← 返回上级 · ${camera.folders.last().title}")
                             }
                             if (camera.accessMode.incoming) Text("按相机发送队列接收；RAW 文件仅提取内嵌 JPEG。",
@@ -125,7 +125,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                             if (camera.entries.isEmpty() && !busy) Text("相机中没有可浏览的媒体")
                             Text("已载入 ${camera.entries.size} / ${camera.total} 项", style = MaterialTheme.typography.labelSmall)
-                            if (camera.nextOffset != null) TextButton(enabled = !busy, onClick = workspace::loadMoreCameraPhotos) {
+                            if (camera.nextOffset != null) MirrorActionButton(enabled = !busy, onClick = workspace::loadMoreCameraPhotos) {
                                 Text(if (camera.accessMode.incoming) "加载更多" else "加载更早的照片")
                             }
                         }
@@ -133,7 +133,7 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
                 }
                 item(key = "diagnostics", span = { GridItemSpan(maxLineSpan) }) {
                     Column {
-                        TextButton(onClick = { diagnostics = !diagnostics }) { Text(if (diagnostics) "收起连接日志 ↑" else "连接日志与诊断 ↓") }
+                        MirrorActionButton(onClick = { diagnostics = !diagnostics }) { Text(if (diagnostics) "收起连接日志 ↑" else "连接日志与诊断 ↓") }
                         if (diagnostics) CameraConnectionLogControls()
                         trailingContent()
                     }
@@ -142,11 +142,11 @@ fun CameraTransferPanel(camera: CameraWorkspaceState, busy: Boolean, cameraBusy:
             if (camera.connected && !differentCamera) {
                 HorizontalDivider()
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (!camera.accessMode.incoming) Button(modifier = Modifier.fillMaxWidth(),
+                    if (!camera.accessMode.incoming) MirrorButton(modifier = Modifier.fillMaxWidth(),
                         enabled = !busy && camera.selectedIds.isNotEmpty(), onClick = onImport) {
                         Text(if (camera.selectedIds.isEmpty()) "选择照片后传入" else "传入选中 · ${camera.selectedIds.size} 项")
                     } else {
-                        Button(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = onImport) { Text("接收待发送文件") }
+                        MirrorButton(modifier = Modifier.fillMaxWidth(), enabled = !busy, onClick = onImport) { Text("接收待发送文件") }
                         if (camera.bluetoothCanFollowIncoming) IncomingFollowControl(busy, onFollow, workspace)
                     }
                 }
@@ -237,8 +237,8 @@ private fun CameraOperationStatus(camera: CameraWorkspaceState, cameraBusy: Bool
                 style = MaterialTheme.typography.labelSmall)
         }
         Row {
-            if (transferring) TextButton(onClick = workspace::pauseTransfer) { Text("暂停传输") }
-            TextButton(onClick = workspace::cancelCameraOperation) {
+            if (transferring) MirrorActionButton(onClick = workspace::pauseTransfer) { Text("暂停传输") }
+            MirrorActionButton(onClick = workspace::cancelCameraOperation) {
                 Text(if (camera.followingIncoming) "停止后续接收" else if (transferring) "取消后续传输"
                     else if (camera.bluetoothStep == BluetoothConnectionStep.SCANNING) "停止查找"
                     else if (camera.connected) "取消操作" else "取消连接")

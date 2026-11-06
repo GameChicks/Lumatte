@@ -115,10 +115,10 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             }) { Text(if (camera.bluetoothStep == BluetoothConnectionStep.SCANNING) "正在查找相机…" else "查找蓝牙相机") }
             if (camera.bluetoothStep == BluetoothConnectionStep.SCANNING)
                 Text("发现相机后可直接点连接，无需等查找结束。", style = MaterialTheme.typography.bodySmall)
-            TextButton(enabled = !busy, onClick = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }) {
+            MirrorActionButton(enabled = !busy, onClick = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }) {
                 Text("打开系统蓝牙设置 →")
             }
-            TextButton(enabled = !busy, onClick = { context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }) {
+            MirrorActionButton(enabled = !busy, onClick = { context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }) {
                 Text("打开系统定位设置 →")
             }
         if (camera.bluetoothCameras.isNotEmpty()) {
@@ -135,7 +135,7 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
                             Text(if (found.pairing) "相机正在等待配对" else "相机已开机",
                                 style = MaterialTheme.typography.bodySmall)
                         }
-                        TextButton(enabled = selectable, onClick = { connectCandidate(found.address) }) {
+                        MirrorActionButton(enabled = selectable, onClick = { connectCandidate(found.address) }) {
                             Text("连接")
                         }
                     }
@@ -148,7 +148,7 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
             }) { Text("配对并连接所选相机") }
             val selected = camera.bluetoothCameras.firstOrNull { it.address == selectedCamera }
             if (selected != null && !selected.pairing) {
-                TextButton(enabled = selectable, onClick = {
+                MirrorActionButton(enabled = selectable, onClick = {
                     workspace.readBluetoothCamera(selected.address, startTransfer = false)
                 }) { Text("已完成配对 · 查看其他连接方式") }
                 Text("仅供已完成配对的相机选择路由器或发送方式；首次配对请使用上方按钮。",
@@ -163,11 +163,11 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
                 if (camera.bluetoothCanStartSendingWifi) {
                     Text("先点下方入口；提示等待后，在相机上开启拍后发送或选定文件发送。等待最多 90 秒。",
                         style = MaterialTheme.typography.labelSmall)
-                    TextButton(enabled = !busy, onClick = { connect(true, sending = true) }) {
+                    MirrorActionButton(enabled = !busy, onClick = { connect(true, sending = true) }) {
                         Text("等待相机发送并连接")
                     }
                 }
-                TextButton(enabled = !busy, onClick = { connect(false) }) { Text("已在相机上开启 · 直接连接") }
+                MirrorActionButton(enabled = !busy, onClick = { connect(false) }) { Text("已在相机上开启 · 直接连接") }
             } else {
                 Text("在相机上开启 Wi-Fi 传输后连接，随后在系统弹窗确认。", style = MaterialTheme.typography.labelSmall)
                 MirrorButton(enabled = !busy, onClick = { connect(false) }) { Text("连接此相机 Wi-Fi") }
@@ -180,13 +180,13 @@ fun CameraBluetoothControls(camera: CameraWorkspaceState, busy: Boolean, workspa
                 OutlinedTextField(value = routerSsid, onValueChange = { routerSsid = it }, enabled = !busy,
                     singleLine = true, isError = routerError != null, label = { Text("路由器 Wi-Fi 名称") },
                     supportingText = { Text(routerError ?: "${routerSsid.toByteArray(Charsets.UTF_8).size}/32 字节 · 可输入中文，保留空格和大小写；密码在相机上设置。") })
-                TextButton(enabled = !busy && routerValid, onClick = { connectRouter(false) }) {
+                MirrorActionButton(enabled = !busy && routerValid, onClick = { connectRouter(false) }) {
                     Text("让相机连接此路由器")
                 }
                 if (camera.bluetoothCanStartSendingWifi) {
                     Text("需要拍后或选定发送时，先点下方入口；提示等待后再在相机上开启发送。等待最多 90 秒。",
                         style = MaterialTheme.typography.labelSmall)
-                    TextButton(enabled = !busy && routerValid, onClick = { connectRouter(true) }) {
+                    MirrorActionButton(enabled = !busy && routerValid, onClick = { connectRouter(true) }) {
                         Text("通过此路由器等待相机发送")
                     }
                 }

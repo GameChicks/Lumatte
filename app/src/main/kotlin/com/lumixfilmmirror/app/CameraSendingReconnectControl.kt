@@ -34,7 +34,7 @@ fun CameraSendingReconnectControl(request: CameraSendingReconnectRequest, busy: 
         else "相机请求更新 Wi-Fi 资料，$mode 已暂停。", style = MaterialTheme.typography.bodySmall)
     Text("更新连接会重新读取相机网络；已保存结果及旧队列的确认记录保留。连接后再选择接收方式。",
         style = MaterialTheme.typography.labelSmall)
-    Button(enabled = !busy, onClick = {
+    MirrorButton(enabled = !busy, onClick = {
         if (permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) proceed()
         else launcher.launch(permissions)
     }) { Text("更新发送连接") }

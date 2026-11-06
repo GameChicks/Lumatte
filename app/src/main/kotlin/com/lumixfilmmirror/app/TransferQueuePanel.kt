@@ -33,7 +33,7 @@ fun TransferQueuePanel(tasks: List<TransferTask>, state: WorkspaceState, workspa
             Text("传输队列", style = MaterialTheme.typography.titleMedium)
             Text("切到后台后由传输服务继续；暂停或进程结束后保留记录。已下载文件可直接完成导入或保存。",
                 style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { showHistory = !showHistory }) { Text(if (showHistory) "隐藏已完成记录" else "显示已完成记录") }
+            MirrorActionButton(onClick = { showHistory = !showHistory }) { Text(if (showHistory) "隐藏已完成记录" else "显示已完成记录") }
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 displayed.forEach { (id, photos) ->
                   item(key = "batch:$id") {
@@ -50,11 +50,11 @@ fun TransferQueuePanel(tasks: List<TransferTask>, state: WorkspaceState, workspa
                             style = MaterialTheme.typography.bodySmall)
                         Row {
                             if (pending > 0 && !active) {
-                                TextButton(enabled = !state.busy, onClick = { onResume(id) }) { Text("继续／重试") }
-                                TextButton(enabled = !state.busy, onClick = { workspace.cancelTransferBatch(id) }) { Text("取消余下任务") }
+                                MirrorActionButton(enabled = !state.busy, onClick = { onResume(id) }) { Text("继续／重试") }
+                                MirrorActionButton(enabled = !state.busy, onClick = { workspace.cancelTransferBatch(id) }) { Text("取消余下任务") }
                             }
-                            if (active) TextButton(onClick = workspace::pauseTransfer) { Text("暂停") }
-                            TextButton(onClick = { expanded[id] = expanded[id] != true }) { Text(if (expanded[id] == true) "收起明细" else "查看明细") }
+                            if (active) MirrorActionButton(onClick = workspace::pauseTransfer) { Text("暂停") }
+                            MirrorActionButton(onClick = { expanded[id] = expanded[id] != true }) { Text(if (expanded[id] == true) "收起明细" else "查看明细") }
                         }
                         HorizontalDivider()
                     }
@@ -67,7 +67,7 @@ fun TransferQueuePanel(tasks: List<TransferTask>, state: WorkspaceState, workspa
                           photo.cameraAcknowledgement?.let { ack ->
                               Text("相机：${acknowledgementLabel(ack)}", style = MaterialTheme.typography.labelSmall)
                           }
-                          if (photo.state == "SAVED" && photo.savedUri != null) TextButton(onClick = {
+                          if (photo.state == "SAVED" && photo.savedUri != null) MirrorActionButton(onClick = {
                               try {
                                   context.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(photo.savedUri),
                                       photo.expectedMedia().transferResource?.videoContainer?.mimeType ?: "video/*")

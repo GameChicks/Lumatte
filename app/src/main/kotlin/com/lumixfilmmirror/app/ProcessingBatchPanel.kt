@@ -17,7 +17,7 @@ internal fun ProcessingBatchPanel(state: WorkspaceState, workspace: WorkspaceVie
         Column(Modifier.padding(FilmSpacing.panel), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("当前批次", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                TextButton(enabled = !state.busy, onClick = workspace::newProcessingBatch) { Text("新建批次") }
+                MirrorActionButton(enabled = !state.busy, onClick = workspace::newProcessingBatch) { Text("新建批次") }
             }
             Text(state.processingBatch?.title ?: if (state.activeTransferBatch != null) "正在建立相机批次" else "导入时建立新批次",
                 style = MaterialTheme.typography.bodyMedium)

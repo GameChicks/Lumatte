@@ -128,10 +128,12 @@ class TransferRunner(private val store: WorkspaceStore, private val importer: Im
                         savedVideos++
                     } else {
                         onPhase(task, TransferPhase.IMPORTING_PHOTO)
+                        val importingAt = SystemClock.elapsedRealtime()
                         val photo = importer.importImage(Uri.fromFile(finished), task.originalName ?: task.title,
                             rawEmbeddedPreview = expected.kind == CameraResourceKind.RAW_PREVIEW_JPEG,
                             photoId = PhotoId(task.id))
                         withContext(NonCancellable) { store.finish(task, photo, received) }
+                        CameraConnectionLog.info("LFMDownload", "photoImportMs=${SystemClock.elapsedRealtime()-importingAt} bytes=$received")
                         imported++
                     }
                     withContext(Dispatchers.IO) { finished.delete() }

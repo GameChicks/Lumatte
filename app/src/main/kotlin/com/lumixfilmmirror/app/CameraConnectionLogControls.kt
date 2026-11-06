@@ -78,10 +78,10 @@ internal fun CameraConnectionLogControls() {
         Text("记录连接步骤和错误，不记录密码、网络名称或身份数据。最多保留 8 份，重启后可查看。",
             style = MaterialTheme.typography.labelSmall)
         FlowRow {
-            TextButton(enabled = log.ready, onClick = { viewing = true }) { Text("查看日志") }
-            TextButton(enabled = log.files.isNotEmpty() && !saving && pendingExport == null,
+            MirrorActionButton(enabled = log.ready, onClick = { viewing = true }) { Text("查看日志") }
+            MirrorActionButton(enabled = log.files.isNotEmpty() && !saving && pendingExport == null,
                 onClick = { export(log.activeFile ?: log.files.firstOrNull()?.name) }) { Text(if (saving) "正在导出" else "导出最新日志") }
-            TextButton(enabled = log.files.isNotEmpty() && !saving && pendingExport == null,
+            MirrorActionButton(enabled = log.files.isNotEmpty() && !saving && pendingExport == null,
                 onClick = { scope.launch {
                     try {
                         CameraConnectionLog.clear()
@@ -100,7 +100,7 @@ internal fun CameraConnectionLogControls() {
             Column(Modifier.fillMaxWidth()) {
                 LazyColumn(Modifier.heightIn(max = 130.dp)) {
                     items(log.files, key = { it.name }) { file ->
-                        TextButton(onClick = { selected = file.name }) {
+                        MirrorActionButton(onClick = { selected = file.name }) {
                             Text("${if (file.name == selected) "● " else ""}${file.name} · ${file.bytes / 1024 + 1} KB",
                                 style = MaterialTheme.typography.labelSmall)
                         }
@@ -116,8 +116,8 @@ internal fun CameraConnectionLogControls() {
                 notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
         },
-        confirmButton = { TextButton(enabled = selected != null && !saving && pendingExport == null,
+        confirmButton = { MirrorActionButton(enabled = selected != null && !saving && pendingExport == null,
             onClick = { export(selected) }) { Text("导出所选日志") } },
-        dismissButton = { TextButton(onClick = { viewing = false }) { Text("关闭") } },
+        dismissButton = { MirrorActionButton(onClick = { viewing = false }) { Text("关闭") } },
     )
 }
