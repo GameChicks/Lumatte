@@ -20,19 +20,20 @@ internal class FrameStockEdge(context: Context, @Suppress("UNUSED_PARAMETER") fo
     private val regular by lazy { Typeface.createFromAsset(assets,"frames/spektralab/texgyreheros-regular.otf") }
     private val mono by lazy { Typeface.createFromAsset(assets,"frames/spektralab/DejaVuSansMono-Bold.ttf") }
 
-    fun draw(canvas:Canvas, photo:RectF, stock:FilmPreset, number:Int, transparent:Boolean, checkActive:()->Unit) {
+    fun draw(canvas:Canvas, photo:RectF, stock:FilmPreset, number:Int, transparent:Boolean, roll120:Boolean, checkActive:()->Unit) {
         if(!transparent)canvas.drawColor(0xFFF0EEE7.toInt())
         canvas.save()
         if(photo.width()<photo.height()){canvas.translate(photo.left,photo.bottom);canvas.rotate(-90f)}
         else canvas.translate(photo.left,photo.top)
         try {
+            if(roll120) { draw120(canvas,photo,stock,number,checkActive);return }
             val short=min(photo.width(),photo.height());val along=max(photo.width(),photo.height())
             val mm=short/24.3f;val length=along/mm;val rail=(35f-24.3f)/2
             canvas.scale(mm,mm);canvas.translate(0f,-rail)
             val strip=RectF(-.85f,0f,length+.85f,35f)
             val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply { color=when {
                 stock.positive->0xFF080708.toInt();stock.category==FilmCategory.MONOCHROME->0xFF171916.toInt()
-                else->0xFF311B12.toInt() } }
+                else->0xFF101719.toInt() } }
             canvas.drawRect(strip,paint);canvas.clipRect(strip)
             val cut=Paint(Paint.ANTI_ALIAS_FLAG).apply { if(transparent)blendMode=BlendMode.CLEAR else color=0xFFF0EEE7.toInt() }
             // Reference 135 perforations: 4.75 pitch, 1.98 x 2.80, 2mm from film edges.
@@ -53,17 +54,23 @@ internal class FrameStockEdge(context: Context, @Suppress("UNUSED_PARAMETER") fo
                 stock.category==FilmCategory.MONOCHROME->0xFFD2D1C8.toInt()
                 stock.positive && !id.startsWith("fujifilm")->0xFFE4DBD5.toInt()
                 stock.positive->0xFFE9BB59.toInt();family=="cine"->0xFFCCD2E9.toInt()
-                family=="cinestill"->0xFFF3B850.toInt();family.startsWith("fuji")->0xFFE7C66A.toInt()
-                else->0xFFE5B98A.toInt()
+                family=="cinestill"->0xFFF3B850.toInt();family.startsWith("fuji")->0xFFF5A34A.toInt()
+                else->0xFFFFAD80.toInt()
             }
             fun rect(l:Float,t:Float,r:Float,b:Float){canvas.drawRect(l,t,r,b,paint)}
-            fun text(tx:String,x:Float,base:Float,cap:Float,face:Typeface=bold,scale:Float=1f,tracking:Float=.06f) {
-                paint.typeface=face;paint.textSize=cap/(if(face===mono).729f else .714f)
-                var sx=x
-                tx.forEach { c ->
-                    canvas.save();canvas.translate(sx,base);canvas.scale(scale,1f);canvas.drawText(c.toString(),0f,0f,paint);canvas.restore()
-                    sx+=paint.measureText(c.toString())*scale+tracking
-                }
+            fun text(tx:String,x:Float,base:Float,cap:Float,face:Typeface=bold) {
+                // Shape each word at its natural proportions. The former glyph-by-glyph
+                // path lost kerning/word rhythm and widened only selected digits.
+                paint.typeface=face;paint.textScaleX=1f;paint.isSubpixelText=true
+                // Measure at a large em so tiny preview glyphs do not round to zero.
+                val bounds=Rect()
+                paint.textSize=1000f;paint.getTextBounds("H",0,1,bounds)
+                val fontScale=cap/bounds.height().coerceAtLeast(1)
+                canvas.save()
+                try {
+                    canvas.translate(x,base);canvas.scale(fontScale,fontScale)
+                    canvas.drawText(tx.replace(" ","\u2002"),0f,0f,paint)
+                } finally {canvas.restore()}
             }
             fun matrix(tx:String,x0:Float,base:Float,cap:Float,xscale:Float=1f,heavy:Boolean=false) {
                 val face=data.getJSONObject("faces").getJSONObject("matrix");val pitch=cap/7;val cw=pitch*xscale;var x=x0
@@ -99,25 +106,30 @@ internal class FrameStockEdge(context: Context, @Suppress("UNUSED_PARAMETER") fo
                 for(i in 0..5)bits[13+i]=(num.coerceIn(0,63) shr(5-i)) and 1
                 bits[19]=if(half)1 else 0;bits[21]=bits.take(21).sum()%2
                 val mod=(if(family=="fujiNeg")14.1f else if(ilford)13.06f else 12.7f)/31
-                for(track in 0..1)for(i in 0..30){
-                    val bit=if(track==0){if(i<5 || i>=28)1 else(i-5)%2}else if(i<5){if(i%2==0)1 else 0}else if(i>=28){if((i-28)%2==0)1 else 0}else bits[i-5]
-                    if(bit==1)rect(s+i*mod,if(track==0)32.83f else 34.13f,s+(i+1)*mod,if(track==0)34.14f else 35.10f)
+                for(track in 0..1) {
+                    fun bit(i:Int)=if(track==0){if(i<5 || i>=28)1 else(i-5)%2}else if(i<5){if(i%2==0)1 else 0}else if(i>=28){if((i-28)%2==0)1 else 0}else bits[i-5]
+                    var i=0
+                    while(i<31) {
+                        if(bit(i)==0){i++;continue}
+                        val first=i;while(i<31 && bit(i)==1)i++
+                        rect(s+first*mod,if(track==0)32.83f else 34.13f,s+i*mod,if(track==0)34.14f else 35.10f)
+                    }
                 }
             }
             // Half-frame grid stays tied to the same perforation phase even on panoramic gates.
             val minM=floor((-5f-phase-.62f)/19).toInt()-1;val maxM=ceil((length+5-phase-.62f)/19).toInt()+1
             for(m in minM..maxM){
-                checkActive();val half=2*number+m;val num=floor(half/2.0).toInt();val a=half%2!=0
+                checkActive();val half=2*(number+1)+m;val num=floor(half/2.0).toInt();val a=half%2!=0
                 val s=phase+.62f+19*m+if(family=="kodak" || family=="fujiNeg")19f else 0f
                 when(family){
                     "kodak"->{
                         val light=id in setOf("fujifilm_c200","kodak_tri_x_400")
                         val cap=if(light)1.07f else 1.22f;val base=if(light)1.69f else 1.53f
-                        if(!a)text(num.toString(),s+16.9f,base,cap,if(light)regular else bold,if(light)1f else 1.25f,.25f)
+                        if(!a)text(num.toString(),s+16.9f,base,cap,if(light)regular else bold)
                         else text(label,s+if(light)5.1f else 6.4f,base,cap)
                         code(s,num,a)
-                        if(a){text("${num}A",s+15.3f,34.16f,.90f,if(light)regular else bold,if(light)1f else 1.25f,.25f);arrow(s+14.47f,s+18.07f,34.72f)}
-                        else text(num.toString(),s+16f,34.86f,1.4f,if(light)regular else bold,if(light)1f else 1.25f,.25f)
+                        if(a){text("${num}A",s+15.3f,34.16f,.90f,if(light)regular else bold);arrow(s+14.47f,s+18.07f,34.72f)}
+                        else text(num.toString(),s+16f,34.86f,1.4f,if(light)regular else bold)
                     }
                     "fujiNeg"->{
                         val n=num.toString()+if(a)"A"else""
@@ -140,10 +152,10 @@ internal class FrameStockEdge(context: Context, @Suppress("UNUSED_PARAMETER") fo
                     }
                     "cinestill"->{
                         val f=floor(m/2.0).toInt();val numbered=m-2*f==0;val sn=phase+6.34f+38*f;val n=number+f
-                        if(numbered){text(n.toString(),sn,34.98f,1.68f,mono,1.28f,0f);matrix(label,sn-6.21f,1.64f,1.38f,1.16f)}
+                        if(numbered){text(n.toString(),sn,34.98f,1.68f,mono);matrix(label,sn-6.21f,1.64f,1.38f,1.16f)}
                         else{val sa=sn+18.59f;val tc=34.085f;var previous=0f
                             for((end,hh)in listOf(.37f to .455f,.80f to .365f,1.08f to .235f,1.50f to .094f)){rect(sa+previous,tc-hh,sa+end+.01f,tc+hh);previous=end}
-                            text("${n}A",sa+1.75f,34.5f,1f,mono,1.25f,0f)
+                            text("${n}A",sa+1.75f,34.5f,1f,mono)
                         }
                     }
                     "cine"->if(half%2==0){val sd=s+2.06f;rect(sd,34.09f,sd+1.16f,34.31f);if(Math.floorMod(half/2,2)==0)matrix(label,sd+10.1f,34.53f,.88f,.93f)}
@@ -151,4 +163,25 @@ internal class FrameStockEdge(context: Context, @Suppress("UNUSED_PARAMETER") fo
             }
         } finally {canvas.restore()}
     }
+    private fun draw120(canvas:Canvas,photo:RectF,stock:FilmPreset,number:Int,checkActive:()->Unit) {
+        val mm=min(photo.width(),photo.height())/56f
+        val length=max(photo.width(),photo.height())/mm
+        canvas.scale(mm,mm)
+        val paint=Paint(Paint.ANTI_ALIAS_FLAG).apply { color=0xFF0A1114.toInt();isSubpixelText=true }
+        canvas.drawRect(-.85f,-2f,length+.85f,58f,paint)
+        paint.color=if(stock.category==FilmCategory.MONOCHROME)0xFFDED8C6.toInt()else 0xFFECC04C.toInt()
+        paint.typeface=bold;paint.textSize=1.2f
+        val label=data.getJSONObject("labels").optString(stock.id,stock.name.uppercase(Locale.ROOT))
+        // 120 has no sprocket holes and no 135 DX code. Only known stock/frame lettering.
+        checkActive()
+        val width=paint.measureText(label)
+        canvas.drawText(label,(length-width)*.66f,57.5f,paint)
+        for((index,x) in listOf(length*.38f,length*.83f).withIndex()) {
+            val n=(number+index).coerceAtLeast(1).toString()
+            canvas.drawText(n,x,-.45f,paint)
+            val arrow=Path().apply {moveTo(x+1.2f,-1.03f);lineTo(x+4.3f,-1.5f);lineTo(x+4.3f,-.55f);close()}
+            canvas.drawPath(arrow,paint)
+        }
+    }
+
 }

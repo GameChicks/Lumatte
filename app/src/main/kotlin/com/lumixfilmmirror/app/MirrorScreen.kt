@@ -221,20 +221,22 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
         LocalMirrorSoundEffects provides personal.soundEffects,LocalMirrorFeedbackPlayer provides feedbackPlayer,
         LocalMirrorAutomaticFilmDetails provides personal.automaticFilmDetails) {
         val collectionSurface = immersiveLut && tab == 2 && pane == null
-        // Film and LUT scenes paint through the status bar and inset their own controls.
-        val edgeScene = pane == null && tab in 1..2
+        // The host never changes height during a horizontal tab transition.
+        // Each destination owns its top inset, including the outgoing destination.
         val darkSurface = com.lumixfilmmirror.design.LocalFilmDark.current
         Column(Modifier.fillMaxSize().drawBehind {
             if (collectionSurface) drawCollectionBackdrop(darkSurface) else drawRect(tones.background)
-        }.windowInsetsPadding(if (edgeScene) WindowInsets.safeDrawing.only(
-            WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom) else WindowInsets.safeDrawing)) {
+        }.windowInsetsPadding(WindowInsets.safeDrawing.only(
+            WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))) {
             MirrorTaskProgress(state, camera, workspace, transferHidden) { transferHidden = it }
             Box(Modifier.weight(1f).fillMaxWidth()) {
             ProgressiveBackdrop(Modifier.fillMaxSize(), enabled = navigation && !reduced, source = backdrop) {
                 AnimatedContent(targetState = pane, label = "workspace-card-entry", transitionSpec = {
                     (fadeIn(tween(if (reduced) 0 else 300)) + scaleIn(tween(if (reduced) 0 else 420, easing = MirrorEase), initialScale = .97f)) togetherWith
                         (fadeOut(tween(if (reduced) 0 else 160)) + scaleOut(tween(if (reduced) 0 else 300), targetScale = 1.015f))
-                }) { scene -> when (scene) {
+                }, modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopStart) { scene ->
+                Box(Modifier.fillMaxSize().then(if (scene != null) Modifier.windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Top)) else Modifier)) { when (scene) {
                     "camera" -> Column(Modifier.fillMaxSize()) {
                         Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                             RoundAction("返回连接页", DotGlyph.LEFT, onClick = { pane = null })
@@ -268,28 +270,32 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                         MirrorActionButton(onClick = { pane = null }) { Text("← 返回连接页") }
                         Box(Modifier.weight(1f)) { WorkspaceScreen(workspace) }
                     }
-                    else -> AnimatedContent(targetState = tab, label = "main-tab-slide", transitionSpec = {
+                    else -> AnimatedContent(targetState = tab, modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.TopStart, label = "main-tab-slide", transitionSpec = {
                         val direction = if (targetState > initialState) 1 else -1
-                        (slideInHorizontally(tween(if (reduced) 0 else 420, easing = MirrorEase)) { it * direction / 8 } +
+                        ((slideInHorizontally(tween(if (reduced) 0 else 420, easing = MirrorEase)) { it * direction / 8 } +
                             fadeIn(tween(if (reduced) 0 else 260))) togetherWith
                             (slideOutHorizontally(tween(if (reduced) 0 else 420, easing = MirrorEase)) { -it * direction / 8 } +
-                                fadeOut(tween(if (reduced) 0 else 220)))
+                                fadeOut(tween(if (reduced) 0 else 220))))
+                            .using(null)
                     }) { shownTab -> savedPages.SaveableStateProvider(shownTab) {
                         when (shownTab) {
-                            0 -> MirrorHome(state, camera, personal, transfers, workspace,
+                            0 -> Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))) {
+                                MirrorHome(state, camera, personal, transfers, workspace,
                                 onCamera = { id -> requestedCameraId = id; cameraEntry = "bluetooth"; pane = "camera" },
                                 onAlbum = { importPhotos(PhotoTreatment.ORIGINAL) }, onLibrary = { pane = "library" },
                                 onSettings = { pane = "settings" })
+                            }
                             1 -> MirrorFilm(state, workspace, { importPhotos(PhotoTreatment.FILM) }, chooseFilm) { if (shownTab == tab) fullscreen = it }
                             2 -> MirrorLuts(state, workspace, personal, { importPhotos(PhotoTreatment.LUT) },
                                 { luts.launch(arrayOf("*/*")) }, chooseLut, initialSecond = editingLutSecond,
                                 onImmersive = { if (shownTab == tab) immersiveLut = it }) { if (shownTab == tab) fullscreen = it }
-                            else -> Box(Modifier.padding(bottom = 100.dp)) {
+                            else -> Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)).padding(bottom = 100.dp)) {
                                 MirrorFrames(state, workspace, { importPhotos(PhotoTreatment.ORIGINAL) })
                             }
                         }
                     } }
-                } }
+                } } }
             }
             if (navigation) MirrorNavigation(tab, Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 16.dp), backdrop) {
                 tab = it; fullscreen = false
@@ -303,8 +309,10 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                 text = { Text(failure) }, confirmButton = { MirrorActionButton(onClick = workspace::restoreWorkspace) { Text("重试恢复") } }) }
             // Operational notices remain visible and dismissible in the formal interface.
             if (state.notice != null && !state.recovering) Snackbar(Modifier.align(Alignment.BottomCenter)
-                .padding(start = 20.dp, end = 20.dp, bottom = if (navigation) 110.dp else 12.dp), action = {
-                MirrorActionButton(onClick = { workspace.clearNotice() }) { Text("知道了") }
+                .padding(start = 20.dp, end = 20.dp, bottom = if (navigation) 110.dp else 12.dp),
+                shape = RoundedCornerShape(20.dp), containerColor = tones.ink, contentColor = tones.paperHighlight, action = {
+                TextButton(onClick = { workspace.clearNotice() }, shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = tones.paperHighlight)) { Text("知道了", maxLines = 1) }
             }) { Text(state.notice.orEmpty(), maxLines = 3) }
             if (pane != "tools") camera.wifiSelection?.let { CameraWifiSelectionDialog(it, workspace) }
             }

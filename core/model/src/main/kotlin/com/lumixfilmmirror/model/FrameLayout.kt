@@ -38,9 +38,10 @@ object FrameLayouts {
         if (frame.preset == FramePreset.STOCK_FILM) {
             require(stockArtwork) { "胶卷片边仅适用于胶片模拟" }
             val portrait = pw < ph
-            val mm = min(pw, ph) / 24.3f
-            val railX = mm * if (portrait) 5.35f else .85f
-            val railY = mm * if (portrait) .85f else 5.35f
+            val mm = min(pw, ph) / if(frame.roll120)56f else 24.3f
+            val rail = if(frame.roll120)2f else 5.35f
+            val railX = mm * if (portrait) rail else .85f
+            val railY = mm * if (portrait) .85f else rail
             var width = pw + 2 * railX
             var height = ph + 2 * railY
             frame.ratio.landscape?.let {

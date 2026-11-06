@@ -192,7 +192,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         checkActive()
         // Grain is applied in density space before the nonlinear scan table. Rendering
         // fewer pixels changes its variance and the resulting mean color. The editor
-        // therefore simulates at the chosen export dimensions, then downsamples once.
+        // therefore simulates at the chosen export dimensions, then low-pass downsamples for display.
         // Small catalogue cards keep the cheaper approximation by omitting this size.
         val renderSize = if(film != null)filmOutputSize ?: size else size
         var pixels = decode(source, renderSize)
@@ -201,7 +201,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
             lut?.render(pixels, source, checkActive)
             checkActive()
             if(renderSize != size) {
-                val scaled=BitmapOrientation.render(pixels,size,1)
+                val scaled=BitmapOrientation.previewDownsample(pixels,size,checkActive)
                 pixels.recycle();pixels=scaled
             }
             return pixels

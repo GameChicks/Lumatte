@@ -82,47 +82,7 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
                 Text("长按对比原图", Modifier.weight(1f), color=tones.secondaryInk, fontSize=11.sp)
                 MirrorTextAction("${state.photos.size} 张 · 管理", { photos=true }, enabled = !state.busy)
             }
-            HorizontalDivider(color = tones.rim.copy(.35f))
-            // One active tool panel; the image keeps all remaining height on small screens.
-            Box(Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState()).padding(vertical=8.dp)) {
-                when(tool) {
-                    "adjust" -> state.selected?.let { id -> state.filmBatch?.effectiveParameters(id) }?.let { p ->
-                        MirrorFilmFineTuning(p, !state.busy, workspace::updateFilm, compact = true,
-                            showGrain = state.treatment == PhotoTreatment.FILM)
-                    }
-                    "lut" -> MirrorEditorLuts(state, workspace, onChooseLut)
-                    "film" -> MirrorEditorFilms(state, workspace)
-                    "texture" -> Column(Modifier.padding(horizontal=20.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                        if(state.treatment==PhotoTreatment.FILM) {
-                            val p=state.selected?.let { state.filmBatch?.effectiveParameters(it) }
-                            if(p!=null) {
-                                Row(verticalAlignment=Alignment.CenterVertically) {
-                                    Text("Halation 光晕", Modifier.weight(1f))
-                                    MirrorToggle(p.halationEnabled,"Halation 光晕",!state.busy) { workspace.updateFilm(p.copy(halationEnabled=it)) }
-                                }
-                                Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                                    FilmGrainIntensity.entries.forEach { g -> MirrorChoice(p.grainIntensity==g,
-                                        { workspace.updateFilm(p.copy(grainIntensity=g)) },Modifier.weight(1f),enabled=!state.busy,
-                                        label={Text(when(g){FilmGrainIntensity.LOW->"颗粒 · 低";FilmGrainIntensity.MEDIUM->"中";FilmGrainIntensity.HIGH->"高"})}) }
-                                }
-                                LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) { items(DiffusionGrade.entries) { g ->
-                                    MirrorChoice(p.diffusion==g,{workspace.updateFilm(p.copy(diffusion=g))},enabled=!state.busy,label={Text(g.name)})
-                                } }
-                            }
-                        } else {
-                            val r=state.lutRecipe
-                            Row(verticalAlignment=Alignment.CenterVertically){Text("颗粒效果",Modifier.weight(1f));MirrorToggle(r.grainEnabled,"颗粒效果",!state.busy){workspace.updateLut(r.copy(grainEnabled=it))}}
-                            MirrorParameterSlider("颗粒强度","${(r.grain*100).roundToInt()}%",r.grain,0f..1f,!state.busy && r.grainEnabled){workspace.updateLut(r.copy(grain=it))}
-                            Row(verticalAlignment=Alignment.CenterVertically){Text("减少色彩断层",Modifier.weight(1f));MirrorToggle(r.ditheringEnabled,"减少色彩断层",!state.busy){workspace.updateLut(r.copy(ditheringEnabled=it))}}
-                        }
-                    }
-                }
-            }
-            LazyRow(contentPadding=PaddingValues(horizontal=20.dp,vertical=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                items(listOf("adjust" to "调节", "lut" to "LUT", "film" to "胶卷", "texture" to "质感", "output" to "输出")) { (key,label) ->
-                    MirrorChoice(tool==key, { if(key=="output")options=true else tool=key },enabled=!state.busy,label={Text(label,Modifier.padding(horizontal=10.dp,vertical=4.dp))})
-                }
-            }
+            MirrorEditorDock(state,workspace,tool,{tool=it},onChooseLut,{options=true})
         }
     }
     if(options && state.current!=null) MirrorDialog("批次与输出",onDismiss={options=false}) {
@@ -231,8 +191,12 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
     }
     val ratio = if (frame) runCatching { workspace.exportLayout(source.id).canvas.let { it.width.toFloat() / it.height } }.getOrDefault(1f)
         else source.size.width.toFloat() / source.size.height
-    val previewModifier = Modifier.fillMaxWidth().let { if(compactHeight != null) it.height(compactHeight) else it.aspectRatio(ratio.coerceIn(.65f,1.8f)) }
-    Box(previewModifier.background(matte ?: LocalFilmMaterials.current.paperHighlight).then(if(compareOnHold)Modifier.pointerInput(source.id) {
+    BoxWithConstraints(Modifier.fillMaxWidth().let { if(compactHeight!=null)it.height(compactHeight)else it },
+        contentAlignment=Alignment.Center) {
+    val displayRatio=if(rotatePhotoForDevelopment)1f/ratio else ratio
+    val photoWidth=if(compactHeight!=null)minOf(maxWidth,compactHeight*displayRatio)else maxWidth
+    val previewModifier=Modifier.size(photoWidth,photoWidth/displayRatio)
+    Box(previewModifier.background(matte ?: Color.Transparent).then(if(compareOnHold)Modifier.pointerInput(source.id) {
         awaitEachGesture {
             val down=awaitFirstDown(requireUnconsumed=false)
             val longPress=awaitLongPressOrCancellation(down.id)
@@ -249,12 +213,15 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
         }
     } else Modifier),
         contentAlignment = Alignment.Center) {
-        (if(held)originalBitmap else bitmap)?.let { image ->
+        androidx.compose.animation.Crossfade(targetState=if(held)originalBitmap else bitmap,
+            modifier=Modifier.fillMaxSize(),animationSpec=tween(if(LocalMirrorReducedMotion.current || held)0 else 180),
+            label="edited-photo-proof") { shown -> shown?.let { image ->
             if (rotatePhotoForDevelopment) QuarterTurnViewport(clockwise = false, modifier = Modifier.fillMaxSize()) {
                 Image(image.asImageBitmap(), source.name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
                     colorFilter = if (held) null else colourFilter)
             } else Image(image.asImageBitmap(), source.name, Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
                 colorFilter = if (held) null else colourFilter)
+        }
         }
         if(held && originalBitmap==null)CircularProgressIndicator(Modifier.size(24.dp))
         if(held)Text("原图",Modifier.align(Alignment.TopStart).padding(8.dp).background(Color.Black.copy(.55f),RoundedCornerShape(10.dp))
@@ -264,6 +231,7 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
             Text(problem.orEmpty(), color = MaterialTheme.colorScheme.error)
             MirrorTextAction("重新加载预览", { retry++ })
         }
+    }
     }
 }
 
@@ -423,27 +391,17 @@ internal fun FilmReveal(state: WorkspaceState, workspace: WorkspaceViewModel, on
     val a = 2f * p - 1f
     val b = (1f - p) * 255f
     val matrix = ColorMatrix(floatArrayOf(a, 0f, 0f, 0f, b, 0f, a, 0f, 0f, b, 0f, 0f, a, 0f, b, 0f, 0f, 0f, 1f, 0f))
-    // The parent already applies safe drawing insets. Keep controls upright around the turned body.
-    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f).padding(start = 8.dp)) {
-                Text("Darkroom", fontFamily = MirrorFonts.FilmDisplay, fontStyle = FontStyle.Italic,
-                    fontSize = 32.sp, lineHeight = 36.sp, letterSpacing = .15.sp)
-                Text("$label · ${film?.name.orEmpty()}", color = LocalFilmMaterials.current.secondaryInk,
-                    fontFamily = MirrorFonts.Body, fontWeight = FontWeight.Light,
-                    style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            MirrorActionButton(onClick = onFinish) { Text("跳过") }
-        }
-        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            DevelopmentCamera(state, workspace, ColorFilter.colorMatrix(matrix), progress.value, onReady = { ready = true })
-        }
-        Column(Modifier.padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("${state.photos.size} 张照片 · 一次显影", color = LocalFilmMaterials.current.secondaryInk,
-                style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Normal)
-            Text("完成后选择画框，确认导出才会保存。", style = MaterialTheme.typography.bodySmall,
-                color = LocalFilmMaterials.current.secondaryInk, fontWeight = FontWeight.Light)
+    // An uncluttered reveal: full available stage for the body, quiet controls overlaid.
+    Box(Modifier.fillMaxSize()) {
+        DevelopmentCamera(state,workspace,ColorFilter.colorMatrix(matrix),progress.value,onReady={ready=true})
+        MirrorTextAction("跳过",onFinish,Modifier.align(Alignment.TopEnd).padding(top=8.dp,end=12.dp))
+        Column(Modifier.align(Alignment.BottomCenter).padding(horizontal=20.dp,vertical=16.dp),
+            horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(5.dp)) {
+            Text("$label · ${film?.editorName().orEmpty()}",fontFamily=MirrorFonts.Body,
+                style=MaterialTheme.typography.bodySmall,color=LocalFilmMaterials.current.secondaryInk,
+                maxLines=1,overflow=TextOverflow.Ellipsis)
+            if(state.photos.size>1)Text("本批 ${state.photos.size} 张",style=MaterialTheme.typography.labelSmall,
+                color=LocalFilmMaterials.current.secondaryInk)
         }
     }
 }
@@ -558,9 +516,9 @@ private fun FrameEditingContent(state: WorkspaceState, workspace: WorkspaceViewM
         val wide = maxWidth > maxHeight
         val preview: @Composable (Modifier) -> Unit = { area ->
             Column(area.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                    .background(LocalFilmMaterials.current.paperHighlight), contentAlignment = Alignment.Center) {
-                    SwipePhotoPreview(state, workspace, frame = true, compactHeight = maxHeight)
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    SwipePhotoPreview(state, workspace, frame = true,
+                        compactHeight = (maxHeight-if(state.photos.size>1)68.dp else 0.dp).coerceAtLeast(64.dp))
                 }
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Text(state.frame.preset.title, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
@@ -591,6 +549,10 @@ private fun FrameFinishingControls(state: WorkspaceState, workspace: WorkspaceVi
                 MirrorChoice(tab == key, { onTab(key) }, Modifier.weight(1f), label = { Text(label, fontSize = 13.sp) })
         }
         if (tab != "output") {
+            if(state.frame.preset==FramePreset.STOCK_FILM) Row(Modifier.fillMaxWidth().padding(horizontal=20.dp)) {
+                EditorTextTab("135 · 齿孔",!state.frame.roll120,{workspace.updateFrame(state.frame.copy(roll120=false))},Modifier.weight(1f),!state.busy)
+                EditorTextTab("120 · 细边",state.frame.roll120,{workspace.updateFrame(state.frame.copy(roll120=true))},Modifier.weight(1f),!state.busy)
+            }
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) { Text("日期后背"); Text("优先拍摄日期，无日期时使用导入日期", fontSize = 11.sp, color = LocalFilmMaterials.current.secondaryInk) }
                 MirrorToggle(state.frame.dateBack, "日期后背", !state.busy) { workspace.updateFrame(state.frame.copy(dateBack = it)) }

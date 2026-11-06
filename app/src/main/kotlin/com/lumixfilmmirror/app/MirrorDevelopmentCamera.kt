@@ -94,7 +94,7 @@ private fun DevelopmentCameraBody(state: WorkspaceState, workspace: WorkspaceVie
             awaitCancellation()
         } finally { owned?.recycle() }
     }
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp), contentAlignment = Alignment.Center) {
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
         val source = state.current ?: return@BoxWithConstraints
         if (maxWidth <= 0.dp || maxHeight <= 0.dp) return@BoxWithConstraints
         val turnPhoto = source.size.width < source.size.height

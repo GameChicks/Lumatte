@@ -1,5 +1,10 @@
 package com.lumixfilmmirror.app
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -46,6 +51,33 @@ internal fun MirrorFilmFineTuning(parameters: FilmParameters, enabled: Boolean, 
     var tool by rememberSaveable { mutableStateOf(FilmAdjustment.EXPOSURE.name) }
     val current = FilmAdjustment.valueOf(tool)
     val tones = LocalFilmMaterials.current
+    if(compact) {
+        Column(Modifier.fillMaxWidth().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            MirrorParameterSlider(current.title,current.label(parameters),current.value(parameters),
+                if(current==FilmAdjustment.EXPOSURE)-3f..3f else -1f..1f,enabled,
+                steps=if(current==FilmAdjustment.EXPOSURE)59 else 199){onChange(current.change(parameters,it))}
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                items(FilmAdjustment.entries,key={it.name}) { item ->
+                    Column(Modifier.width(64.dp).height(64.dp).background(if(item==current)tones.paper else androidx.compose.ui.graphics.Color.Transparent,RoundedCornerShape(12.dp))
+                        .selectable(item==current,enabled=enabled,role=Role.RadioButton){tool=item.name},
+                        horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
+                        Text(when(item){FilmAdjustment.EXPOSURE->"±";FilmAdjustment.BRIGHTNESS->"☼";
+                            FilmAdjustment.CONTRAST->"◐";FilmAdjustment.HIGHLIGHTS->"☀";FilmAdjustment.SHADOWS->"◑";
+                            FilmAdjustment.SATURATION->"◉";FilmAdjustment.VIBRANCE->"◇";FilmAdjustment.TEMPERATURE->"↔"},fontSize=21.sp,color=tones.ink)
+                        Text(item.title,fontSize=11.sp,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,color=tones.ink)
+                        Spacer(Modifier.height(4.dp))
+                        Box(Modifier.size(if(item==current)16.dp else 0.dp,2.dp).background(tones.amber))
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+                MirrorTextAction("重置此项",{onChange(current.change(parameters,0f))},enabled=enabled && current.value(parameters)!=0f)
+                MirrorTextAction("全部归零",{onChange(parameters.copy(exposureEv=0f,brightness=0f,contrast=0f,highlights=0f,
+                    shadows=0f,saturation=0f,vibrance=0f,temperature=0f))},enabled=enabled && FilmAdjustment.entries.any{it.value(parameters)!=0f})
+            }
+        }
+        return
+    }
     val content: @Composable () -> Unit = {
         MirrorParameterSlider(current.title, current.label(parameters), current.value(parameters),
             if (current == FilmAdjustment.EXPOSURE) -3f..3f else -1f..1f, enabled,

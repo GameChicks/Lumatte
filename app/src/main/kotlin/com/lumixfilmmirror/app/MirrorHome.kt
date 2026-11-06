@@ -226,8 +226,8 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     HomeDisplayText("新增你的\n松下相机", Modifier.fillMaxWidth().weight(1f), 72f, centered = true)
-                    MirrorActionButton(enabled = !camera.busy, onClick = { onConnect(null) }) { Text("点按开始连接 →", color = Color.White.copy(.75f)) }
-                    if (personal.cameras.isNotEmpty()) MirrorActionButton(onClick = { travelDirection = -1; mode = "normal" }) { Text("返回已有相机", color = Color.White, fontSize = 16.sp) }
+                    TextButton(enabled = !camera.busy, onClick = { onConnect(null) }) { Text("点按开始连接 →", color = Color.White.copy(.75f)) }
+                    if (personal.cameras.isNotEmpty()) TextButton(onClick = { travelDirection = -1; mode = "normal" }) { Text("返回已有相机", color = Color.White, fontSize = 16.sp) }
                 }
             } else if (target == "delete") {
                 Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -236,8 +236,8 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
                     Text("移除本机记录，已传入的照片会保留。", color = Color.White)
                     Spacer(Modifier.weight(1f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        MirrorActionButton(enabled = !camera.busy && currentId != null, onClick = { deleting = currentId }) { Text("移除记录", color = Color.White, fontSize = 16.sp) }
-                        MirrorActionButton(onClick = { travelDirection = 1; mode = "normal" }) { Text("返回", color = Color.White, fontSize = 16.sp) }
+                        TextButton(enabled = !camera.busy && currentId != null, onClick = { deleting = currentId }) { Text("移除记录", color = Color.White, fontSize = 16.sp) }
+                        TextButton(onClick = { travelDirection = 1; mode = "normal" }) { Text("返回", color = Color.White, fontSize = 16.sp) }
                     }
                 }
             } else {
@@ -250,7 +250,7 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
                                 Text("你的", color = Color.White, fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
                                 Text("松下相机", color = Color.White.copy(.6f), fontSize = 21.sp, lineHeight = 25.sp, fontWeight = FontWeight.Bold)
                             }
-                            MirrorActionButton(onClick = { travelDirection = 1; mode = "add" }) {
+                            TextButton(onClick = { travelDirection = 1; mode = "add" }) {
                                 Text("＋ 新增", color = Color.White, fontSize = 16.sp, lineHeight = 20.sp)
                             }
                         }
@@ -268,7 +268,7 @@ internal fun CameraHero(camera: CameraWorkspaceState, personal: MirrorPersonalSt
                                 Text(if (connected) "已连接" else "未连接", color = Color.White, fontSize = 13.sp, lineHeight = 18.sp)
                             }
                             Spacer(Modifier.weight(1f))
-                            MirrorActionButton(enabled = !camera.busy, onClick = { onConnect(saved?.id) }) {
+                            TextButton(enabled = !camera.busy, onClick = { onConnect(saved?.id) }) {
                                 Text(if (connected) "浏览相册 →" else "连接 →", color = Color.White, fontSize = 16.sp, lineHeight = 20.sp)
                             }
                         }

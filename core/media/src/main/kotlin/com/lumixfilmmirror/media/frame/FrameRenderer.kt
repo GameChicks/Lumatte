@@ -40,9 +40,15 @@ internal class FrameRenderer(context: Context) {
             if (options.preset == FramePreset.STOCK_FILM) {
                 val film = requireNotNull(stock) { "胶卷片边仅适用于胶片模拟" }
                 val imageBox = layout.photo.rect()
-                stockEdges.draw(canvas, imageBox, film, frameNumber, transparentBackground, checkActive)
+                stockEdges.draw(canvas, imageBox, film, frameNumber, transparentBackground, options.roll120, checkActive)
                 checkActive()
-                canvas.drawBitmap(photo, null, imageBox, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+                canvas.save()
+                try {
+                    val radius=min(imageBox.width(),imageBox.height())*.004f
+                    val opening=Path().apply {addRoundRect(imageBox,radius,radius,Path.Direction.CW)}
+                    canvas.clipPath(opening)
+                    canvas.drawBitmap(photo, null, imageBox, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+                } finally {canvas.restore()}
                 if (options.dateBack) FrameDateBack.draw(canvas, imageBox, source)
                 return pixels
             }
