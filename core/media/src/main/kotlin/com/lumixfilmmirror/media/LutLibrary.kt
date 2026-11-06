@@ -113,6 +113,6 @@ class LutLibrary(context: Context) {
             requireNotNull(assets.firstOrNull { it.id == value }) { "所选 LUT 不可用，请重新选择；没有改用其他 LUT" }.table
         }
         return LutRenderPlan(table(recipe.first.id), recipe.first.strength, table(recipe.second.id), recipe.second.strength,
-            if (recipe.grainEnabled) recipe.grain else 0f, recipe.ditheringEnabled)
+            if (recipe.grainEnabled) recipe.grain else 0f, recipe.ditheringEnabled, recipe.adjustments)
     }
 }

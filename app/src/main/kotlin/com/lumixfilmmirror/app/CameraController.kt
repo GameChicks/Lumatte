@@ -142,9 +142,14 @@ class CameraController(private val application: Application) {
                     cameraMutable.update { it.copy(discovered = found.filter { item -> item.network == found.first().network },
                         notice = "当前 Wi-Fi 有多台相机，请选择需要连接的机身") }
                 }
-            } catch (error: CancellationException) { throw error }
+            } catch (error: CancellationException) {
+                if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
+                throw error
+            }
             catch (error: Exception) {
+                if (!cameraMutable.value.connected) { clearCameraSession(); wifiConnection?.close(); wifiConnection = null }
                 CameraConnectionLog.warn("LFMCamera", "foregroundAutoConnect=unavailable type=${error.javaClass.simpleName}")
+                if (!cameraMutable.value.connected) cameraMutable.update { it.copy(notice = "自动连接未完成，可在相机卡片中重试") }
             }
         }
     }
@@ -1096,6 +1101,7 @@ class CameraController(private val application: Application) {
 
     fun cancelCameraOperation() {
         CameraConnectionLog.info("LFMCamera", "userAction=cancel")
+        autoDiscovery?.cancel()
         if (cameraMutable.value.activeTransferBatch != null)
             stopTransfer(true, "已取消后续传输，已导入照片保留")
         else { cameraJob?.cancel(); cameraSession?.interrupt() }

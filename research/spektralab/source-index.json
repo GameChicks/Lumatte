@@ -1,0 +1,188 @@
+[
+  {
+    "path": "windows/desktop/src/shared/filmEdge.ts",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "019c6f87573cfb482baaf8df51ad6cd64cd5e5bda05e1ace6d7baa06361ede47"
+  },
+  {
+    "path": "windows/engine/resources/profiles/kodak_vision3_500t.json",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "d7beca68bf16db88dbb7373fd13a6a1150a57a911a54bb0309a760a6f9883329"
+  },
+  {
+    "path": "windows/engine/resources_product/profiles/cinestill_800t.json",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "4b5c5771a1d4755cf2f2994bbc0529387d579cc8d9fb6e23fe5d3d856fc13161"
+  },
+  {
+    "path": "windows/engine/src/core/halation_psf.hpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "ee2902b67a10b1dce04ae5ac835529668cc8ae28579278fb36d90ea56aab6b3d"
+  },
+  {
+    "path": "windows/engine/src/core/numeric.cpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "e79c70d752b2ede0d56d0e529029efbb371c686ae1143531feb68f1d066fb378"
+  },
+  {
+    "path": "windows/engine/src/core/numeric.hpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "07dd10d754a0ddd48df9a19096a9001cb669efdf79a0e08e9b75a3f460eb09af"
+  },
+  {
+    "path": "windows/engine/src/core/params.cpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "f855f4684bf2f5b046aa486ef2a75ef1d5318913bc126ea89b895652da0bb5d5"
+  },
+  {
+    "path": "windows/engine/src/core/params.hpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "5fecd7587bd5cd3b973bb647ec0e0f9ac844131d60559f66c5067354a56ae7b5"
+  },
+  {
+    "path": "windows/engine/src/pipeline/blur.cpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "7a173792e149c088f93b57426a38895f9b2b5f22e8d60427886da78cad9e4270"
+  },
+  {
+    "path": "windows/engine/src/pipeline/blur.hpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "e51f4ddb247aab61cfb9cba390158bd86e9c1f071a0844bffbb8dda56747b4ff"
+  },
+  {
+    "path": "windows/engine/src/pipeline/edge_raster.cpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "29c75da5fdf31bdd987e573f0fc8a41c90e301abbcbb5a2f27d74c4451ddf4c3"
+  },
+  {
+    "path": "windows/engine/src/pipeline/edge_raster.hpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "5790d4bd63f2a07825215bb8bc4f8618ffcb2806ff45475703602968263603c6"
+  },
+  {
+    "path": "windows/engine/src/pipeline/overscan.cpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "5e69586a9803783752530f03d695a6ae4e6ef47944198d0fc8c2039a81f15d1a"
+  },
+  {
+    "path": "windows/engine/src/pipeline/pipeline.cpp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "b1059765643394dff92230c9b6f192e409eead624b81c96add70ecd9acf34b7b"
+  },
+  {
+    "path": "windows/engine/src/shaders/vulkan/spk_highlight_headroom.comp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "c528e0088aabd7a3a3189ab7b94a331ca61b80be873dccdd72dee6ae1fe2bd55"
+  },
+  {
+    "path": "windows/engine/src/shaders/vulkan/spk_iir_df_acc.comp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "6f313e6dd31e6332a9bdb45e2fa8bbc6c134fbc1ccc3b264774b0a7111d97e95"
+  },
+  {
+    "path": "windows/engine/src/shaders/vulkan/spk_sep_fir_acc.comp",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "bf40caa52dfff49e59365055327211cdd55198211eeb38e84a79c69ac7333609"
+  },
+  {
+    "path": "windows/license/LICENSE",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "path": "windows/license/SPEKTRAFILM_LICENSE.txt",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "76d629501783ae52e8d63aee1e054c1e1a9713b9fe7d36fb306e25b1d14b24e9"
+  },
+  {
+    "path": "windows/modern_UI/Spektrafilm/Spektrafilm/Model/FilmEdge.swift",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "90f82dba745c6ccb58c8de738b426742de3722ca7811a7017eeb9739fc0452a7"
+  },
+  {
+    "path": "windows/README.md",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "43c67d9eddc43157756d2b50b4cd806000a2db4f04499c16defbeb12192b4a7f"
+  },
+  {
+    "path": "android/LICENSE",
+    "repository": "SAINTTaiYi/SpektraLab-Android",
+    "commit": "a2ffbc3763c5afc101479e2bfe74a8f555da38f1",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  {
+    "path": "android/patches/engine-android.patch",
+    "repository": "SAINTTaiYi/SpektraLab-Android",
+    "commit": "a2ffbc3763c5afc101479e2bfe74a8f555da38f1",
+    "sha256": "50af4a64e8a666f37cbc9c9335a6e78fb150b12c741ff40607198a935fed4788"
+  },
+  {
+    "path": "android/README.md",
+    "repository": "SAINTTaiYi/SpektraLab-Android",
+    "commit": "a2ffbc3763c5afc101479e2bfe74a8f555da38f1",
+    "sha256": "c07eb83d594d784893ecbb65379d35650dd44d14f358c200fb0b1d1610df3aea"
+  },
+  {
+    "path": "android-engine/engine/src/core/halation_psf.hpp",
+    "repository": "JamesQiu2005/SpektraLab",
+    "commit": "445e314 (pinned by Android README)",
+    "sha256": "ee2902b67a10b1dce04ae5ac835529668cc8ae28579278fb36d90ea56aab6b3d"
+  },
+  {
+    "path": "android-engine/engine/src/core/params.hpp",
+    "repository": "JamesQiu2005/SpektraLab",
+    "commit": "445e314 (pinned by Android README)",
+    "sha256": "5fecd7587bd5cd3b973bb647ec0e0f9ac844131d60559f66c5067354a56ae7b5"
+  },
+  {
+    "path": "windows/engine/resources/fonts/texgyreheros-bold.otf",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "b170162835f4efc288886dd4231406dc47e19b614cf4416836635599d44a7d60"
+  },
+  {
+    "path": "windows/engine/resources/fonts/texgyreheros-regular.otf",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "6ae1a09d5a940367b7aaaa91ee8bd8a2c333bfe193e7096e23f931357d62081f"
+  },
+  {
+    "path": "windows/engine/resources/fonts/TeX-Gyre-GUST-FONT-LICENSE.txt",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "2bd69affc3da00715116f713f57eab9707e96daf3562ad0215987b15b9c16f73"
+  },
+  {
+    "path": "windows/engine/resources/fonts/DejaVuSansMono-Bold.ttf",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "bce60f1b4421acd9ea51ba6623d7024ecbe6817a953e3654df62a5e6bdf8f769"
+  },
+  {
+    "path": "windows/engine/resources/fonts/DejaVu-LICENSE.txt",
+    "repository": "YZH2006517/SpektraLab-Windows-NANATATA",
+    "commit": "d667dcf7173f8c582060c43fe222da59f0f68a75",
+    "sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93"
+  }
+]

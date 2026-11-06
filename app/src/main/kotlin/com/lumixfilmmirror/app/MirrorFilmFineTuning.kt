@@ -41,11 +41,15 @@ private enum class FilmAdjustment(val title: String) {
 
 /** All basic tools share one slider so the editor does not grow by eight rows of controls. */
 @Composable
-internal fun MirrorFilmFineTuning(parameters: FilmParameters, enabled: Boolean, onChange: (FilmParameters) -> Unit) {
+internal fun MirrorFilmFineTuning(parameters: FilmParameters, enabled: Boolean, onChange: (FilmParameters) -> Unit,
+    compact: Boolean = false, showGrain: Boolean = true) {
     var tool by rememberSaveable { mutableStateOf(FilmAdjustment.EXPOSURE.name) }
     val current = FilmAdjustment.valueOf(tool)
     val tones = LocalFilmMaterials.current
-    MirrorControlSection("基础微调") {
+    val content: @Composable () -> Unit = {
+        MirrorParameterSlider(current.title, current.label(parameters), current.value(parameters),
+            if (current == FilmAdjustment.EXPOSURE) -3f..3f else -1f..1f, enabled,
+            steps = if (current == FilmAdjustment.EXPOSURE) 59 else 199) { onChange(current.change(parameters, it)) }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(FilmAdjustment.entries, key = { it.name }) { adjustment ->
                 MirrorChoice(current == adjustment, { tool = adjustment.name }, enabled = enabled, label = {
@@ -56,11 +60,6 @@ internal fun MirrorFilmFineTuning(parameters: FilmParameters, enabled: Boolean, 
                 })
             }
         }
-        MirrorParameterSlider(current.title, current.label(parameters), current.value(parameters),
-            if (current == FilmAdjustment.EXPOSURE) -3f..3f else -1f..1f, enabled,
-            steps = if (current == FilmAdjustment.EXPOSURE) 59 else 199) {
-            onChange(current.change(parameters, it))
-        }
         if (current == FilmAdjustment.TEMPERATURE) Text("负值偏冷，正值偏暖。", fontSize = 12.sp, color = tones.secondaryInk)
         if (current == FilmAdjustment.VIBRANCE) Text("优先增强较淡的色彩。", fontSize = 12.sp, color = tones.secondaryInk)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -70,6 +69,7 @@ internal fun MirrorFilmFineTuning(parameters: FilmParameters, enabled: Boolean, 
                 highlights = 0f, shadows = 0f, saturation = 0f, vibrance = 0f, temperature = 0f)) },
                 enabled = enabled && FilmAdjustment.entries.any { it.value(parameters) != 0f }) { Text("微调归零") }
         }
+        if(showGrain && !compact) {
         Text("胶片颗粒", style = MaterialTheme.typography.labelLarge)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilmGrainIntensity.entries.forEach { intensity ->
@@ -81,5 +81,8 @@ internal fun MirrorFilmFineTuning(parameters: FilmParameters, enabled: Boolean, 
             }
         }
         Text("中档保留原有颗粒强度。", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
+        }
     }
+    if(compact) Column(Modifier.padding(horizontal=20.dp), verticalArrangement=Arrangement.spacedBy(4.dp)) { content() }
+    else MirrorControlSection("基础微调") { content() }
 }

@@ -129,6 +129,7 @@ struct Effects {
     Colour fotu_sigma_mm;
     std::array<Colour, 3> fotu_weights, fotu_matrix;
     float remjet_look = 0;
+    float finishing_exposure = 0;
     float contrast = 0;
     float grain_strength = 1;
     float brightness = 0, highlights = 0, shadows = 0;
@@ -141,7 +142,7 @@ inline float luminance(const Colour& rgb) { return .2126f * rgb[0] + .7152f * rg
 // Finishing happens after the stock/halation look and before export frames. Neutral is an exact
 // bypass. Exposure stays in the emulsion; brightness/highlights/shadows shape the finished print.
 inline Colour finish_adjustments(Colour rgb, const Effects& effects) {
-    if (effects.contrast == 0 && effects.brightness == 0 && effects.highlights == 0 && effects.shadows == 0 &&
+    if (effects.finishing_exposure == 0 && effects.contrast == 0 && effects.brightness == 0 && effects.highlights == 0 && effects.shadows == 0 &&
         effects.saturation == 0 && effects.vibrance == 0 && effects.temperature == 0) return rgb;
     Colour linear{};
     for (int c = 0; c < 3; ++c) linear[c] = decode(std::clamp(rgb[c], 0.f, 1.f));
@@ -155,7 +156,7 @@ inline Colour finish_adjustments(Colour rgb, const Effects& effects) {
     }
     auto ease = [](float t) { t=std::clamp(t,0.f,1.f); return t*t*(3-2*t); };
     const float stops = std::log2(y/.18f);
-    const float shift = effects.brightness*1.5f +
+    const float shift = effects.finishing_exposure + effects.brightness*1.5f +
         2*(effects.highlights*ease(stops/3) + effects.shadows*ease(-stops/4));
     constexpr float pivot_odds = .18f/.82f;
     const float odds = std::pow((y/(1-y))/pivot_odds, std::exp2(effects.contrast))*pivot_odds*std::exp2(shift);
@@ -286,6 +287,7 @@ struct Spatial {
     float softness = 0;
     Colour halation_mix{};
     bool spectral_return = false;
+    bool complete_response = false;
     std::array<Colour, 3> return_matrix{};
 };
 inline Colour lens_colour(Colour linear, const Colour& glow, float softness) {
@@ -512,13 +514,16 @@ inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const 
     return spatial;
 }
 
+} // namespace lfm::mobile
+#include "spektralab_halation.hpp"
+namespace lfm::mobile {
 inline Spatial prepare_spatial(const Image& image, const Model& model, const Effects& effects,
                                const std::array<float, 256>& decode_lut, const Check& check) {
     Spatial spatial;
     const bool active_halation = effects.halation && std::any_of(effects.halation_strength.begin(),
         effects.halation_strength.end(), [](float value) { return value > 0; });
     if (effects.diffusion == 0 && !active_halation) return spatial;
-    if (effects.cinestill) return prepare_fotu_spatial(image,model,effects,decode_lut,check);
+    if (effects.cinestill) return prepare_spektralab_spatial(image,model,effects,decode_lut,check);
     const uint32_t analysis_edge = 512u;
     const double scale = std::min(1.0, double(analysis_edge) / std::max(image.width, image.height));
     const uint32_t w = std::min(analysis_edge, std::max(1u, uint32_t(std::ceil(image.width * scale))));
@@ -685,10 +690,12 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
         for (uint32_t x = 0; x < image.width; ++x) {
             if ((x & 255u) == 0) check();
             uint8_t* pixel = row + size_t(x) * 4;
-            Colour raw = effects.diffusion == 0 ? model.response.sample({pixel[0] / 255.f, pixel[1] / 255.f, pixel[2] / 255.f}) :
+            Colour raw = spatial.complete_response ? Colour{} : effects.diffusion == 0 ? model.response.sample({pixel[0] / 255.f, pixel[1] / 255.f, pixel[2] / 255.f}) :
                 film_response(model, lens_colour(read_linear(pixel, decode_lut), spatial.lens.sample(x, y, image), spatial.softness));
             const Colour halo = spatial.halation.sample(x, y, image);
-            if (spatial.spectral_return) {
+            if (spatial.complete_response) {
+                for(int c=0;c<3;++c)raw[c]=std::log10(halo[c]+1e-10f);
+            } else if (spatial.spectral_return) {
                 const Colour direct=raw;
                 for(int c=0;c<3;++c) {
                     raw[c]+=halo[c];

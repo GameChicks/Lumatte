@@ -42,6 +42,8 @@ Android Studio 可直接打开根目录 Gradle 工程。原生 ABI 为 arm64-v8a
 
 胶卷迁移后，19 款使用 Fotufilm 移动派生模型；仅 Portra 160 / 800、Velvia 100、Vision3 50D / 200T 保留原模型。固定资料、映射和生产边界见 [模型来源说明](research/fotufilm/model-reference-e15b098/README.md)。手动再生产顺序为 `python tools/prepare_fotufilm_migration.py`（获取并校验固定的公开 WASI 生成器）、`node tools/produce_fotufilm_packs.mjs`（离线生成光谱输入包）、`python tools/produce_fotufilm_models.py`（生成三阶段表）。Python 需要 NumPy / SciPy，Node 需要 WASI preview1。这些步骤只生产资源，不运行测试、不处理用户照片、不打包。普通 Android 构建直接使用已提交的模型资源。
 
+CineStill 光晕的固定 PSF 头文件与第三方来源保存在 `research/spektralab/`，必须和 `native/` 一起检出；片边派生字形和原字体已随源码提供。普通构建不运行参考项目、不下载素材。范围及移植差异见 [固定参考说明](research/spektralab/README.md)。
+
 完整许可及原始文本链接见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。版本变动和 APK 校验信息发布在 [GitHub Releases](https://github.com/GameChicks/Lumatte/releases)。调试构建使用 Android debug 证书，不代表应用商店签名版本。
 
 ## 手动验证

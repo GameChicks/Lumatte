@@ -70,6 +70,7 @@ data class FrameOptions(
     val showShutter: Boolean = true,
     val showIso: Boolean = true,
     val showCapturedAt: Boolean = false,
+    val dateBack: Boolean = false,
 ) {
     init {
         require(borderFraction.isFinite() && borderFraction in 0.02f..0.12f)

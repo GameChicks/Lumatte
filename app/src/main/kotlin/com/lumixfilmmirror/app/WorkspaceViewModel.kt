@@ -17,6 +17,8 @@ import com.lumixfilmmirror.media.FilmRenderPlan
 import com.lumixfilmmirror.media.LumixLabBrowser
 import com.lumixfilmmirror.media.LumixLabLutQuery
 import com.lumixfilmmirror.media.OfficialLutDownloadStage
+import com.lumixfilmmirror.model.PhotoAdjustments
+import com.lumixfilmmirror.model.adjustments
 import com.lumixfilmmirror.model.LutRecipe
 import com.lumixfilmmirror.model.FilmBatch
 import com.lumixfilmmirror.model.FilmBatchMode
@@ -392,7 +394,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun photoRecipe(snapshot: WorkspaceState, id: PhotoId, original: Boolean = false): PhotoRecipe {
         require(snapshot.photos.any { it.id == id }) { "照片不在当前批次中" }
         if (original || snapshot.treatment == PhotoTreatment.ORIGINAL) return PhotoRecipe.Original
-        return if (snapshot.treatment == PhotoTreatment.LUT) PhotoRecipe.Lut(snapshot.lutRecipe)
+        return if (snapshot.treatment == PhotoTreatment.LUT) PhotoRecipe.Lut(snapshot.lutRecipe.copy(adjustments =
+            snapshot.filmBatch?.effectiveParameters(id)?.adjustments() ?: PhotoAdjustments()))
         else {
             val batch = requireNotNull(snapshot.filmBatch) { "请先选择胶卷" }
             if (batch.mode == FilmBatchMode.FIRST_PHOTO) require(snapshot.photos.any { it.id == batch.referenceId }) {
@@ -501,10 +504,12 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         val snapshot = mutable.value
         val batch = snapshot.filmBatch ?: return
         val selected = snapshot.selected ?: return
-        if (snapshot.busy || snapshot.treatment != PhotoTreatment.FILM ||
+        if (snapshot.busy ||
             snapshot.filmPresets.none { it.id == presetId }) return
         val current = batch.effectiveParameters(selected)
-        if (current.presetId != presetId) updateFilm(current.withPreset(presetId))
+        val id = if (batch.mode == FilmBatchMode.FIRST_PHOTO) batch.referenceId else selected
+        if (snapshot.photos.none { it.id == id }) { notice("原基准照片不可用"); return }
+        saveEdit(PhotoTreatment.FILM, batch.updateParameters(id, current.withPreset(presetId)))
     }
 
     fun useCurrentFilmReference() {

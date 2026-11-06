@@ -50,7 +50,7 @@ class Device {
     GLuint program = 0, vao = 0, framebuffer = 0, vertex_buffer = 0;
     // Input, response, development, scan, lens, halo, JPEG look, output.
     std::array<GLuint, 8> textures{};
-    int tile_edge = 0, max_3d = 0;
+    int tile_edge = 0, max_3d = 0, max_field_edge = 0;
     std::string loaded_model;
     bool bound = false;
 
@@ -96,7 +96,7 @@ class Device {
         make_current();
         GLint version = 0, units = 0, max_texture = 0, viewport[2]{}, precision = 0, range[2]{};
         glGetIntegerv(GL_MAJOR_VERSION, &version); glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &units);
-        glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture); glGetIntegerv(GL_MAX_VIEWPORT_DIMS, viewport);
+        glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture); max_field_edge = max_texture; glGetIntegerv(GL_MAX_VIEWPORT_DIMS, viewport);
         glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &max_3d);
         glGetShaderPrecisionFormat(GL_FRAGMENT_SHADER, GL_HIGH_FLOAT, range, &precision);
         gl_check("Query film GPU limits");
@@ -177,6 +177,9 @@ public:
         check();
         std::array<float, 256> decode_lut{};
         for (int i = 0; i < 256; ++i) decode_lut[size_t(i)] = decode(float(i) / 255);
+        if (effects.cinestill && effects.halation &&
+            std::max(image.width,image.height)>uint32_t(max_field_edge))
+            throw GlesError("CineStill full-resolution field exceeds GPU texture limit; use CPU");
         const Spatial spatial = prepare_spatial(image, model, effects, decode_lut, check);
         check();
         if (image.stride % 4 != 0) throw GlesError("Film RGBA row stride is not pixel aligned");
@@ -194,6 +197,7 @@ public:
         triple("uScanLow", model.scan.minimum); triple("uScanHigh", model.scan.maximum);
         triple("uHalationMix", spatial.halation_mix);
         glUniform1i(uniform("uSpectralReturn"), spatial.spectral_return);
+        glUniform1i(uniform("uCompleteResponse"), spatial.complete_response);
         triple("uReturnRow0",spatial.return_matrix[0]); triple("uReturnRow1",spatial.return_matrix[1]);
         triple("uReturnRow2",spatial.return_matrix[2]);
         triple("uParticleScale", effects.particle_scale); triple("uFloor", effects.floor);

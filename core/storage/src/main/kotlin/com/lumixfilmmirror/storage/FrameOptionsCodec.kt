@@ -6,7 +6,7 @@ import org.json.JSONObject
 /** One versioned export frame per batch. A missing row preserves the unframed default. */
 internal object FrameOptionsCodec {
     fun write(frame: FrameOptions): String = JSONObject().apply {
-        put("version", 1); put("preset", frame.preset.name)
+        put("dateBack", frame.dateBack); put("version", 1); put("preset", frame.preset.name)
         put("border", frame.borderFraction.toDouble()); put("signature", frame.signature)
         put("metadata", frame.showPhotoMetadata); put("ratio", frame.ratio.name)
         put("showCamera", frame.showCamera); put("showLens", frame.showLens)
@@ -49,6 +49,6 @@ internal object FrameOptionsCodec {
             showCamera = j.optBoolean("showCamera", true), showLens = j.optBoolean("showLens", true),
             showFocalLength = j.optBoolean("showFocalLength", true), showAperture = j.optBoolean("showAperture", true),
             showShutter = j.optBoolean("showShutter", true), showIso = j.optBoolean("showIso", true),
-            showCapturedAt = j.optBoolean("showCapturedAt", false))
+            showCapturedAt = j.optBoolean("showCapturedAt", false), dateBack = j.optBoolean("dateBack", false))
     }
 }

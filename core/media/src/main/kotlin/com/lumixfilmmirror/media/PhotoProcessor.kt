@@ -239,7 +239,7 @@ class PhotoProcessor(context: Context) {
             onStage = onStage, onTargetCreated = onTargetCreated, onPublished = onPublished,
             preserveEmbeddedJpeg = recipe == PhotoRecipe.Original && output.dimensionPercent == 100 &&
                 output.compressionQuality == 100 && output.format == com.lumixfilmmirror.model.ExportFormat.JPEG &&
-                frame.preset == com.lumixfilmmirror.model.FramePreset.NONE)
+                frame.preset == com.lumixfilmmirror.model.FramePreset.NONE && !frame.dateBack)
 
     /** Complete composition preview. longEdge bounds the final canvas, including frame and text. */
     suspend fun previewExport(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,

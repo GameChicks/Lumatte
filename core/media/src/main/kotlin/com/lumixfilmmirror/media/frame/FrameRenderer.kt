@@ -25,7 +25,12 @@ internal class FrameRenderer(context: Context) {
         stock: FilmPreset? = null, frameNumber: Int = 1, transparentBackground: Boolean = false,
         checkActive: () -> Unit = {}): Bitmap {
         require(frameNumber > 0)
-        if (options.preset == FramePreset.NONE) return photo
+        if (options.preset == FramePreset.NONE) {
+            if (!options.dateBack) return photo
+            val copy = photo.copy(Bitmap.Config.ARGB_8888, true) ?: error("无法生成日期后背")
+            try { FrameDateBack.draw(Canvas(copy), RectF(0f,0f,copy.width.toFloat(),copy.height.toFloat()), source); return copy }
+            catch (error: Throwable) { copy.recycle(); throw error }
+        }
         checkActive()
         val pixels = Bitmap.createBitmap(layout.canvas.width, layout.canvas.height, Bitmap.Config.ARGB_8888)
         // Only FILM and TICKET have silhouettes that read as cut-outs on a transparent canvas.
@@ -38,6 +43,7 @@ internal class FrameRenderer(context: Context) {
                 stockEdges.draw(canvas, imageBox, film, frameNumber, transparentBackground, checkActive)
                 checkActive()
                 canvas.drawBitmap(photo, null, imageBox, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+                if (options.dateBack) FrameDateBack.draw(canvas, imageBox, source)
                 return pixels
             }
             // Opaque exports keep the full canvas filled; PNG cut-outs leave the margins empty.
@@ -148,6 +154,7 @@ internal class FrameRenderer(context: Context) {
                 // Material alpha/filter must never affect the photo pixels.
                 canvas.drawBitmap(photo, null, imageBox, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
             }
+            if (options.dateBack) FrameDateBack.draw(canvas, imageBox, source)
             drawCaption(canvas, options, layout, identity, ink, unit, checkActive)
             checkActive()
             return pixels

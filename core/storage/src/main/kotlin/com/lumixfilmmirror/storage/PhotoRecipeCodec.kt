@@ -16,6 +16,7 @@ internal object PhotoRecipeCodec {
                 }) }
                 slot("first", recipe.parameters.first); slot("second", recipe.parameters.second)
                 put("grain", recipe.parameters.grain.toDouble())
+                put("adjustments", org.json.JSONArray(recipe.parameters.adjustments.values().map { it.toDouble() }))
                 put("grainEnabled", recipe.parameters.grainEnabled); put("ditheringEnabled", recipe.parameters.ditheringEnabled)
             }
             is PhotoRecipe.Film -> {
@@ -46,7 +47,12 @@ internal object PhotoRecipeCodec {
                     return LutSlot(if (value.isNull("id")) null else value.getString("id"), value.getDouble("strength").toFloat())
                 }
                 PhotoRecipe.Lut(LutRecipe(slot("first"), slot("second"), json.getDouble("grain").toFloat(),
-                    json.optBoolean("grainEnabled", true), json.optBoolean("ditheringEnabled", false)))
+                    json.optBoolean("grainEnabled", true), json.optBoolean("ditheringEnabled", false),
+                    json.optJSONArray("adjustments")?.let { a ->
+                        require(a.length() == 8)
+                        PhotoAdjustments(a.getDouble(0).toFloat(), a.getDouble(1).toFloat(), a.getDouble(2).toFloat(),
+                            a.getDouble(3).toFloat(), a.getDouble(4).toFloat(), a.getDouble(5).toFloat(), a.getDouble(6).toFloat(), a.getDouble(7).toFloat())
+                    } ?: PhotoAdjustments()))
             }
             "FILM" -> PhotoRecipe.Film(FilmParameters(FilmDefaults.currentPresetId(json.getString("preset")), json.getDouble("exposure").toFloat(),
                 DiffusionGrade.valueOf(json.getString("diffusion")), json.getBoolean("halation"),

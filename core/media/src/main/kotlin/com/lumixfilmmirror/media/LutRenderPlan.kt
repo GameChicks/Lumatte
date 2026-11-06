@@ -5,13 +5,14 @@ import kotlin.math.roundToInt
 
 /** Shared CPU path for preview and export; bounded scanline tiles, encoded sRGB input/output. */
 class LutRenderPlan internal constructor(private val first: CubeLut?, private val firstStrength: Float,
-    private val second: CubeLut?, private val secondStrength: Float, private val grain: Float, private val dithering: Boolean) {
+    private val second: CubeLut?, private val secondStrength: Float, private val grain: Float, private val dithering: Boolean,
+    private val adjustments: com.lumixfilmmirror.model.PhotoAdjustments) {
     internal suspend fun render(bitmap: Bitmap, source: SourceImage, checkActive: () -> Unit) {
-        if ((first == null || firstStrength == 0f) && (second == null || secondStrength == 0f) && grain == 0f && !dithering) return
+        if ((first == null || firstStrength == 0f) && (second == null || secondStrength == 0f) && grain == 0f && !dithering && adjustments == com.lumixfilmmirror.model.PhotoAdjustments()) return
         checkActive()
         if (NativeLutBridge.available) {
             NativeLutRenderer.render(bitmap, source, first.takeIf { firstStrength > 0f }, firstStrength,
-                second.takeIf { secondStrength > 0f }, secondStrength, grain, dithering)
+                second.takeIf { secondStrength > 0f }, secondStrength, grain, dithering, adjustments)
             checkActive()
             return
         }
@@ -42,6 +43,7 @@ class LutRenderPlan internal constructor(private val first: CubeLut?, private va
                     input[1] = ((pixel ushr 8) and 255) / 255f
                     input[2] = (pixel and 255) / 255f
                     apply(first, firstStrength); apply(second, secondStrength)
+                    PhotoFinishing.apply(input, adjustments)
                     if (grain > 0f) {
                         val sx = (x.toLong() * source.size.width / bitmap.width / 3).toInt()
                         val sy = ((top + row).toLong() * source.size.height / bitmap.height / 3).toInt()

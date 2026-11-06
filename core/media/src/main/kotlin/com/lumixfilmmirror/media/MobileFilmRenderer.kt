@@ -54,8 +54,8 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
             if (index % 6 < 3) stage.minimum[index % 6] else stage.maximum[index % 6 - 3]
         }
         val effect = model.effects
-        // Only the two CineStill profiles carry the physical kernel plus the JPEG highlight look.
-        // All other models retain supplied strength, channel balance and bounce defaults.
+        // Only CineStill uses the SpektraLab base-reflection/headroom path. Legacy Fotufilm
+        // wire slots stay reserved for binary stability; ordinary stock effects are unchanged.
         val cineStill = plan.preset.id == "cinestill_800t" || plan.preset.id == "cinestill_400d"
         val physical = effect.fotufilmHalation
         require(!cineStill || physical != null) { "CineStill 缺少原始光晕求解参数" }
@@ -68,7 +68,7 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
             effect.scatterAmount, *effect.scatterCoreUm, *effect.scatterTailUm, *effect.scatterTailWeight,
             *(physical?.sigmaMm ?: FloatArray(3)), *(physical?.weights ?: FloatArray(9)),
             *(physical?.matrix ?: FloatArray(9)),
-            when (plan.preset.id) { "cinestill_800t" -> 1.4f; "cinestill_400d" -> 1f; else -> 0f },
+            0f, // Retired post-scan red JPEG overlay; headroom now acts before development.
             plan.parameters.contrast, plan.parameters.grainIntensity.strength,
             plan.parameters.brightness, plan.parameters.highlights, plan.parameters.shadows,
             plan.parameters.saturation, plan.parameters.vibrance, plan.parameters.temperature)

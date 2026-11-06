@@ -81,7 +81,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                 val png = settings.format == ExportFormat.PNG
                 onStage(PhotoProcessingStage.PREPARING)
                 if (preserveEmbeddedJpeg) {
-                    require(!png && lut == null && film == null && frame.preset == FramePreset.NONE && settings.dimensionPercent == 100)
+                    require(!png && lut == null && film == null && frame.preset == FramePreset.NONE && !frame.dateBack && settings.dimensionPercent == 100)
                     coroutineContext.ensureActive()
                     val name = "LFM-original-${UUID.randomUUID()}.jpg"
                     onStage(PhotoProcessingStage.PUBLISHING)
@@ -110,7 +110,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                         val renderContext = coroutineContext
                         lut?.render(pixels, source) { renderContext.ensureActive() }
                         timing.mark("effect_render")
-                        if (frame.preset != FramePreset.NONE) {
+                        if (frame.preset != FramePreset.NONE || frame.dateBack) {
                             onStage(PhotoProcessingStage.FRAMING)
                             val framed = frames.render(pixels, source, frame, layout, film?.preset, frameNumber,
                                 transparentBackground = png) { renderContext.ensureActive() }

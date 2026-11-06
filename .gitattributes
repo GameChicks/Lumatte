@@ -48,3 +48,8 @@ research/fotufilm/edge-reference-e15b098/print-frame-model.md -text
 core/media/src/main/assets/frames/stock-edges/LICENSE -text whitespace=-blank-at-eol,-blank-at-eof
 core/media/src/main/assets/frames/stock-edges/NOTICE -text whitespace=-blank-at-eol,-blank-at-eof
 core/media/src/main/assets/frames/stock-edges/CC-BY-SA-4.0.txt -text whitespace=-blank-at-eol,-blank-at-eof
+
+research/spektralab/windows/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
+research/spektralab/android/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,-tab-in-indent
+research/spektralab/android-engine/** -text
+core/media/src/main/assets/frames/spektralab/*LICENSE.txt -text

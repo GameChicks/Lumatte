@@ -30,6 +30,8 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
             LicenceEntry("Fotufilm 19 款移动胶片模型", "Fotufilm / MUAStudio Inc. · 胶片配置与派生色彩表 CC BY-SA 4.0；计算适配 Apache 2.0。移动近似，非完整上游引擎或实测胶片一致性声明。",
                 listOf("film/mobile-fotufilm-v1/NOTICE.txt", "film/mobile-fotufilm-v1/UPSTREAM-NOTICE.txt",
                     "film/mobile-fotufilm-v1/CC-BY-SA-4.0.txt", "film/mobile-fotufilm-v1/Apache-2.0.txt")),
+            LicenceEntry("SpektraLab 光晕、片边与日期后背", "SAINTTaiYi/SpektraLab-Android、YZH2006517/SpektraLab-Windows-NANATATA、JamesQiu2005/SpektraLab；GPL-3.0-or-later。固定版本与来源哈希见 research/spektralab；本项目适配了空间计算与导出布局，并非完整引擎逐像素复现。", listOf("licenses/spektralab-GPL-3.0.txt", "frames/spektralab/NOTICE.txt")),
+            LicenceEntry("TeX Gyre Heros / DejaVu Sans Mono", "片边字体；原字体字节未修改，分别遵循 GUST Font License 和 DejaVu 随附许可。", listOf("frames/spektralab/TeX-Gyre-GUST-FONT-LICENSE.txt", "frames/spektralab/DejaVu-LICENSE.txt")),
             LicenceEntry("Cormorant Garamond", "Christian Thalmann · SIL OFL 1.1", listOf("licenses/cormorant-garamond-OFL.txt")),
             LicenceEntry("Instrument Serif", "Instrument Serif Project Authors · SIL OFL 1.1 · 窄衬线斜体",
                 listOf("licenses/instrument-serif-OFL.txt")),

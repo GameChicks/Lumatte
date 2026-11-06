@@ -1,0 +1,14 @@
+SpektraLab reference adaptations, 2026-11-06
+
+Sources:
+https://github.com/SAINTTaiYi/SpektraLab-Android/tree/a2ffbc3763c5afc101479e2bfe74a8f555da38f1
+https://github.com/YZH2006517/SpektraLab-Windows-NANATATA/tree/d667dcf7173f8c582060c43fe222da59f0f68a75
+Android pins JamesQiu2005/SpektraLab at 445e314. The retained halation_psf.hpp and params.hpp bytes match the Windows pin.
+
+Code: GPL-3.0-or-later. Original copyright/author notices are retained in research/spektralab, including all README acknowledgements and original licences. Contributions and modifications for Lumatte: GameChicks, 2026.
+
+Adapted: four signed Gaussian PSFs, 120um base, strengths, highlight headroom gates, FIR/Young-van-Vliet dispatch and recurrence, 135 stock-specific edge lettering/glyphs/DX geometry, seven-segment date geometry. Derived edge-faces.json carries the printer glyphs and labels/DX excerpt from overscan.cpp / filmEdge.ts. DX stock identifiers are sourced upstream from The Big Film Database (CC BY-SA 4.0) and NegativeConverter; preserve that attribution. Some upstream stock layouts are borrowed or unverified; they are not measured profiles for every stock.
+
+Differences: Lumatte retains its Fotufilm colour/development/receiver models and its existing grain/black-mist lens. CPU double replaces GPU double-float recurrence. The CineStill spatial grid is full render resolution. 400D shares the 800T mechanism with its own colour model; the pinned repositories do not supply a separate 400D reference profile. Export borders and date stamps are composed AFTER rendering; ink/base colours are presentation colours, not a chemical border simulation. No Vulkan/Metal runtime, original application binaries or test suite is bundled. No output or device parity has been established.
+
+Fonts are original TeX Gyre Heros and DejaVu Sans Mono bytes, under the adjacent GUST/DejaVu licences.
