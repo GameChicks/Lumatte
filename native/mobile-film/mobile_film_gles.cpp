@@ -52,6 +52,7 @@ class Device {
     std::array<GLuint, 8> textures{};
     int tile_edge = 0, max_3d = 0, max_field_edge = 0;
     std::string loaded_model;
+    uint64_t loaded_response_generation=0;
     bool bound = false;
 
     GLint uniform(const char* name) {
@@ -189,7 +190,10 @@ public:
             upload_stage(1, model.response); check(); upload_stage(2, model.development); check(); upload_stage(3, model.scan);
             loaded_model = key;
         } else for (int unit = 1; unit <= 3; ++unit) bind_texture(unit, GL_TEXTURE_3D, unit);
-        upload_field(4, spatial.lens); check(); upload_field(5, spatial.halation);
+        upload_field(4, spatial.lens);check();
+        if(!spatial.response_generation || loaded_response_generation!=spatial.response_generation) {
+            upload_field(5,spatial.halo_field());loaded_response_generation=spatial.response_generation;
+        } else bind_texture(5,GL_TEXTURE_2D,5);
         check(); upload_field(6,spatial.remjet);
         glUseProgram(program); glBindVertexArray(vao); glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         triple("uResponseLow", model.response.minimum); triple("uResponseHigh", model.response.maximum);
@@ -212,12 +216,13 @@ public:
         glUniform1f(uniform("uGrainSpacing"), spacing);
         glUniform1f(uniform("uGrainStrength"), effects.grain_strength);
         glUniform1f(uniform("uContrast"), effects.contrast);
+        glUniform1f(uniform("uDisplayExposureGain"),effects.display_exposure_gain);
         glUniform1f(uniform("uBrightness"), effects.brightness);
         glUniform1f(uniform("uHighlights"), effects.highlights); glUniform1f(uniform("uShadows"), effects.shadows);
         glUniform1f(uniform("uSaturation"), effects.saturation); glUniform1f(uniform("uVibrance"), effects.vibrance);
         glUniform1f(uniform("uTemperature"), effects.temperature);
         glUniform1f(uniform("uRemjetAmount"),spatial.remjet.values.empty()?0.f:effects.remjet_look);
-        glUniform1i(uniform("uHalation"), !spatial.halation.values.empty()); glUniform1i(uniform("uGrain"), effects.grain);
+        glUniform1i(uniform("uHalation"), !spatial.halo_field().values.empty()); glUniform1i(uniform("uGrain"), effects.grain);
         glUniform1ui(uniform("uSeed"), uint32_t(seed) ^ hash(uint32_t(seed >> 32)));
         gl_check("Configure film GPU");
         std::vector<uint8_t> readback(size_t(tile_edge) * tile_edge * 4);

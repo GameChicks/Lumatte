@@ -12,7 +12,7 @@ uniform sampler3D uDevelopment;
 uniform sampler3D uScan;
 uniform vec3 uResponseLow, uResponseHigh, uDevelopmentLow, uDevelopmentHigh, uScanLow, uScanHigh;
 uniform ivec2 uOrigin, uImageSize, uSourceSize;
-uniform float uSoftness, uExposureGain, uPixelArea, uParticleArea;
+uniform float uSoftness, uExposureGain, uPixelArea, uParticleArea, uDisplayExposureGain;
 uniform float uGrainSpacing, uGrainStrength, uContrast;
 uniform float uBrightness, uHighlights, uShadows, uSaturation, uVibrance, uTemperature;
 uniform float uRemjetAmount;
@@ -56,6 +56,11 @@ float decode(float v) { return v <= .04045 ? v / 12.92 : pow((v + .055) / 1.055,
 float encode(float v) { return v <= .0031308 ? v * 12.92 : 1.055 * pow(v, 1.0 / 2.4) - .055; }
 float ease(float t) { t=clamp(t,0.0,1.0); return t*t*(3.0-2.0*t); }
 vec3 finishAdjustments(vec3 rgb) {
+    if(uDisplayExposureGain!=1.0) {
+        vec3 source=clamp(rgb,0.0,1.0);
+        vec3 exposed=clamp(vec3(decode(source.r),decode(source.g),decode(source.b))*uDisplayExposureGain,0.0,1.0);
+        rgb=vec3(encode(exposed.r),encode(exposed.g),encode(exposed.b));
+    }
     if (uContrast == 0.0 && uBrightness == 0.0 && uHighlights == 0.0 && uShadows == 0.0 &&
         uSaturation == 0.0 && uVibrance == 0.0 && uTemperature == 0.0) return rgb;
     vec3 base = clamp(rgb, 0.0, 1.0);

@@ -80,7 +80,8 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("长按对比原图", Modifier.weight(1f), color=tones.secondaryInk, fontSize=11.sp)
-                MirrorTextAction("${state.photos.size} 张 · 管理", { photos=true }, enabled = !state.busy)
+                MirrorTextAction("${if(state.filmBatch?.mode==FilmBatchMode.FIRST_PHOTO)"整批联动"else"逐张编辑"} · ${state.photos.size} 张",
+                    {options=true},enabled=!state.busy)
             }
             MirrorEditorDock(state,workspace,tool,{tool=it},onChooseLut,{options=true})
         }
@@ -89,9 +90,12 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
         state.filmBatch?.let { batch ->
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 MirrorChoice(batch.mode==FilmBatchMode.INDIVIDUAL,{workspace.filmMode(FilmBatchMode.INDIVIDUAL)},enabled=!state.busy,label={Text("逐张独立")})
-                MirrorChoice(batch.mode==FilmBatchMode.FIRST_PHOTO,{workspace.filmMode(FilmBatchMode.FIRST_PHOTO)},enabled=!state.busy,label={Text("继承首张")})
+                MirrorChoice(batch.mode==FilmBatchMode.FIRST_PHOTO,{workspace.filmMode(FilmBatchMode.FIRST_PHOTO)},enabled=!state.busy,label={Text("整批联动")})
             }
         }
+        Text(if(state.filmBatch?.mode==FilmBatchMode.FIRST_PHOTO)"整批联动已开启，微调会应用到本批所有照片。"else"逐张保存微调，当前照片的调整不会影响其他照片。",
+            fontSize=12.sp,color=tones.secondaryInk)
+        MirrorTextAction("管理本批照片",{options=false;photos=true},enabled=!state.busy)
         OutputControls(state,workspace)
     }
     if(photos && state.current!=null) MirrorDialog("本批照片",onDismiss={photos=false}) {

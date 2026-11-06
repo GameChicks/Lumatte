@@ -53,7 +53,7 @@ data class BatchPhoto(
 data class FilmBatch(
     val photos: List<BatchPhoto>,
     val referenceId: PhotoId,
-    val mode: FilmBatchMode = FilmBatchMode.FIRST_PHOTO,
+    val mode: FilmBatchMode = FilmBatchMode.INDIVIDUAL,
 ) {
     init {
         require(photos.isNotEmpty())

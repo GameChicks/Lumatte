@@ -21,6 +21,7 @@ internal object NativeMobileFilmBridge {
     external fun cancelTask(handle: Long)
     external fun releaseTask(handle: Long)
     external fun releaseIdleGpu()
+    external fun spatialMetrics(): LongArray
     external fun render(handle: Long, bitmap: Bitmap, tables: Array<FloatArray>, sizes: IntArray,
         bounds: FloatArray, controls: FloatArray, sourceWidth: Int, sourceHeight: Int, seed: Long,
         preferGpu: Boolean, modelKey: String)
@@ -90,6 +91,10 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
                         val result = runCatching { NativeMobileFilmBridge.render(task, bitmap, tables, sizes, bounds,
                             controls, effectiveInput.width, effectiveInput.height, plan.grainSeed,
                             useGpu, modelKey)
+                            if(cineStill) {
+                                val metrics=NativeMobileFilmBridge.spatialMetrics()
+                                android.util.Log.i("LFMFilm","cinestillSpatialMs=${metrics[0]/1000.0} spatialCacheHit=${metrics[1]==1L} fieldBytes=${metrics[2]}")
+                            }
                             if (useGpu) FilmExecutionBackend.GLES3 else FilmExecutionBackend.CPU
                         }
                         (result.exceptionOrNull() as? MobileFilmGpuFailure)?.let { FilmEngine.disableGpuForProcess(it.message) }

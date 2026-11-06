@@ -68,6 +68,11 @@ lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
         values[25] != std::floor(values[25]) || values[26] < 0 || values[26] > 1 || values[27] < 0 || values[27] > 40)
         throw std::invalid_argument("Mobile spatial profile invalid");
     result.cinestill = values[24] == 1; result.halation_bounces = int(values[25]);
+    if(result.cinestill) {
+        // Keep the emulsion/headroom/halo source unchanged while the user trims EV.
+        // Zero EV retains the accepted stock appearance exactly at this boundary.
+        result.display_exposure_gain=result.exposure_gain;result.exposure_gain=1;
+    }
     if(values[59]<0 || values[59]>2 || (!result.cinestill && values[59]!=0))
         throw std::invalid_argument("Invalid CineStill JPEG halation look");
     result.remjet_look=values[59];
@@ -138,6 +143,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFil
 }
 extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFilmBridge_releaseIdleGpu(JNIEnv*, jobject) {
     lfm::mobile::release_idle_gles();
+    lfm::mobile::release_cine_spatial_cache();
 }
 extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFilmBridge_render(JNIEnv* env, jobject, jlong handle,
     jobject bitmap, jobjectArray tables, jintArray sizes, jfloatArray bounds, jfloatArray controls,
@@ -146,6 +152,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFil
         const auto* task = reinterpret_cast<Task*>(handle);
         if (!task || !bitmap || source_width <= 0 || source_height <= 0) throw std::invalid_argument("Invalid mobile film request");
         task->check();
+        lfm::mobile::cine_spatial_metrics={};
         const auto model = read_model(env, tables, sizes, bounds, *task);
         const auto effects = read_effects(env, controls);
         std::string key;
@@ -177,4 +184,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFil
     catch (const std::invalid_argument& error) { java_error(env, "java/lang/IllegalArgumentException", error.what()); }
     catch (const std::exception& error) { java_error(env, "java/lang/IllegalStateException", error.what()); }
     catch (...) { java_error(env, "java/lang/IllegalStateException", "Mobile film rendering failed"); }
+}
+
+extern "C" JNIEXPORT jlongArray JNICALL Java_com_lumixfilmmirror_media_NativeMobileFilmBridge_spatialMetrics(JNIEnv* env,jobject) {
+    const auto& m=lfm::mobile::cine_spatial_metrics;
+    const jlong values[3]={jlong(m.micros),m.cache_hit?1:0,jlong(m.bytes)};
+    const auto result=env->NewLongArray(3);if(result)env->SetLongArrayRegion(result,0,3,values);return result;
 }
