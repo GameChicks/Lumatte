@@ -90,7 +90,7 @@ internal fun MirrorSettings(personal: MirrorPersonalState, state: WorkspaceState
                 MirrorControlSection("素材、任务与存储") {
                     Text("查看照片批次、传输和导出任务，管理可重新生成的缓存。", color = tones.secondaryInk)
                     MirrorChoice(false, onTools, Modifier.fillMaxWidth(), label = { Text("打开任务与缓存管理 →") })
-                    Text("RAW 仅提取内嵌 JPEG；原始文件保留。照片默认按有效输入尺寸的 100% 输出。",
+                    Text("RAW 默认读取内嵌 JPEG，文件导入可选原始解码；原文件不改写。照片默认按实际工作图尺寸的 100% 输出。",
                         style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
                 }
             }

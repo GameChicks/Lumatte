@@ -161,13 +161,30 @@ internal class FrameRenderer(context: Context) {
                 canvas.drawBitmap(photo, null, imageBox, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
             }
             if (options.dateBack) FrameDateBack.draw(canvas, imageBox, source)
-            drawCaption(canvas, options, layout, identity, ink, unit, checkActive)
+            drawCaption(canvas, source, stock, options, layout, identity, ink, unit, checkActive)
             checkActive()
             return pixels
         } catch (error: Throwable) { pixels.recycle(); throw error }
     }
 
-    private fun drawCaption(canvas: Canvas, options: FrameOptions, layout: FrameLayout,
+    /** Measure actual glyph/artwork alpha, including custom fonts, without the paper or photo. */
+    fun captionInkBounds(source: SourceImage, options: FrameOptions, stock: FilmPreset?, layout: FrameLayout,
+        checkActive: () -> Unit): FloatBox {
+        val mask=Bitmap.createBitmap(layout.canvas.width,layout.canvas.height,Bitmap.Config.ARGB_8888)
+        try {
+            val identity=FrameIdentity("","","",stock?.id,false,"",Color.WHITE,false,"")
+            drawCaption(Canvas(mask),source,stock,options,layout,identity,Color.WHITE,
+                min(layout.canvas.width,layout.canvas.height)/1000f,checkActive)
+            val bounds=visibleBounds(mask,checkActive)
+            if(bounds.width()==mask.width && bounds.height()==mask.height)
+                return com.lumixfilmmirror.media.captionProofBounds(source,options,stock,layout)
+            val padding=max(8f,min(layout.canvas.width,layout.canvas.height)*.012f)
+            return FloatBox(max(0f,bounds.left-padding),max(layout.caption.top,bounds.top-padding),
+                min(layout.canvas.width.toFloat(),bounds.right+padding),min(layout.caption.bottom,bounds.bottom+padding))
+        } finally {mask.recycle()}
+    }
+
+    private fun drawCaption(canvas: Canvas, source: SourceImage, stock: FilmPreset?, options: FrameOptions, layout: FrameLayout,
         identity: FrameIdentity, ink: Int, unit: Float, checkActive: () -> Unit) {
         if (!options.showPhotoMetadata && options.signature.isBlank() && options.preset != FramePreset.PALETTE) return
         val ticket = options.preset == FramePreset.TICKET
@@ -181,17 +198,12 @@ internal class FrameRenderer(context: Context) {
         data class Line(val text: String, val size: Float, val face: FrameFont, val spacing: Float = 0f, val custom: String? = null) {
             val height get() = size * 1.5f * text.take(240).split('\n').take(3).size
         }
-        val lines = mutableListOf<Line>()
-        if (options.showPhotoMetadata) {
-            lines += Line(options.title ?: if (ticket) "Where the light lingers" else identity.camera,
-                textUnit * if (ticket) 35f else 24f, font, if (font == FrameFont.SPACED) textUnit * 1.2f else 0f, options.titleFontKey)
-            val subtitleFont = options.subtitleFont ?: if (ticket) FrameFont.SPACED else font
-            lines += Line(options.subtitle ?: if (ticket) listOf(identity.camera, identity.brand + " " + identity.film).filter { it.isNotBlank() }.joinToString("  /  ")
-                else identity.brand + " " + identity.film, textUnit * 18, subtitleFont, textUnit * .6f, options.subtitleFontKey)
-            lines += Line(options.footer ?: if (ticket) "A moment, kept in light." else identity.exposureMetadata, textUnit * 14,
-                options.footerFont ?: if (ticket) FrameFont.TYPEWRITER else FrameFont.SANS, custom = options.footerFontKey)
+        val fields=com.lumixfilmmirror.media.frameCaptionFields(source,options,stock)
+        val lines=fields.filter { it.key=="signature" || options.showPhotoMetadata }.map { field ->
+            val size=com.lumixfilmmirror.media.captionTypeSize(field,fields,options)
+            Line(field.text,textUnit*size,field.font,
+                if(field.key=="title" && field.font==FrameFont.SPACED)textUnit*1.2f else if(field.key=="subtitle")textUnit*.6f else 0f,field.fontKey)
         }
-        if (options.signature.isNotBlank()) lines += Line(options.signature, textUnit * 20, options.signatureFont, custom = options.signatureFontKey)
         val visible = lines.filter { it.text.isNotBlank() }
         val badge = if (options.preset == FramePreset.PALETTE) options.imageKey?.let(assets::bitmap)
             ?: stockBadge(identity) else null

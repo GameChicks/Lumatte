@@ -6,6 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -28,8 +31,8 @@ internal fun MirrorEditorDock(state:WorkspaceState,workspace:WorkspaceViewModel,
     val tones=LocalFilmMaterials.current
     val saved=rememberSaveableStateHolder()
     val duration=if(LocalMirrorReducedMotion.current)0 else 200
-    val panelHeight=(LocalConfiguration.current.screenHeightDp*.27f).coerceIn(184f,216f).dp
-    Column(Modifier.fillMaxWidth().background(tones.paperHighlight)) {
+    val panelHeight=(LocalConfiguration.current.screenHeightDp*.31f).coerceIn(236f,280f).dp * LocalDensity.current.fontScale.coerceIn(1f,1.35f)
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart=24.dp,topEnd=24.dp)).background(tones.paperHighlight)) {
         HorizontalDivider(color=tones.rim.copy(.3f))
         AnimatedContent(targetState=tool,modifier=Modifier.fillMaxWidth().height(panelHeight),
             contentAlignment=Alignment.TopStart,transitionSpec={
@@ -37,7 +40,7 @@ internal fun MirrorEditorDock(state:WorkspaceState,workspace:WorkspaceViewModel,
                 ((fadeIn(tween(duration))+slideInHorizontally(tween(duration,easing=MirrorEase)){it*direction/12}) togetherWith
                     (fadeOut(tween(duration/2))+slideOutHorizontally(tween(duration,easing=MirrorEase)){-it*direction/12})).using(null)
             },label="editor-tools") { shown -> saved.SaveableStateProvider(shown) {
-                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top=8.dp)) {
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top=12.dp,bottom=16.dp)) {
                     when(shown) {
                         "adjust"->state.selected?.let { state.filmBatch?.effectiveParameters(it) }?.let { p ->
                             MirrorFilmFineTuning(p,!state.busy,workspace::updateFilm,compact=true,showGrain=false)
@@ -49,7 +52,7 @@ internal fun MirrorEditorDock(state:WorkspaceState,workspace:WorkspaceViewModel,
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal=10.dp),verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min=64.dp).padding(horizontal=10.dp,vertical=8.dp),horizontalArrangement=Arrangement.spacedBy(4.dp),verticalAlignment=Alignment.CenterVertically) {
             editorTools.forEach { (key,title) ->
                 EditorTextTab(title,tool==key,{if(key=="output")onOutput()else onTool(key)},Modifier.weight(1f),!state.busy)
             }

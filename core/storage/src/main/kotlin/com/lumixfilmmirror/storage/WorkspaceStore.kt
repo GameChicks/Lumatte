@@ -12,6 +12,7 @@ import com.lumixfilmmirror.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URI
@@ -30,7 +31,7 @@ class WorkspaceStore(context: Context) {
     private val context = context.applicationContext
     private val dao = WorkspaceDatabase.get(this.context).workspace()
     private val preferences = this.context.workspacePreferences
-    val photos = dao.photos().map { rows -> rows.map(::source) }
+    val photos = dao.photos().map { rows -> rows.map(::source) }.flowOn(Dispatchers.IO)
     val processingBatches = dao.processingBatches().map { groups -> groups.map { group ->
         ProcessingBatch(group.batch.id, group.batch.title, group.batch.createdAt,
             group.entries.filterNot { it.entry.removed }.sortedWith(compareBy({ it.entry.ordinal }, { it.entry.photoId }))
@@ -40,7 +41,7 @@ class WorkspaceStore(context: Context) {
             group.editRecipes.singleOrNull()?.let { PhotoTreatment.valueOf(it.treatment) } ?: PhotoTreatment.LUT,
             group.editRecipes.singleOrNull()?.filmJson?.let(FilmBatchCodec::read),
             group.frameRecipes.singleOrNull()?.frameJson?.let(FrameOptionsCodec::read) ?: FrameOptions())
-    } }
+    } }.flowOn(Dispatchers.IO)
     val transfers = dao.transfers()
     val incomingTransfers = dao.incomingTransfers()
 
@@ -153,7 +154,8 @@ class WorkspaceStore(context: Context) {
         require(UUID.fromString(row.id).toString() == row.id)
         val size = PixelSize(row.width, row.height)
         return SourceImage(PhotoId(row.id), row.name, File(context.filesDir, "source-jpegs/${row.id}/source.jpg"),
-            size, row.orientation, if (row.rawPreview) InputOrigin.RawEmbeddedJpeg(size) else InputOrigin.Jpeg,
+            size, row.orientation, if (row.rawPreview) InputOrigin.RawEmbeddedJpeg(size)
+                else if(File(context.filesDir,"source-jpegs/${row.id}/original.raw").isFile) InputOrigin.RawDecoded(size) else InputOrigin.Jpeg,
             PhotoMetadata(row.camera, row.lens, row.capturedAt, row.iso, row.aperture, row.shutter, row.focalLength))
     }
 

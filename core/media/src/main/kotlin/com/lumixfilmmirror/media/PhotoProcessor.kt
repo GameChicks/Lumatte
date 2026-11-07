@@ -237,20 +237,20 @@ class PhotoProcessor(context: Context) {
             film = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed) },
             frame = frame, frameNumber = frameNumber,
             onStage = onStage, onTargetCreated = onTargetCreated, onPublished = onPublished,
-            preserveEmbeddedJpeg = recipe == PhotoRecipe.Original && output.dimensionPercent == 100 &&
+            preserveEmbeddedJpeg = source.origin !is com.lumixfilmmirror.model.InputOrigin.RawDecoded && recipe == PhotoRecipe.Original && output.dimensionPercent == 100 &&
                 output.compressionQuality == 100 && output.format == com.lumixfilmmirror.model.ExportFormat.JPEG &&
                 frame.preset == com.lumixfilmmirror.model.FramePreset.NONE && !frame.dateBack)
 
     /** Complete composition preview. longEdge bounds the final canvas, including frame and text. */
     suspend fun previewExport(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
         options: BatchExportOptions, longEdge: Int = 960, frameNumber: Int = 1,
-        matchFilmOutput: Boolean = false) = ownedPreview {
+        matchFilmOutput: Boolean = false, upscale: Boolean = false) = ownedPreview {
         require(longEdge in 64..2048) { "预览长边需在 64～2048 像素之间" }
         previewGate.withPermit {
             val active = coroutineContext
             require(frameNumber > 0)
             val stock = (recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters, catalogue.films, it.grainSeed).preset }
-            val layout = FrameLayouts.preview(exportLayout(source, options, stockArtwork = stock != null), longEdge)
+            val layout = FrameLayouts.preview(exportLayout(source, options, stockArtwork = stock != null), longEdge, upscale)
             val pixels = effectPreview(source, recipe, catalogue, photoSize(layout),
                 if(matchFilmOutput)options.jpeg.contentSize(source.size) else null)
             try {
@@ -260,6 +260,25 @@ class PhotoProcessor(context: Context) {
                 result
             } catch (error: Throwable) { pixels.recycle(); throw error }
         }
+    }
+
+    /** Magnified caption proof, cropped using the exact exported layout; original photo stays untouched. */
+    suspend fun previewFrameCaption(source: SourceImage, recipe: PhotoRecipe, catalogue: ProcessingCatalogue,
+        options: BatchExportOptions, frameNumber: Int = 1): Bitmap = ownedPreview {
+        val stock=(recipe as? PhotoRecipe.Film)?.let { films.plan(it.parameters,catalogue.films,it.grainSeed).preset }
+        val layout=FrameLayouts.preview(exportLayout(source,options,stock!=null),2048,upscale=true)
+        val complete=previewExport(source,recipe,catalogue,options,longEdge=2048,frameNumber=frameNumber,upscale=true)
+        try {
+            val active=coroutineContext
+            val box=writer.captionInkBounds(source,options.frame,stock,layout) {active.ensureActive()}
+            val left=box.left.toInt().coerceIn(0,complete.width-1)
+            val top=box.top.toInt().coerceIn(0,complete.height-1)
+            val right=kotlin.math.ceil(box.right.toDouble()).toInt().coerceIn(left+1,complete.width)
+            val bottom=kotlin.math.ceil(box.bottom.toDouble()).toInt().coerceIn(top+1,complete.height)
+            coroutineContext.ensureActive()
+            val crop=Bitmap.createBitmap(complete,left,top,right-left,bottom-top)
+            if(crop===complete)complete.copy(Bitmap.Config.ARGB_8888,false) ?: error("文字预览内存不足") else crop
+        } finally {complete.recycle()}
     }
 
     private fun photoSize(layout: FrameLayout) = PixelSize(maxOf(1, kotlin.math.round(layout.photo.width).toInt()),

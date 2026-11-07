@@ -118,7 +118,10 @@ inline Spatial prepare_spektralab_spatial(const Image& image,const Model& model,
     key.bytes(model.response.minimum.data(),sizeof(Colour));key.bytes(model.response.maximum.data(),sizeof(Colour));
     key.bytes(model.response.values.data(),model.response.values.size()*sizeof(float));
     key.bytes(&effects.diffusion,sizeof(float));key.bytes(&effects.format_mm,sizeof(float));key.bytes(&effects.exposure_gain,sizeof(float));
-    for(uint32_t y=0;y<h;++y){check();key.bytes(image.pixels+size_t(y)*image.stride,size_t(w)*4);}
+    const float adjustments[]={effects.input_exposure,effects.brightness,effects.contrast,effects.highlights,effects.shadows,effects.saturation,effects.vibrance,effects.temperature};
+    key.bytes(adjustments,sizeof(adjustments));
+    if(effects.raw_input){key.word(effects.source_orientation);check();key.bytes(effects.raw_input->bytes(),effects.raw_input->byte_size());check();}
+    else for(uint32_t y=0;y<h;++y){check();key.bytes(image.pixels+size_t(y)*image.stride,size_t(w)*4);}
     auto& cache=cine_cache();
     {
         std::lock_guard lock(cache.mutex);
@@ -138,8 +141,8 @@ inline Spatial prepare_spektralab_spatial(const Image& image,const Model& model,
         float peak=0;
         for(uint32_t x=0;x<w;++x){
             if((x&1023u)==0)check();const auto* p=image.pixels+size_t(y)*image.stride+size_t(x)*4;
-            Colour raw=effects.diffusion==0?sampler.sample(p):film_response(model,
-                lens_colour(read_linear(p,decode_lut),spatial.lens.sample(x,y,image),spatial.softness));
+            Colour raw=effects.diffusion==0?source_response(sampler,p,effects):film_response(model,
+                lens_colour(read_linear(p,decode_lut,effects),spatial.lens.sample(x,y,image),spatial.softness));
             for(int c=0;c<3;++c){raw[c]*=effects.exposure_gain;field->values[(size_t(y)*w+x)*3+c]=raw[c];}
             peak=std::max(peak,std::max({raw[0],raw[1],raw[2]}));
         }

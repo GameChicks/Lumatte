@@ -62,17 +62,12 @@ lfm::mobile::Effects read_effects(JNIEnv* env, jfloatArray controls) {
         throw std::invalid_argument("Mobile film controls invalid");
     lfm::mobile::Effects result{};
     result.diffusion = values[0]; result.halation = values[1] == 1;
-    result.exposure_gain = std::pow(2.f, values[2]); result.grain = values[3] == 1;
+    result.input_exposure = values[2]; result.exposure_gain = 1; result.grain = values[3] == 1;
     result.particle_area = values[4]; result.format_mm = values[23];
     if ((values[24] != 0 && values[24] != 1) || values[25] < 1 || values[25] > 8 ||
         values[25] != std::floor(values[25]) || values[26] < 0 || values[26] > 1 || values[27] < 0 || values[27] > 40)
         throw std::invalid_argument("Mobile spatial profile invalid");
     result.cinestill = values[24] == 1; result.halation_bounces = int(values[25]);
-    if(result.cinestill) {
-        // Keep the emulsion/headroom/halo source unchanged while the user trims EV.
-        // Zero EV retains the accepted stock appearance exactly at this boundary.
-        result.display_exposure_gain=result.exposure_gain;result.exposure_gain=1;
-    }
     if(values[59]<0 || values[59]>2 || (!result.cinestill && values[59]!=0))
         throw std::invalid_argument("Invalid CineStill JPEG halation look");
     result.remjet_look=values[59];
@@ -147,14 +142,14 @@ extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFil
 }
 extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFilmBridge_render(JNIEnv* env, jobject, jlong handle,
     jobject bitmap, jobjectArray tables, jintArray sizes, jfloatArray bounds, jfloatArray controls,
-    jint source_width, jint source_height, jlong seed, jboolean prefer_gpu, jstring model_key) {
+    jint source_width, jint source_height, jlong seed, jboolean prefer_gpu, jstring model_key,jstring raw_path,jint orientation) {
     try {
         const auto* task = reinterpret_cast<Task*>(handle);
         if (!task || !bitmap || source_width <= 0 || source_height <= 0) throw std::invalid_argument("Invalid mobile film request");
         task->check();
         lfm::mobile::cine_spatial_metrics={};
         const auto model = read_model(env, tables, sizes, bounds, *task);
-        const auto effects = read_effects(env, controls);
+        auto effects = read_effects(env, controls);
         std::string key;
         if (prefer_gpu) {
             if (!model_key) throw std::invalid_argument("Film GPU model key missing");
@@ -173,6 +168,13 @@ extern "C" JNIEXPORT void JNICALL Java_com_lumixfilmmirror_media_NativeMobileFil
         task->check();
         BitmapLock lock(env, bitmap);
         const lfm::mobile::Image image{static_cast<uint8_t*>(lock.pixels), info.width, info.height, info.stride};
+        if(raw_path) {
+            if(orientation<1 || orientation>8 || prefer_gpu)throw std::invalid_argument("RAW10 requires the native precision path");
+            const char* path=env->GetStringUTFChars(raw_path,nullptr);if(!path)throw PendingJavaError{};
+            try {effects.raw_input=std::make_shared<lfm::Raw10Image>(path);}
+            catch(...){env->ReleaseStringUTFChars(raw_path,path);throw;}
+            env->ReleaseStringUTFChars(raw_path,path);effects.source_target=image;effects.source_orientation=orientation;
+        }
         if (prefer_gpu) lfm::mobile::render_gles(image, model, effects, key,
             uint32_t(source_width), uint32_t(source_height), uint64_t(seed), [&] { task->check(); });
         else lfm::mobile::render_cpu(image, model, effects,

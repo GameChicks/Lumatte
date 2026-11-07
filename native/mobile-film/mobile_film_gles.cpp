@@ -216,7 +216,7 @@ public:
         glUniform1f(uniform("uGrainSpacing"), spacing);
         glUniform1f(uniform("uGrainStrength"), effects.grain_strength);
         glUniform1f(uniform("uContrast"), effects.contrast);
-        glUniform1f(uniform("uDisplayExposureGain"),effects.display_exposure_gain);
+        glUniform1f(uniform("uInputExposure"),effects.input_exposure);
         glUniform1f(uniform("uBrightness"), effects.brightness);
         glUniform1f(uniform("uHighlights"), effects.highlights); glUniform1f(uniform("uShadows"), effects.shadows);
         glUniform1f(uniform("uSaturation"), effects.saturation); glUniform1f(uniform("uVibrance"), effects.vibrance);

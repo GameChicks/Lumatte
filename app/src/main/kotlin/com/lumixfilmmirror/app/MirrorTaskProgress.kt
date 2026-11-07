@@ -32,17 +32,20 @@ internal fun MirrorTaskProgress(state: WorkspaceState, camera: CameraWorkspaceSt
     val state = if (active) state else lastState
     val camera = if (active) camera else lastCamera
     val transfer = camera.activeTransferBatch != null
+    val compact = collapsed || state.exporting
     Surface(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 8.dp), shape = RoundedCornerShape(20.dp),
         color = LocalFilmMaterials.current.paperHighlight, shadowElevation = 2.dp) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (collapsed) listOfNotNull(
+                Text(if (compact) listOfNotNull(
                     "保存 ${state.completed}/${state.total}".takeIf { state.exporting },
                     "传入 ${camera.transferred}/${camera.transferTotal}".takeIf { transfer }
                 ).joinToString(" · ") else "任务进度", Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                MirrorActionButton(onClick = { onCollapse(!collapsed) }) { Text(if (collapsed) "展开进度" else "收起") }
+                if(state.exporting)MirrorTextAction("暂停保存",workspace::pauseExport)
+                else MirrorTextAction(if(collapsed)"展开"else"收起",{onCollapse(!collapsed)})
             }
-            AnimatedVisibility(visible = !collapsed,
+            if(state.exporting)LinearProgressIndicator(progress={if(state.total>0)(state.completed.toFloat()/state.total).coerceIn(0f,1f)else 0f},modifier=Modifier.fillMaxWidth())
+            AnimatedVisibility(visible = !compact,
                 enter = fadeIn(tween(duration)) + expandVertically(tween(duration, easing = MirrorEase)),
                 exit = fadeOut(tween(duration)) + shrinkVertically(tween(duration, easing = MirrorEase))) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

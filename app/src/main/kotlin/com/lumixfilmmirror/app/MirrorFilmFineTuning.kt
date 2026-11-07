@@ -58,16 +58,7 @@ internal fun MirrorFilmFineTuning(parameters: FilmParameters, enabled: Boolean, 
                 steps=if(current==FilmAdjustment.EXPOSURE)59 else 199){onChange(current.change(parameters,it))}
             LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 items(FilmAdjustment.entries,key={it.name}) { item ->
-                    Column(Modifier.width(64.dp).height(64.dp).background(if(item==current)tones.paper else androidx.compose.ui.graphics.Color.Transparent,RoundedCornerShape(12.dp))
-                        .selectable(item==current,enabled=enabled,role=Role.RadioButton){tool=item.name},
-                        horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
-                        Text(when(item){FilmAdjustment.EXPOSURE->"±";FilmAdjustment.BRIGHTNESS->"☼";
-                            FilmAdjustment.CONTRAST->"◐";FilmAdjustment.HIGHLIGHTS->"☀";FilmAdjustment.SHADOWS->"◑";
-                            FilmAdjustment.SATURATION->"◉";FilmAdjustment.VIBRANCE->"◇";FilmAdjustment.TEMPERATURE->"↔"},fontSize=21.sp,color=tones.ink)
-                        Text(item.title,fontSize=11.sp,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,color=tones.ink)
-                        Spacer(Modifier.height(4.dp))
-                        Box(Modifier.size(if(item==current)16.dp else 0.dp,2.dp).background(tones.amber))
-                    }
+                    EditorTextTab(item.title,item==current,{tool=item.name},enabled=enabled)
                 }
             }
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {

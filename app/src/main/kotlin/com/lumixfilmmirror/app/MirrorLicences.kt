@@ -21,7 +21,7 @@ internal fun MirrorLicences(onDismiss: () -> Unit) {
             LicenceEntry("AndroidX / Jetpack Compose / Room", "Android Open Source Project · Apache 2.0", listOf("licenses/Apache-2.0.txt")),
             LicenceEntry("Kotlin / kotlinx.coroutines", "JetBrains · Apache 2.0", listOf("licenses/Apache-2.0.txt")),
             LicenceEntry("OkHttp / Okio", "Square · Apache 2.0", listOf("licenses/Apache-2.0.txt")),
-            LicenceEntry("LibRaw 0.22.2", "LibRaw LLC · 选择 LGPL 2.1 许可；仅用于提取内嵌 JPEG。源码与修改记录保存在项目 third_party/libraw 与 native/raw-preview。",
+            LicenceEntry("LibRaw 0.22.2", "LibRaw LLC · 选择 LGPL 2.1 许可；用于内嵌 JPEG 提取及用户主动选择的 RAW 原始解码。源码与修改记录保存在项目 third_party/libraw 与 native/raw-preview。",
                 listOf("licenses/libraw-COPYRIGHT.txt", "licenses/libraw-LGPL.txt")),
             LicenceEntry("spektrafilm 胶片资料", "Andrea Volpato · CC BY-SA 4.0；移动模型为派生资料，保留来源和处理记录。",
                 listOf("film/mobile-v1/SPEKTRAFILM_LICENSE.txt")),

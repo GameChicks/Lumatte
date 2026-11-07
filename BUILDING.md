@@ -30,7 +30,7 @@ mkdir -p dist
 cp app/build/outputs/apk/debug/app-debug.apk dist/Lumatte-debug.apk
 ```
 
-Android Studio 可直接打开根目录 Gradle 工程。原生 ABI 为 arm64-v8a 和 x86_64。应用 ID 保持 `com.lumixfilmmirror.app`；RAW 仅提取内嵌 JPEG。
+Android Studio 可直接打开根目录 Gradle 工程。原生 ABI 为 arm64-v8a 和 x86_64。应用 ID 保持 `com.lumixfilmmirror.app`；RAW 默认提取内嵌 JPEG，文件导入可主动选择原始解码为 10bit 宽色域工作缓存。
 
 ## 源码、生成文件与素材
 

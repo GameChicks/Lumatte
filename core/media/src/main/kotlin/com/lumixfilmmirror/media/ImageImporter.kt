@@ -18,6 +18,8 @@ import java.io.IOException
 import java.util.UUID
 import kotlin.coroutines.coroutineContext
 
+enum class RawImportMode { EMBEDDED_JPEG, SENSOR_BALANCED, SENSOR_FULL }
+
 data class PhotoMetadata(
     val camera: String = "", val lens: String = "", val capturedAt: String = "",
     val iso: String = "", val aperture: String = "", val shutter: String = "", val focalLength: String = "",
@@ -35,8 +37,12 @@ data class SourceImage(
     val id: PhotoId, val name: String, val jpeg: File, val size: PixelSize,
     val orientation: Int, val origin: InputOrigin, val metadata: PhotoMetadata,
 ) {
-    val rawNotice: String? get() = if (origin is InputOrigin.RawEmbeddedJpeg)
-        "使用 RAW 内嵌 JPEG · ${size.width} × ${size.height} · 输出尺寸以预览图为准" else null
+    val rawWorkingFile: File? get() = if(origin is InputOrigin.RawDecoded) File(jpeg.parentFile,"working.raw10") else null
+    val rawNotice: String? get() = when(origin) {
+        is InputOrigin.RawEmbeddedJpeg -> "使用 RAW 内嵌 JPEG · ${size.width} × ${size.height} · 输出尺寸以预览图为准"
+        is InputOrigin.RawDecoded -> "RAW 原始解码 · ${size.width} × ${size.height} · 10bit 宽色域工作缓存，原 RAW 已保留"
+        else -> null
+    }
 }
 
 class ImageImporter(context: Context) {
@@ -44,7 +50,8 @@ class ImageImporter(context: Context) {
     private val root = File(this.context.filesDir, "source-jpegs").apply { mkdirs() }
 
     suspend fun importImage(uri: Uri, displayName: String? = null,
-        rawEmbeddedPreview: Boolean = false, photoId: PhotoId? = null): SourceImage = withContext(Dispatchers.IO) {
+        rawEmbeddedPreview: Boolean = false, photoId: PhotoId? = null,
+        rawMode: RawImportMode = RawImportMode.EMBEDDED_JPEG): SourceImage = withContext(Dispatchers.IO) {
         val id = photoId ?: PhotoId(UUID.randomUUID().toString())
         require(UUID.fromString(id.value).toString() == id.value)
         val directory = File(root, id.value)
@@ -69,14 +76,22 @@ class ImageImporter(context: Context) {
                 }
             } ?: error("无法读取所选文件")
             val isJpeg = staged.inputStream().use { it.read() == 0xff && it.read() == 0xd8 }
+            val sensorDecoded = !isJpeg && rawMode != RawImportMode.EMBEDDED_JPEG
             val jpeg = File(directory, "source.jpg")
             if (isJpeg) {
                 check(staged.renameTo(jpeg)) { "无法保存导入照片" }
+            } else if(sensorDecoded) {
+                val manager=context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                val memory=android.app.ActivityManager.MemoryInfo().also(manager::getMemoryInfo)
+                check(!memory.lowMemory && (rawMode!=RawImportMode.SENSOR_FULL || memory.availMem>=1024L*1024*1024)) {
+                    "当前可用内存不足，请选择均衡 RAW 或内嵌 JPEG"
+                }
+                LibRawPreview.decode(staged,jpeg,rawMode==RawImportMode.SENSOR_BALANCED)
             } else {
                 val bestPixels = extractRawPreview(staged, directory, jpeg)
                 check(bestPixels > 0) { "未找到可用的内嵌 JPEG，请导入相机 JPEG 成片" }
             }
-            val encoded = jpegSize(jpeg) ?: error("JPEG 数据无法读取")
+            val encoded = workingSize(jpeg,allowPng=sensorDecoded) ?: error("工作图数据无法读取")
             val embeddedExif = runCatching { ExifInterface(jpeg) }.getOrNull()
             val originalExif = if (isJpeg) embeddedExif else runCatching { ExifInterface(staged) }.getOrNull()
             val orientation = embeddedExif?.getAttributeInt(ExifInterface.TAG_ORIENTATION, 0)?.takeIf { it in 1..8 }
@@ -84,9 +99,10 @@ class ImageImporter(context: Context) {
             val rotated = orientation in setOf(5, 6, 7, 8)
             val size = if (rotated) PixelSize(encoded.height, encoded.width) else encoded
             val metadata = metadata(originalExif ?: embeddedExif)
-            if (staged.exists()) check(staged.delete())
+            if (sensorDecoded) check(staged.renameTo(File(directory,"original.raw"))){"无法保留 RAW 原文件"}
+            else if (staged.exists()) check(staged.delete())
             val photo = SourceImage(id, name, jpeg, size, orientation,
-                if (isJpeg && !rawEmbeddedPreview) InputOrigin.Jpeg else InputOrigin.RawEmbeddedJpeg(size), metadata)
+                if(sensorDecoded) InputOrigin.RawDecoded(size) else if (isJpeg && !rawEmbeddedPreview) InputOrigin.Jpeg else InputOrigin.RawEmbeddedJpeg(size), metadata)
             SourceManifest.write(photo)
             photo
         } catch (error: Throwable) {
@@ -120,7 +136,7 @@ class ImageImporter(context: Context) {
     }
 
     private fun selectPreview(candidate: File, jpeg: File, bestPixels: Long): Long {
-        val size = jpegSize(candidate)
+        val size = workingSize(candidate)
         val pixels = size?.let { it.width.toLong() * it.height } ?: 0L
         if (pixels > bestPixels) {
             if (jpeg.exists()) check(jpeg.delete()) { "无法替换预览副本" }
@@ -149,10 +165,10 @@ class ImageImporter(context: Context) {
         ImportRecovery(photos, problems)
     }
 
-    private fun jpegSize(file: File): PixelSize? {
+    private fun workingSize(file: File,allowPng:Boolean=false): PixelSize? {
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, options)
-        return if (options.outWidth > 0 && options.outHeight > 0 && options.outMimeType == "image/jpeg")
+        return if (options.outWidth > 0 && options.outHeight > 0 && (options.outMimeType == "image/jpeg" || allowPng && options.outMimeType=="image/png"))
             PixelSize(options.outWidth, options.outHeight) else null
     }
 

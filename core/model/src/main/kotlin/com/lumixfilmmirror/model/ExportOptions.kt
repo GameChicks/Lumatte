@@ -90,4 +90,5 @@ enum class FrameMood(val title: String) {
 sealed interface InputOrigin {
     data object Jpeg : InputOrigin
     data class RawEmbeddedJpeg(val dimensions: PixelSize) : InputOrigin
+    data class RawDecoded(val dimensions: PixelSize) : InputOrigin
 }

@@ -26,7 +26,7 @@ internal object NativeLutBridge {
     external fun render(handle: Long, bitmap: Bitmap,
         firstOneSize: Int, firstThreeSize: Int, firstOne: FloatArray?, firstThree: FloatArray?, firstBounds: FloatArray?, firstStrength: Float,
         secondOneSize: Int, secondThreeSize: Int, secondOne: FloatArray?, secondThree: FloatArray?, secondBounds: FloatArray?, secondStrength: Float,
-        grain: Float, sourceWidth: Int, sourceHeight: Int, seed: Int, dithering: Boolean, adjustments: FloatArray)
+        grain: Float, sourceWidth: Int, sourceHeight: Int, seed: Int, dithering: Boolean, adjustments: FloatArray,rawPath:String?,orientation:Int)
 }
 
 /** Cancellation drains native work before the caller may recycle or reuse the bitmap. */
@@ -53,7 +53,8 @@ internal object NativeLutRenderer {
                         val outcome = runCatching { NativeLutBridge.render(task, bitmap,
                             a?.oneSize ?: 0, a?.threeSize ?: 0, a?.one, a?.three, a?.bounds, firstStrength,
                             b?.oneSize ?: 0, b?.threeSize ?: 0, b?.one, b?.three, b?.bounds, secondStrength,
-                            grain, source.size.width, source.size.height, source.id.value.hashCode(), dithering, adjustments.values()) }
+                            grain, source.size.width, source.size.height, source.id.value.hashCode(), dithering, adjustments.values(),
+                            source.rawWorkingFile?.absolutePath,source.orientation) }
                         synchronized(taskLock) { NativeLutBridge.releaseTask(task); released = true }
                         finished.complete(Unit)
                         continuation.resumeWith(outcome)

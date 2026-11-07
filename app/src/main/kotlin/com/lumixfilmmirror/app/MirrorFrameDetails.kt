@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,55 +62,14 @@ internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewM
                     { workspace.updateFrame(frame.copy(ratio = ratio)) }, enabled = enabled, label = { Text(ratio.title) }) }
             }
         }
+        FrameDateBackControl(state,workspace)
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (frame.preset == FramePreset.NONE) {
             MirrorControlSection("照片本身") { Text("选择画框后，可添加签名、拍摄信息与纸边。", color = tones.secondaryInk) }
+            FrameDateBackControl(state,workspace)
         } else {
-            MirrorControlSection("签名与拍摄信息") {
-                if (textControls) MirrorTextField(frame.signature, { workspace.updateFrame(frame.copy(signature = it.take(240))) }, "签名 / 水印文字", enabled = enabled)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("显示文字与拍摄信息", Modifier.weight(1f))
-                    MirrorToggle(frame.showPhotoMetadata, "显示标题与拍摄信息", enabled) { workspace.updateFrame(frame.copy(showPhotoMetadata = it)) }
-                }
-                val metadata = state.current?.metadata
-                data class MetadataChoice(val label: String, val value: String, val checked: Boolean,
-                    val change: (Boolean) -> FrameOptions)
-                listOf(
-                    MetadataChoice("相机机型", metadata?.frameCameraName.orEmpty(), frame.showCamera) { frame.copy(showCamera = it) },
-                    MetadataChoice("镜头", metadata?.lens.orEmpty(), frame.showLens) { frame.copy(showLens = it) },
-                    MetadataChoice("焦距", metadata?.focalLength.orEmpty(), frame.showFocalLength) { frame.copy(showFocalLength = it) },
-                    MetadataChoice("光圈", metadata?.aperture.orEmpty(), frame.showAperture) { frame.copy(showAperture = it) },
-                    MetadataChoice("快门", metadata?.shutter.orEmpty(), frame.showShutter) { frame.copy(showShutter = it) },
-                    MetadataChoice("ISO", metadata?.iso.orEmpty(), frame.showIso) { frame.copy(showIso = it) },
-                    MetadataChoice("拍摄时间", metadata?.capturedAt.orEmpty(), frame.showCapturedAt) { frame.copy(showCapturedAt = it) }
-                ).forEach { choice ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Column(Modifier.weight(1f)) {
-                            Text(choice.label)
-                            Text(choice.value.ifBlank { "当前照片未检测到，成片自动隐藏" },
-                                style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
-                        }
-                        MirrorToggle(choice.checked, "显示${choice.label}", enabled && frame.showPhotoMetadata) {
-                            workspace.updateFrame(choice.change(it))
-                        }
-                    }
-                }
-                Text("开关应用于整批；每张照片只显示实际检测到的数据。", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
-                if (textControls) {
-                Text("签名字体", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FrameFont.entries.forEach { font ->
-                        MirrorChoice(frame.signatureFont == font && frame.signatureFontKey == null,
-                            { workspace.updateFrame(frame.copy(signatureFont = font, signatureFontKey = null)) }, enabled = enabled,
-                            label = { Text(font.title, fontFamily = signatureFaces.getValue(font)) })
-                    }
-                }
-                MirrorTextAction(if (frame.signatureFontKey == null) "导入签名字体 ↗" else "更换已导入的字体 ↗",
-                    { onFont("signature") }, enabled = enabled)
-                }
-            }
             MirrorControlSection("构图与纸边") {
                 Text("画布比例", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -156,6 +116,50 @@ internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewM
                             label = { Text(label) })
                 }
             }
+            FrameDateBackControl(state,workspace)
+            MirrorControlSection("签名与拍摄信息") {
+                if (textControls) MirrorTextField(frame.signature, { workspace.updateFrame(frame.copy(signature = it.take(240))) }, "签名 / 水印文字", enabled = enabled)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("显示文字与拍摄信息", Modifier.weight(1f))
+                    MirrorToggle(frame.showPhotoMetadata, "显示标题与拍摄信息", enabled) { workspace.updateFrame(frame.copy(showPhotoMetadata = it)) }
+                }
+                val metadata = state.current?.metadata
+                data class MetadataChoice(val label: String, val value: String, val checked: Boolean,
+                    val change: (Boolean) -> FrameOptions)
+                listOf(
+                    MetadataChoice("相机机型", metadata?.frameCameraName.orEmpty(), frame.showCamera) { frame.copy(showCamera = it) },
+                    MetadataChoice("镜头", metadata?.lens.orEmpty(), frame.showLens) { frame.copy(showLens = it) },
+                    MetadataChoice("焦距", metadata?.focalLength.orEmpty(), frame.showFocalLength) { frame.copy(showFocalLength = it) },
+                    MetadataChoice("光圈", metadata?.aperture.orEmpty(), frame.showAperture) { frame.copy(showAperture = it) },
+                    MetadataChoice("快门", metadata?.shutter.orEmpty(), frame.showShutter) { frame.copy(showShutter = it) },
+                    MetadataChoice("ISO", metadata?.iso.orEmpty(), frame.showIso) { frame.copy(showIso = it) },
+                    MetadataChoice("拍摄时间", metadata?.capturedAt.orEmpty(), frame.showCapturedAt) { frame.copy(showCapturedAt = it) }
+                ).forEach { choice ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(Modifier.weight(1f)) {
+                            Text(choice.label)
+                            Text(choice.value.ifBlank { "当前照片未检测到，成片自动隐藏" },
+                                style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
+                        }
+                        MirrorToggle(choice.checked, "显示${choice.label}", enabled && frame.showPhotoMetadata) {
+                            workspace.updateFrame(choice.change(it))
+                        }
+                    }
+                }
+                Text("开关应用于整批；每张照片只显示实际检测到的数据。", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
+                if (textControls) {
+                Text("签名字体", style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FrameFont.entries.forEach { font ->
+                        MirrorChoice(frame.signatureFont == font && frame.signatureFontKey == null,
+                            { workspace.updateFrame(frame.copy(signatureFont = font, signatureFontKey = null)) }, enabled = enabled,
+                            label = { Text(font.title, fontFamily = signatureFaces.getValue(font)) })
+                    }
+                }
+                MirrorTextAction(if (frame.signatureFontKey == null) "导入签名字体 ↗" else "更换已导入的字体 ↗",
+                    { onFont("signature") }, enabled = enabled)
+                }
+            }
             if (textControls) MirrorChoice(extra, { extra = !extra }, Modifier.fillMaxWidth(), label = {
                 Text(if (extra) "收起更多文字与字体 ↑" else "更多文字与字体 ↓")
             })
@@ -186,8 +190,17 @@ internal fun MirrorFrameDetails(state: WorkspaceState, workspace: WorkspaceViewM
 }
 
 @Composable
+private fun FrameDateBackControl(state:WorkspaceState,workspace:WorkspaceViewModel) {
+    MirrorControlSection("日期后背") {
+        Row(verticalAlignment=Alignment.CenterVertically) {
+            Text("使用拍摄日期，缺失时使用导入日期",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall)
+            MirrorToggle(state.frame.dateBack,"日期后背",!state.busy){workspace.updateFrame(state.frame.copy(dateBack=it))}
+        }
+    }
+}
+
+@Composable
 internal fun MirrorFrameTextEditor(state: WorkspaceState, workspace: WorkspaceViewModel, onFont: (String) -> Unit) {
-    var target by rememberSaveable { mutableStateOf("title") }
     val frame = state.frame
     val tones = LocalFilmMaterials.current
     val assets = LocalContext.current.applicationContext.assets
@@ -200,36 +213,24 @@ internal fun MirrorFrameTextEditor(state: WorkspaceState, workspace: WorkspaceVi
         }
         FontFamily(android.graphics.Typeface.createFromAsset(assets, "frames/fonts/$file"))
     } }
-    val base = when (frame.preset) {
-        FramePreset.FILM, FramePreset.SLIDE -> FrameFont.TYPEWRITER
-        FramePreset.TICKET -> FrameFont.GREAT_VIBES
-        FramePreset.MUSEUM -> FrameFont.SERIF
-        else -> FrameFont.SPACED
-    }
-    val face = when (target) {
-        "title" -> frame.titleFont ?: base
-        "subtitle" -> frame.subtitleFont ?: if (frame.preset == FramePreset.TICKET) FrameFont.SPACED else base
-        "footer" -> frame.footerFont ?: if (frame.preset == FramePreset.TICKET) FrameFont.TYPEWRITER else FrameFont.SANS
-        else -> frame.signatureFont
-    }
-    val custom = when (target) { "title" -> frame.titleFontKey; "subtitle" -> frame.subtitleFontKey
-        "footer" -> frame.footerFontKey; else -> frame.signatureFontKey }
-    val value = when (target) { "title" -> frame.title; "subtitle" -> frame.subtitle
-        "footer" -> frame.footer; else -> frame.signature }.orEmpty()
-    val example = value.ifBlank { when (target) {
-        "title" -> if (frame.preset == FramePreset.TICKET) "Where the light lingers" else state.current?.metadata?.frameCameraName.orEmpty()
-        "subtitle" -> state.selected?.let { runCatching { workspace.filmPlan(state, it).preset.name }.getOrNull() }.orEmpty()
-        "footer" -> if (frame.preset == FramePreset.TICKET) "A moment, kept in light." else state.current?.metadata?.detail.orEmpty()
-        else -> "Your signature"
-    } }.ifBlank { "光影 / Aa" }
+    val source=state.current ?: return
+    val stock=if(state.treatment==PhotoTreatment.FILM)state.selected?.let { runCatching {workspace.filmPlan(state,it).preset}.getOrNull() } else null
+    val fields=com.lumixfilmmirror.media.frameCaptionFields(source,frame,stock)
+    var target by rememberSaveable(frame.preset.name) { mutableStateOf(fields.first().key) }
+    LaunchedEffect(fields.map { it.key }) { if(fields.none {it.key==target})target=fields.first().key }
+    val field=fields.firstOrNull {it.key==target} ?: fields.first()
+    val face=field.font
+    val custom=field.fontKey
+    val value=when(target){"title"->frame.title;"subtitle"->frame.subtitle;"footer"->frame.footer;else->frame.signature}.orEmpty()
+    val example=field.text.ifBlank {"Your signature"}
     val enabled = !state.busy && (target == "signature" || frame.showPhotoMetadata)
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         BoxWithConstraints(Modifier.fillMaxWidth().weight(.8f).clip(RoundedCornerShape(18.dp))
             .background(tones.paperHighlight), contentAlignment = Alignment.Center) {
-            EditedPreview(state, workspace, frame = true, compactHeight = maxHeight)
+            FrameCaptionProof(state,workspace)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for ((key, name) in listOf("title" to "主标题", "subtitle" to "副标题", "footer" to "底部小字", "signature" to "签名"))
+            for ((key, name) in fields.map {it.key to it.label})
                 MirrorChoice(target == key, { target = key }, Modifier.weight(1f), label = { Text(name, fontSize = 12.sp, maxLines = 1) })
         }
         MirrorTextField(value, { text -> workspace.updateFrame(when (target) {
@@ -260,7 +261,7 @@ internal fun MirrorFrameTextEditor(state: WorkspaceState, workspace: WorkspaceVi
                                 else -> frame.copy(signatureFont = font, signatureFontKey = null)
                             }) }.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(example, Modifier.heightIn(min = 58.dp), fontFamily = faces.getValue(font),
-                                fontSize = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                fontSize = 22.sp, lineHeight=30.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Text(font.title + if (selected) " ✓" else "", style = MaterialTheme.typography.labelSmall,
                                 color = if (selected) tones.amber else tones.secondaryInk)
                         }
@@ -269,5 +270,31 @@ internal fun MirrorFrameTextEditor(state: WorkspaceState, workspace: WorkspaceVi
                 }
             }
         }
+    }
+}
+
+/** Shows the actual rendered caption at readable size, rather than shrinking the whole photo. */
+@Composable
+private fun FrameCaptionProof(state:WorkspaceState,workspace:WorkspaceViewModel) {
+    val source=state.current ?: return
+    val recipe=workspace.photoRecipe(state,source.id)
+    val options=state.exportOptions.copy(jpeg=state.output.copy(compressionQuality=100))
+    val key=listOf("caption-proof",source.id,recipe,options)
+    var bitmap by remember(key) { mutableStateOf(workspace.displayPreviews.peek(key)?.image) }
+    var problem by remember(key) { mutableStateOf<String?>(null) }
+    LaunchedEffect(key) {
+        try {bitmap=workspace.displayPreviews.load(key,keepLoading=false) {
+            MirrorPreview(workspace.processor.previewFrameCaption(source,recipe,
+                com.lumixfilmmirror.media.ProcessingCatalogue(state.luts,state.filmPresets,emptyList()),options,
+                state.photos.indexOfFirst {it.id==source.id}+1))
+        }.image}
+        catch(e:kotlinx.coroutines.CancellationException){throw e}
+        catch(e:Exception){problem=e.message}
+        catch(_:OutOfMemoryError){problem="文字预览内存不足"}
+    }
+    Box(Modifier.fillMaxSize().padding(12.dp),contentAlignment=Alignment.Center) {
+        bitmap?.let { androidx.compose.foundation.Image(it.asImageBitmap(),"成片文字区域",
+            Modifier.fillMaxSize(),contentScale=androidx.compose.ui.layout.ContentScale.Fit) }
+            ?: Text(problem ?: "正在生成文字预览…",color=LocalFilmMaterials.current.secondaryInk)
     }
 }

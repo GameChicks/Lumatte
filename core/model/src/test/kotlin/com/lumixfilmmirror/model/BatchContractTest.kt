@@ -7,7 +7,7 @@ class BatchContractTest {
     @Test fun inheritedReferenceDoesNotFollowReorderingOrOverwriteDrafts() {
         val first = BatchPhoto(PhotoId("first"), FilmParameters(exposureEv = 1f), 11)
         val other = BatchPhoto(PhotoId("other"), FilmParameters(exposureEv = -1f), 22)
-        val batch = FilmBatch(listOf(other, first), first.id)
+        val batch = FilmBatch(listOf(other, first), first.id,FilmBatchMode.FIRST_PHOTO)
         assertEquals(first.parameters, batch.effectiveParameters(other.id))
         assertEquals(other.parameters, batch.copy(mode = FilmBatchMode.INDIVIDUAL).effectiveParameters(other.id))
         assertEquals(22L, batch.copyReferenceToAll().photos.first().grainSeed)
@@ -16,7 +16,7 @@ class BatchContractTest {
         val p = BatchPhoto(PhotoId("a"), FilmParameters(), 0)
         val q = p.copy(id = PhotoId("b"))
         assertThrows(IllegalArgumentException::class.java) {
-            FilmBatch(listOf(p,q), p.id).updateParameters(q.id, FilmParameters(exposureEv = 2f))
+            FilmBatch(listOf(p,q), p.id,FilmBatchMode.FIRST_PHOTO).updateParameters(q.id, FilmParameters(exposureEv = 2f))
         }
     }
     @Test fun dimensionPercentageIsIndependentOfCompression() {

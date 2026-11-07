@@ -73,13 +73,13 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
             }
             MirrorActionButton(onClick = onNext, enabled = state.current != null && !state.busy) { Text("下一步 →") }
         }
-        if(state.current==null) EmptyImport("一张照片，一种新的可能。", "支持 JPEG 与 RAW 内嵌 JPEG。", onImport)
+        if(state.current==null) EmptyImport("一张照片，一种新的可能。", "支持 JPEG；RAW 可选快速读取或原始解码。", onImport)
         else {
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
                 SwipePhotoPreview(state, workspace, compactHeight = (maxHeight - if(state.photos.size>1) 68.dp else 0.dp).coerceAtLeast(64.dp))
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("长按对比原图", Modifier.weight(1f), color=tones.secondaryInk, fontSize=11.sp)
+                Text(if(state.current?.rawWorkingFile!=null)"RAW 10bit · 长按对比"else"长按对比原图", Modifier.weight(1f), color=tones.secondaryInk, fontSize=11.sp)
                 MirrorTextAction("${if(state.filmBatch?.mode==FilmBatchMode.FIRST_PHOTO)"整批联动"else"逐张编辑"} · ${state.photos.size} 张",
                     {options=true},enabled=!state.busy)
             }
@@ -87,6 +87,7 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
         }
     }
     if(options && state.current!=null) MirrorDialog("批次与输出",onDismiss={options=false}) {
+        state.current?.rawNotice?.let {Text(it,fontSize=12.sp,color=tones.secondaryInk)}
         state.filmBatch?.let { batch ->
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 MirrorChoice(batch.mode==FilmBatchMode.INDIVIDUAL,{workspace.filmMode(FilmBatchMode.INDIVIDUAL)},enabled=!state.busy,label={Text("逐张独立")})
@@ -465,8 +466,8 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
                 else -> "empty"
             } },
             transitionSpec = {
-                (fadeIn(tween(transitionDuration)) + slideInVertically(tween(transitionDuration, easing = MirrorEase)) { it / 24 }) togetherWith
-                    (fadeOut(tween(transitionDuration)) + slideOutVertically(tween(transitionDuration, easing = MirrorEase)) { -it / 32 })
+                ((fadeIn(tween(transitionDuration)) + slideInVertically(tween(transitionDuration, easing = MirrorEase)) { it / 24 }) togetherWith
+                    (fadeOut(tween(transitionDuration)) + slideOutVertically(tween(transitionDuration, easing = MirrorEase)) { -it / 32 })).using(null)
             }, label = "export-completion") { sceneState ->
         val state = sceneState
         Column(Modifier.fillMaxSize()) {
@@ -488,28 +489,18 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
         }
         }
     }
-    if (framePanel != null && state.current != null) ModalBottomSheet(onDismissRequest = { framePanel = null },
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = LocalFilmMaterials.current.paper) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(.92f).navigationBarsPadding().padding(horizontal = 20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (framePanel == "text") "文字与字体" else "构图与信息", Modifier.weight(1f),
-                    fontFamily = MirrorFonts.ChineseEditorial, fontSize = 24.sp)
-                MirrorActionButton(onClick = { framePanel = null }) { Text("完成") }
-            }
+    if (framePanel != null && state.current != null) MirrorEditingSheet(
+        if(framePanel=="text")"文字与字体"else"构图与信息",onDismiss={framePanel=null}) {
             if (framePanel == "text") MirrorFrameTextEditor(state, workspace, onFont = { target ->
                 fontTarget = target; fontPicker.launch(arrayOf("*/*"))
             }) else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)) {
-                item { Box(Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
-                    SwipePhotoPreview(state, workspace, frame = true, compactHeight = 180.dp)
-                } }
+                item { EditedPreview(state,workspace,frame=true,compactHeight=200.dp) }
                 item { MirrorFrameDetails(state, workspace, textControls = false,
                     onFont = { target -> fontTarget = target; fontPicker.launch(arrayOf("*/*")) },
                     onArt = { art.launch(arrayOf("image/*")) }) }
                 item { if (state.photos.size > 1) PhotoStrip(state, workspace) else PhotoManagementActions(state, workspace) }
             }
-        }
     }
 }
 
@@ -531,13 +522,14 @@ private fun FrameEditingContent(state: WorkspaceState, workspace: WorkspaceViewM
                 }
             }
         }
-        if (wide) Row(Modifier.fillMaxSize()) {
+        if(state.exporting)preview(Modifier.fillMaxSize())
+        else if (wide) Row(Modifier.fillMaxSize()) {
             preview(Modifier.weight(1.4f).fillMaxHeight())
             FrameFinishingControls(state, workspace, tab, onTab, onPanel, onFolder, Modifier.weight(1f).fillMaxHeight())
         } else Column(Modifier.fillMaxSize()) {
             preview(Modifier.weight(1f))
             FrameFinishingControls(state, workspace, tab, onTab, onPanel, onFolder,
-                if (tab == "output") Modifier.weight(.85f) else Modifier.fillMaxWidth())
+                Modifier.fillMaxWidth().height(250.dp))
         }
     }
 }
@@ -556,10 +548,6 @@ private fun FrameFinishingControls(state: WorkspaceState, workspace: WorkspaceVi
             if(state.frame.preset==FramePreset.STOCK_FILM) Row(Modifier.fillMaxWidth().padding(horizontal=20.dp)) {
                 EditorTextTab("135 · 齿孔",!state.frame.roll120,{workspace.updateFrame(state.frame.copy(roll120=false))},Modifier.weight(1f),!state.busy)
                 EditorTextTab("120 · 细边",state.frame.roll120,{workspace.updateFrame(state.frame.copy(roll120=true))},Modifier.weight(1f),!state.busy)
-            }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) { Text("日期后背"); Text("优先拍摄日期，无日期时使用导入日期", fontSize = 11.sp, color = LocalFilmMaterials.current.secondaryInk) }
-                MirrorToggle(state.frame.dateBack, "日期后背", !state.busy) { workspace.updateFrame(state.frame.copy(dateBack = it)) }
             }
             LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(presets, key = { it.name }) { preset -> FrameSample(preset, state, workspace, Modifier.width(108.dp)) }

@@ -17,7 +17,7 @@ target_compile_definitions(lfm_libraw PUBLIC
     LIBRAW_CALLOC_RAWSTORE)
 
 add_library(lfm_raw_preview SHARED raw_preview_jni.cpp)
-target_link_libraries(lfm_raw_preview PRIVATE lfm_libraw m)
+target_link_libraries(lfm_raw_preview PRIVATE lfm_libraw m jnigraphics)
 target_link_options(lfm_raw_preview PRIVATE
     "-Wl,--exclude-libs,ALL" "-Wl,--no-undefined"
     "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")

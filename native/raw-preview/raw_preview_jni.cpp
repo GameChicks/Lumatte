@@ -1,10 +1,14 @@
 #include <jni.h>
+#include <android/bitmap.h>
+#include "../common/raw10.hpp"
+#include "raw_sensor.hpp"
 #include <libraw/libraw.h>
 #include <algorithm>
 #include <cstdio>
 #include <memory>
 #include <new>
 #include <string>
+#include <vector>
 #include <unistd.h>
 
 namespace {
@@ -126,4 +130,68 @@ Java_com_lumixfilmmirror_media_LibRawPreview_nativeExtract(
         return written > 0 ? written : last_error;
     } catch (const std::bad_alloc&) { return memory_error; }
     catch (...) { return data_error; }
+}
+
+// Explicit opt-in sensor processing. Preview extraction above retains its original fast path.
+extern "C" JNIEXPORT jobject JNICALL
+Java_com_lumixfilmmirror_media_LibRawPreview_nativeDecode(
+    JNIEnv* env,jobject,jstring input_path,jboolean half_size,jstring working_path,jobject probe) {
+    auto error=[&](const char* message)->jobject {
+        if(!env->ExceptionCheck()) {auto cls=env->FindClass("java/io/IOException");if(cls)env->ThrowNew(cls,message);}
+        return nullptr;
+    };
+    try {
+        UtfChars input(env,input_path);
+        UtfChars working(env,working_path);
+        if(!input.value || !working.value || !probe)return error("RAW input unavailable");
+        auto cls=env->GetObjectClass(probe);
+        if(!cls)return nullptr;
+        auto method=env->GetMethodID(cls,"isCancelled","()Z");env->DeleteLocalRef(cls);
+        if(!method)return nullptr;
+        Cancellation stop{env,probe,method};
+        auto image=lfm::raw::decode_sensor(input.value,half_size==JNI_TRUE,[&]{return stop.requested();});
+        std::unique_ptr<FILE,decltype(&std::fclose)> output(std::fopen(working.value,"wb"),&std::fclose);
+        if(!output)return error("Cannot save RAW10 working file");
+        const uint32_t header[4]={image->width,image->height,1,4};
+        if(std::fwrite("LFM10RGB",1,8,output.get())!=8 || std::fwrite(header,1,16,output.get())!=16)
+            return error("Cannot save RAW10 working header");
+        std::vector<uint32_t> packed(image->width);
+        auto bitmapClass=env->FindClass("android/graphics/Bitmap");
+        auto configClass=env->FindClass("android/graphics/Bitmap$Config");
+        if(!bitmapClass || !configClass)return nullptr;
+        auto field=env->GetStaticFieldID(configClass,"ARGB_8888","Landroid/graphics/Bitmap$Config;");
+        auto create=env->GetStaticMethodID(bitmapClass,"createBitmap","(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+        if(!field || !create)return nullptr;
+        auto config=env->GetStaticObjectField(configClass,field);
+        auto bitmap=env->CallStaticObjectMethod(bitmapClass,create,jint(image->width),jint(image->height),config);
+        if(!bitmap || env->ExceptionCheck())return nullptr;
+        AndroidBitmapInfo info{};void* data=nullptr;
+        if(AndroidBitmap_getInfo(env,bitmap,&info)!=ANDROID_BITMAP_RESULT_SUCCESS ||
+            AndroidBitmap_lockPixels(env,bitmap,&data)!=ANDROID_BITMAP_RESULT_SUCCESS)return error("Cannot allocate RAW working image");
+        bool stopped=false,write_failed=false;
+        for(unsigned y=0;y<image->height;++y) {
+            if(stop.requested()){stopped=true;break;}
+            auto* row=static_cast<unsigned char*>(data)+size_t(y)*info.stride;
+            const auto* src=reinterpret_cast<const uint16_t*>(image->data)+size_t(y)*image->width*3;
+            for(unsigned x=0;x<image->width;++x){
+                packed[x]=lfm::pack_raw10(src+3*x);
+                auto rgb=lfm::wide_to_srgb(lfm::unpack_raw10(packed[x]));
+                for(int c=0;c<3;++c)row[4*x+c]=uint8_t(std::lround(std::clamp(lfm::raw_encode(rgb[c]),0.f,1.f)*255));
+                row[4*x+3]=255;
+            }
+            if(std::fwrite(packed.data(),sizeof(uint32_t),packed.size(),output.get())!=packed.size()){stopped=true;write_failed=true;break;}
+        }
+        AndroidBitmap_unlockPixels(env,bitmap);
+        if(stopped) {
+            if(!env->ExceptionCheck()){auto recycle=env->GetMethodID(bitmapClass,"recycle","()V");if(recycle)env->CallVoidMethod(bitmap,recycle);}
+            return error(write_failed?"Cannot save RAW10 working pixels":"RAW decoding cancelled");
+        }
+        if(std::fflush(output.get())!=0 || fsync(fileno(output.get()))!=0) {
+            auto recycle=env->GetMethodID(bitmapClass,"recycle","()V");if(recycle)env->CallVoidMethod(bitmap,recycle);
+            return error("Cannot finalize RAW10 working file");
+        }
+        return bitmap;
+    }catch(const std::bad_alloc&){return error("Insufficient memory for RAW decoding; choose embedded JPEG");}
+    catch(const std::exception& e){return error(e.what());}
+    catch(...){return error("RAW sensor decoding failed");}
 }

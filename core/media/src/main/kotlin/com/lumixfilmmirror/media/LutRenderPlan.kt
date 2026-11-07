@@ -8,7 +8,7 @@ class LutRenderPlan internal constructor(private val first: CubeLut?, private va
     private val second: CubeLut?, private val secondStrength: Float, private val grain: Float, private val dithering: Boolean,
     private val adjustments: com.lumixfilmmirror.model.PhotoAdjustments) {
     internal suspend fun render(bitmap: Bitmap, source: SourceImage, checkActive: () -> Unit) {
-        if ((first == null || firstStrength == 0f) && (second == null || secondStrength == 0f) && grain == 0f && !dithering && adjustments == com.lumixfilmmirror.model.PhotoAdjustments()) return
+        if (source.rawWorkingFile==null && (first == null || firstStrength == 0f) && (second == null || secondStrength == 0f) && grain == 0f && !dithering && adjustments == com.lumixfilmmirror.model.PhotoAdjustments()) return
         checkActive()
         if (NativeLutBridge.available) {
             NativeLutRenderer.render(bitmap, source, first.takeIf { firstStrength > 0f }, firstStrength,
@@ -16,6 +16,7 @@ class LutRenderPlan internal constructor(private val first: CubeLut?, private va
             checkActive()
             return
         }
+        check(source.rawWorkingFile==null){"10bit RAW 处理组件不可用，请重新安装完整版本"}
         renderKotlin(bitmap, source, checkActive)
     }
 
@@ -42,8 +43,8 @@ class LutRenderPlan internal constructor(private val first: CubeLut?, private va
                     input[0] = ((pixel ushr 16) and 255) / 255f
                     input[1] = ((pixel ushr 8) and 255) / 255f
                     input[2] = (pixel and 255) / 255f
-                    apply(first, firstStrength); apply(second, secondStrength)
                     PhotoFinishing.apply(input, adjustments)
+                    apply(first, firstStrength); apply(second, secondStrength)
                     if (grain > 0f) {
                         val sx = (x.toLong() * source.size.width / bitmap.width / 3).toInt()
                         val sy = ((top + row).toLong() * source.size.height / bitmap.height / 3).toInt()

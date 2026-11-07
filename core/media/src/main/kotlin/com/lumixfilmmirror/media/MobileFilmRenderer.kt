@@ -24,7 +24,7 @@ internal object NativeMobileFilmBridge {
     external fun spatialMetrics(): LongArray
     external fun render(handle: Long, bitmap: Bitmap, tables: Array<FloatArray>, sizes: IntArray,
         bounds: FloatArray, controls: FloatArray, sourceWidth: Int, sourceHeight: Int, seed: Long,
-        preferGpu: Boolean, modelKey: String)
+        preferGpu: Boolean, modelKey: String, rawPath:String?,orientation:Int)
 }
 
 /** Native GPU errors require decoding a fresh input; cancellation and memory errors retain their type. */
@@ -39,7 +39,7 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
         finished.await().getOrThrow()
     }
 
-    suspend fun render(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize, preferGpu: Boolean): FilmExecutionBackend {
+    suspend fun render(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize, preferGpu: Boolean, source:SourceImage?=null): FilmExecutionBackend {
         check(NativeMobileFilmBridge.available) { "移动胶片原生库不可用" }
         val model = models.load(plan.preset)
         coroutineContext.ensureActive()
@@ -87,10 +87,11 @@ internal class MobileFilmRenderer(private val models: MobileFilmModelLibrary) {
                 }
                 try {
                     executor.execute {
-                        val useGpu = preferGpu && FilmEngine.canUseGpu()
+                        // RAW10 reads mmap samples in float; the ordinary 8-bit GPU upload is never used for it.
+                        val useGpu = preferGpu && FilmEngine.canUseGpu() && source?.rawWorkingFile==null
                         val result = runCatching { NativeMobileFilmBridge.render(task, bitmap, tables, sizes, bounds,
                             controls, effectiveInput.width, effectiveInput.height, plan.grainSeed,
-                            useGpu, modelKey)
+                            useGpu, modelKey,source?.rawWorkingFile?.absolutePath,source?.orientation ?: 1)
                             if(cineStill) {
                                 val metrics=NativeMobileFilmBridge.spatialMetrics()
                                 android.util.Log.i("LFMFilm","cinestillSpatialMs=${metrics[0]/1000.0} spatialCacheHit=${metrics[1]==1L} fieldBytes=${metrics[2]}")

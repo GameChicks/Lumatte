@@ -69,6 +69,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
     var importRequest by rememberSaveable { mutableStateOf<String?>(null) }
     var importCreatesBatch by rememberSaveable { mutableStateOf(true) }
     var importSources by rememberSaveable { mutableStateOf(false) }
+    var rawImportMode by rememberSaveable { mutableStateOf(com.lumixfilmmirror.media.RawImportMode.EMBEDDED_JPEG.name) }
     var showImportedPhotos by rememberSaveable { mutableStateOf(false) }
     var pendingFilm by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingLut by rememberSaveable { mutableStateOf<String?>(null) }
@@ -92,7 +93,8 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
     val receivePhotos: (List<android.net.Uri>) -> Unit = { uris ->
         val request = importRequest
         if (uris.isNotEmpty() && request != null) {
-            importAccepted = workspace.importImages(uris, newBatch = importCreatesBatch, requestId = request)
+            importAccepted = workspace.importImages(uris, newBatch = importCreatesBatch, requestId = request,
+                rawMode=com.lumixfilmmirror.media.RawImportMode.valueOf(rawImportMode))
             if (!importAccepted) {
                 selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importRequest = null
                 workspace.notice("当前任务正在执行，待完成后重新导入照片")
@@ -116,10 +118,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
         if (!state.busy) {
             if (state.photos.isEmpty()) { pendingFilm = film.id; importPhotos(PhotoTreatment.FILM) }
             else {
-                workspace.treatment(PhotoTreatment.FILM)
-                val batch = workspace.state.value.filmBatch
-                val current = workspace.state.value.selected?.let { batch?.effectiveParameters(it) } ?: FilmParameters()
-                workspace.updateFilm(current.withPreset(film.id)); pane = "editor"
+                workspace.selectBatchFilm(film.id); pane = "editor"
             }
         }
     }
@@ -168,7 +167,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
             val proceedToEditor = pendingFilm != null || pendingLut != null || showImportedPhotos
             val treatment = PhotoTreatment.valueOf(requireNotNull(selectedImportTreatment))
             workspace.treatment(treatment)
-            pendingFilm?.let { workspace.updateFilm(FilmParameters(presetId = it)) }
+            pendingFilm?.let { workspace.selectBatchFilm(it, result.imported.toSet()) }
             pendingLut?.let { workspace.selectLutSlot(it, pendingLutSecond) }
             selectedImportTreatment = null; pendingFilm = null; pendingLut = null; importAccepted = false; importRequest = null
             showImportedPhotos = false
@@ -300,7 +299,8 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
             if (navigation) MirrorNavigation(tab, Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 16.dp), backdrop) {
                 tab = it; fullscreen = false
             }
-            if (state.recovering) Surface(Modifier.align(Alignment.TopCenter), shape = RoundedCornerShape(20.dp)) {
+            if (state.recovering) Surface(Modifier.align(Alignment.TopCenter)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)).padding(top = 12.dp), shape = RoundedCornerShape(20.dp)) {
                 Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CircularProgressIndicator(Modifier.size(20.dp)); Text("正在打开素材库…")
                 }
@@ -331,7 +331,16 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
             MirrorButton(onClick={importSources=false;photos.launch(Unit)},Modifier.fillMaxWidth().height(56.dp)) { Text("系统相册 · 多选照片") }
             MirrorChoice(false, {importSources=false;rawPhotos.launch(arrayOf("image/jpeg","image/x-panasonic-rw2","image/x-panasonic-raw","application/octet-stream"))},
                 Modifier.fillMaxWidth(), label = { Text("从文件导入 JPEG / RAW") })
-            Text("RAW 仅提取内嵌 JPEG。",style=MaterialTheme.typography.bodySmall,color=tones.secondaryInk)
+            Text("RAW 读取方式",style=MaterialTheme.typography.labelLarge)
+            com.lumixfilmmirror.media.RawImportMode.entries.forEach { mode ->
+                MirrorChoice(rawImportMode==mode.name,{rawImportMode=mode.name},Modifier.fillMaxWidth(),label={Text(when(mode){
+                    com.lumixfilmmirror.media.RawImportMode.EMBEDDED_JPEG->"内嵌 JPEG · 快速"
+                    com.lumixfilmmirror.media.RawImportMode.SENSOR_BALANCED->"RAW 原始解码 · 均衡"
+                    com.lumixfilmmirror.media.RawImportMode.SENSOR_FULL->"RAW 原始解码 · 完整尺寸"
+                })})
+            }
+            Text("均衡模式约为原宽高的 1/2；完整尺寸更慢、更耗内存。原始解码保留 RAW，以 10bit 宽色域缓存和浮点运算编辑；普通 JPEG 最终仍输出 8 位。JPEG 输入不受此选择影响。",
+                style=MaterialTheme.typography.bodySmall,color=tones.secondaryInk)
     }
 }
 

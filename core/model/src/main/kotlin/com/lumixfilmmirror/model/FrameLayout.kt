@@ -114,9 +114,10 @@ object FrameLayouts {
     }
 
     /** Scale the complete export composition, rather than recomputing small-photo margins. */
-    fun preview(layout: FrameLayout, longEdge: Int): FrameLayout {
+    fun preview(layout: FrameLayout, longEdge: Int, upscale: Boolean = false): FrameLayout {
         require(longEdge > 0)
-        val scale = minOf(1.0, longEdge.toDouble() / maxOf(layout.canvas.width, layout.canvas.height))
+        val requested = longEdge.toDouble() / maxOf(layout.canvas.width, layout.canvas.height)
+        val scale = if (upscale) requested else minOf(1.0, requested)
         val canvas = PixelSize(maxOf(1, (layout.canvas.width * scale).toInt()),
             maxOf(1, (layout.canvas.height * scale).toInt()))
         val sx = canvas.width.toFloat() / layout.canvas.width

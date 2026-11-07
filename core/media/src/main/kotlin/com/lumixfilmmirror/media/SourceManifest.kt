@@ -18,6 +18,7 @@ internal object SourceManifest {
         val json = JSONObject().put("version", 1).put("id", photo.id.value).put("name", photo.name)
             .put("width", photo.size.width).put("height", photo.size.height).put("orientation", photo.orientation)
             .put("rawPreview", photo.origin is InputOrigin.RawEmbeddedJpeg).put("metadata", metadata)
+            .put("rawDecoded",photo.origin is InputOrigin.RawDecoded)
             .put("createdAt", System.currentTimeMillis())
         val atomic = AtomicFile(File(photo.jpeg.parentFile, "source.json"))
         val output = atomic.startWrite()
@@ -52,7 +53,7 @@ internal object SourceManifest {
         require(jpeg.isFile && jpeg.length() > 0) { "导入照片文件缺失" }
         val metadata = json.getJSONObject("metadata")
         return SourceImage(id, json.getString("name"), jpeg, size, orientation,
-            if (json.getBoolean("rawPreview")) InputOrigin.RawEmbeddedJpeg(size) else InputOrigin.Jpeg,
+            if(json.optBoolean("rawDecoded",false))InputOrigin.RawDecoded(size) else if (json.getBoolean("rawPreview")) InputOrigin.RawEmbeddedJpeg(size) else InputOrigin.Jpeg,
             PhotoMetadata(metadata.optString("camera"), metadata.optString("lens"), metadata.optString("capturedAt"),
                 metadata.optString("iso"), metadata.optString("aperture"), metadata.optString("shutter"), metadata.optString("focalLength")))
     }

@@ -10,10 +10,10 @@ enum class FilmBackend { MOBILE_GLES3_WITH_CPU_FALLBACK, MOBILE_NATIVE_CPU }
 internal class FilmEngine(models: MobileFilmModelLibrary) {
     private val renderer = MobileFilmRenderer(models)
     val gpuFallbackReason get() = fallbackReason
-    suspend fun render(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize) =
-        renderer.render(bitmap, plan, effectiveInput, preferGpu = !gpuDisabled)
-    suspend fun renderCpu(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize) =
-        renderer.render(bitmap, plan, effectiveInput, preferGpu = false)
+    suspend fun render(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize, source:SourceImage?=null) =
+        renderer.render(bitmap, plan, effectiveInput, preferGpu = !gpuDisabled,source=source)
+    suspend fun renderCpu(bitmap: Bitmap, plan: FilmRenderPlan, effectiveInput: PixelSize, source:SourceImage?=null) =
+        renderer.render(bitmap, plan, effectiveInput, preferGpu = false,source=source)
     fun disableGpu() = disableGpuForProcess()
     suspend fun releaseIdleEngine() = renderer.awaitIdle()
     companion object {

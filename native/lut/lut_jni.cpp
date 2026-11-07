@@ -127,7 +127,7 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_lumixfilmmirror_media_NativeLutBridge_render(JNIEnv* env, jobject, jlong handle, jobject bitmap,
     jint first_one_size, jint first_three_size, jfloatArray first_one, jfloatArray first_three, jfloatArray first_bounds, jfloat first_strength,
     jint second_one_size, jint second_three_size, jfloatArray second_one, jfloatArray second_three, jfloatArray second_bounds, jfloat second_strength,
-    jfloat grain, jint source_width, jint source_height, jint seed, jboolean dithering, jfloatArray adjustments) {
+    jfloat grain, jint source_width, jint source_height, jint seed, jboolean dithering, jfloatArray adjustments,jstring raw_path,jint orientation) {
     try {
         const auto* task = reinterpret_cast<Task*>(handle);
         if (!task || source_width <= 0 || source_height <= 0 || !std::isfinite(grain) || grain < 0 || grain > 1)
@@ -136,7 +136,7 @@ Java_com_lumixfilmmirror_media_NativeLutBridge_render(JNIEnv* env, jobject, jlon
         const auto controls = copy(env, adjustments, 8);
         for (int i=0;i<8;++i) if (std::abs(controls[i])>(i==0?3.f:1.f)) throw std::invalid_argument("Invalid finishing controls");
         lfm::mobile::Effects finishing{};
-        finishing.finishing_exposure=controls[0]; finishing.brightness=controls[1]; finishing.contrast=controls[2];
+        finishing.input_exposure=controls[0]; finishing.brightness=controls[1]; finishing.contrast=controls[2];
         finishing.highlights=controls[3]; finishing.shadows=controls[4]; finishing.saturation=controls[5];
         finishing.vibrance=controls[6]; finishing.temperature=controls[7];
         const Table first = Table::read(env, first_one_size, first_three_size, first_one, first_three, first_bounds, first_strength);
@@ -148,6 +148,15 @@ Java_com_lumixfilmmirror_media_NativeLutBridge_render(JNIEnv* env, jobject, jlon
             (info.flags & ANDROID_BITMAP_FLAGS_IS_HARDWARE))
             throw std::invalid_argument("LUT input must be a mutable RGBA bitmap");
         BitmapLock lock(env, bitmap);
+        if(raw_path) {
+            if(orientation<1 || orientation>8)throw std::invalid_argument("Invalid RAW10 orientation");
+            const char* path=env->GetStringUTFChars(raw_path,nullptr);if(!path)throw PendingJavaError{};
+            try {finishing.raw_input=std::make_shared<lfm::Raw10Image>(path);}
+            catch(...){env->ReleaseStringUTFChars(raw_path,path);throw;}
+            env->ReleaseStringUTFChars(raw_path,path);
+            finishing.source_target={static_cast<uint8_t*>(lock.pixels),info.width,info.height,info.stride};
+            finishing.source_orientation=orientation;
+        }
         // In-place scanlines: no full-frame float image or Java getPixels/setPixels transfers.
         for (uint32_t y = 0; y < info.height; ++y) {
             task->check();
@@ -155,8 +164,11 @@ Java_com_lumixfilmmirror_media_NativeLutBridge_render(JNIEnv* env, jobject, jlon
             for (uint32_t x = 0; x < info.width; ++x) {
                 auto* pixel = row + size_t(x) * 4;
                 std::array<float, 3> rgb{pixel[0] / 255.0f, pixel[1] / 255.0f, pixel[2] / 255.0f};
+                if(finishing.raw_input) {
+                    rgb=lfm::mobile::adjust_linear_source(lfm::mobile::raw_linear(pixel,finishing),finishing);
+                    for(float& c:rgb)c=lfm::mobile::encode(c);
+                } else rgb = lfm::mobile::adjust_source(rgb, finishing);
                 first.apply(rgb); second.apply(rgb);
-                rgb = lfm::mobile::finish_adjustments(rgb, finishing);
                 if (grain > 0) {
                     const uint32_t sx = uint32_t(uint64_t(x) * uint32_t(source_width) / info.width / 3);
                     const uint32_t sy = uint32_t(uint64_t(y) * uint32_t(source_height) / info.height / 3);

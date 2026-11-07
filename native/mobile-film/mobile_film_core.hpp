@@ -11,6 +11,7 @@
 #include <mutex>
 #include <thread>
 #include <memory>
+#include "../common/raw10.hpp"
 
 namespace lfm::mobile {
 using Colour = std::array<float, 3>;
@@ -130,44 +131,48 @@ struct Effects {
     Colour fotu_sigma_mm;
     std::array<Colour, 3> fotu_weights, fotu_matrix;
     float remjet_look = 0;
-    float finishing_exposure = 0;
-    float display_exposure_gain = 1;
+    float input_exposure = 0;
     float contrast = 0;
     float grain_strength = 1;
     float brightness = 0, highlights = 0, shadows = 0;
     float saturation = 0, vibrance = 0, temperature = 0;
+    std::shared_ptr<const lfm::Raw10Image> raw_input;
+    Image source_target{};
+    int source_orientation=1;
 };
 
 inline float decode(float value) { return value <= .04045f ? value / 12.92f : std::pow((value + .055f) / 1.055f, 2.4f); }
 inline float encode(float value) { return value <= .0031308f ? value * 12.92f : 1.055f * std::pow(value, 1.f / 2.4f) - .055f; }
 inline float luminance(const Colour& rgb) { return .2126f * rgb[0] + .7152f * rgb[1] + .0722f * rgb[2]; }
-// Finishing happens after the stock/halation look and before export frames. Neutral is an exact
-// bypass. CineStill display exposure is downstream of its fixed optical field;
-// other stocks keep emulsion exposure, and LUT finishing retains its existing controls.
-inline Colour finish_adjustments(Colour rgb, const Effects& effects) {
-    if(effects.display_exposure_gain!=1) {
-        for(float& c:rgb)c=encode(std::clamp(decode(std::clamp(c,0.f,1.f))*effects.display_exposure_gain,0.f,1.f));
-    }
-    if (effects.finishing_exposure == 0 && effects.contrast == 0 && effects.brightness == 0 && effects.highlights == 0 && effects.shadows == 0 &&
-        effects.saturation == 0 && effects.vibrance == 0 && effects.temperature == 0) return rgb;
-    Colour linear{};
-    for (int c = 0; c < 3; ++c) linear[c] = decode(std::clamp(rgb[c], 0.f, 1.f));
-    const float y = luminance(linear);
-    if (y <= 1e-6f || y >= 1.f-1e-6f) return rgb;
+inline bool has_source_adjustments(const Effects& e) {
+    return e.input_exposure!=0 || e.contrast!=0 || e.brightness!=0 || e.highlights!=0 ||
+        e.shadows!=0 || e.saturation!=0 || e.vibrance!=0 || e.temperature!=0;
+}
+// Original JPEG -> floating-point source adjustments -> stock/LUT -> grain -> frame.
+// EV is a linear-light 2^EV gain, not a display dimmer or an odds-curve shift.
+inline Colour adjust_linear_source(Colour linear,const Effects& effects) {
+    if(!has_source_adjustments(effects))return linear;
+    const float gain=std::exp2(effects.input_exposure);
+    for(float& c:linear)c*=gain;
+    if(effects.contrast==0 && effects.brightness==0 && effects.highlights==0 && effects.shadows==0 &&
+        effects.saturation==0 && effects.vibrance==0 && effects.temperature==0)return linear;
+    const float source_y=luminance(linear);
+    if(source_y<=1e-6f)return {};
+    const float y=std::clamp(source_y,1e-6f,1.f-1e-6f);
     if (effects.temperature != 0) {
         linear[0] *= std::exp2(effects.temperature*.4f);
         linear[2] *= std::exp2(-effects.temperature*.4f);
-        const float balance = y/std::max(luminance(linear),1e-6f);
+        const float balance = source_y/std::max(luminance(linear),1e-6f);
         for (float& c : linear) c *= balance;
     }
     auto ease = [](float t) { t=std::clamp(t,0.f,1.f); return t*t*(3-2*t); };
     const float stops = std::log2(y/.18f);
-    const float shift = effects.finishing_exposure + effects.brightness*1.5f +
+    const float shift = effects.brightness*1.5f +
         2*(effects.highlights*ease(stops/3) + effects.shadows*ease(-stops/4));
     constexpr float pivot_odds = .18f/.82f;
     const float odds = std::pow((y/(1-y))/pivot_odds, std::exp2(effects.contrast))*pivot_odds*std::exp2(shift);
     const float output_y = odds/(1+odds);
-    for (float& c : linear) c *= output_y/y;
+    for (float& c : linear) c *= output_y/source_y;
     const float peak = std::max({linear[0],linear[1],linear[2]});
     const float trough = std::min({linear[0],linear[1],linear[2]});
     const float colourfulness = std::clamp((peak-trough)/std::max(peak,1e-6f),0.f,1.f);
@@ -179,11 +184,30 @@ inline Colour finish_adjustments(Colour rgb, const Effects& effects) {
         if (c < 0) reach = std::min(reach,output_y/(output_y-c));
         if (c > 1) reach = std::min(reach,(1-output_y)/(c-output_y));
     }
-    for (int c = 0; c < 3; ++c) rgb[c] = encode(std::clamp(output_y+reach*(linear[c]-output_y),0.f,1.f));
-    return rgb;
+    for (int c = 0; c < 3; ++c) linear[c] = std::clamp(output_y+reach*(linear[c]-output_y),0.f,1.f);
+    return linear;
 }
-inline Colour read_linear(const uint8_t* pixel, const std::array<float, 256>& decode_lut) {
-    return {decode_lut[pixel[0]], decode_lut[pixel[1]], decode_lut[pixel[2]]};
+inline Colour adjust_source(Colour rgb,const Effects& effects) {
+    if(!has_source_adjustments(effects))return rgb;
+    Colour linear{};for(int c=0;c<3;++c)linear[c]=decode(std::clamp(rgb[c],0.f,1.f));
+    linear=adjust_linear_source(linear,effects);for(int c=0;c<3;++c)rgb[c]=encode(linear[c]);return rgb;
+}
+inline Colour raw_linear(const uint8_t* pixel,const Effects& effects) {
+    const size_t offset=size_t(pixel-effects.source_target.pixels);
+    return effects.raw_input->sample(uint32_t((offset%effects.source_target.stride)/4),uint32_t(offset/effects.source_target.stride),
+        effects.source_target.width,effects.source_target.height,effects.source_orientation);
+}
+inline Colour read_encoded(const uint8_t* pixel,const Effects& effects) {
+    if(effects.raw_input){auto rgb=adjust_linear_source(raw_linear(pixel,effects),effects);for(float& c:rgb)c=encode(c);return rgb;}
+    return adjust_source({pixel[0]/255.f,pixel[1]/255.f,pixel[2]/255.f},effects);
+}
+inline Colour read_linear(const uint8_t* pixel, const std::array<float, 256>& decode_lut,const Effects& effects) {
+    if(effects.raw_input)return adjust_linear_source(raw_linear(pixel,effects),effects);
+    if(!has_source_adjustments(effects))return {decode_lut[pixel[0]], decode_lut[pixel[1]], decode_lut[pixel[2]]};
+    auto rgb=read_encoded(pixel,effects);for(float& c:rgb)c=decode(c);return rgb;
+}
+inline Colour source_response(const ByteResponseSampler& sampler,const uint8_t* pixel,const Effects& effects) {
+    return effects.raw_input || has_source_adjustments(effects)?sampler.table.sample(read_encoded(pixel,effects)):sampler.sample(pixel);
 }
 
 struct Field {
@@ -452,12 +476,12 @@ inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const 
                 if((x&1023u)==0)check();
                 const uint8_t* pixel=image.pixels+size_t(y)*image.stride+size_t(x)*4;
                 if(effects.diffusion>0 || remjet) {
-                    const Colour rgb=read_linear(pixel,decode_lut);
+                    const Colour rgb=read_linear(pixel,decode_lut,effects);
                     if(effects.diffusion>0)for(int c=0;c<3;++c)sum[c]+=rgb[c];
                     if(remjet)seed_sum+=remjet_seed(rgb,effects.exposure_gain);
                 }
                 if(effects.halation && effects.diffusion==0) {
-                    const Colour raw=byte_response.sample(pixel);
+                    const Colour raw=source_response(byte_response,pixel,effects);
                     for(int c=0;c<3;++c)raw_sum[c]+=raw[c];
                 }
             }
@@ -483,7 +507,7 @@ inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const 
                 double sum[3]{};
                 for(uint32_t y=y0;y<y1;++y)for(uint32_t x=x0;x<x1;++x) {
                     if((x&1023u)==0)check();
-                    const Colour rgb=read_linear(image.pixels+size_t(y)*image.stride+size_t(x)*4,decode_lut);
+                    const Colour rgb=read_linear(image.pixels+size_t(y)*image.stride+size_t(x)*4,decode_lut,effects);
                     const Colour raw=film_response(model,lens_colour(rgb,spatial.lens.sample(x,y,image),spatial.softness));
                     for(int c=0;c<3;++c)sum[c]+=raw[c];
                 }
@@ -550,7 +574,7 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
                 const uint8_t* row = image.pixels + size_t(y) * image.stride;
                 for (uint32_t x = x0; x < x1; ++x) {
                     if ((x & 1023u) == 0) check();
-                    const Colour rgb = read_linear(row + size_t(x) * 4, decode_lut);
+                    const Colour rgb = read_linear(row + size_t(x) * 4, decode_lut,effects);
                     for (int c = 0; c < 3; ++c) sum[c] += rgb[c];
                 }
             }
@@ -699,8 +723,8 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
         for (uint32_t x = 0; x < image.width; ++x) {
             if ((x & 255u) == 0) check();
             uint8_t* pixel = row + size_t(x) * 4;
-            Colour raw = spatial.complete_response ? Colour{} : effects.diffusion == 0 ? model.response.sample({pixel[0] / 255.f, pixel[1] / 255.f, pixel[2] / 255.f}) :
-                film_response(model, lens_colour(read_linear(pixel, decode_lut), spatial.lens.sample(x, y, image), spatial.softness));
+            Colour raw = spatial.complete_response ? Colour{} : effects.diffusion == 0 ? model.response.sample(read_encoded(pixel,effects)) :
+                film_response(model, lens_colour(read_linear(pixel, decode_lut,effects), spatial.lens.sample(x, y, image), spatial.softness));
             const Colour halo = spatial.halo_field().sample(x, y, image);
             if (spatial.complete_response) {
                 for(int c=0;c<3;++c)raw[c]=std::log10(halo[c]+1e-10f);
@@ -719,8 +743,7 @@ inline void render_cpu(Image image, const Model& model, const Effects& effects,
             Colour result = model.scan.sample(density);
             for(float c:result)if(!std::isfinite(c))throw std::runtime_error("Non-finite mobile film output");
             if(!spatial.remjet.values.empty())result=apply_remjet_look(result,spatial.remjet.sample(x,y,image),
-                remjet_seed(read_linear(pixel,decode_lut),effects.exposure_gain),effects.remjet_look);
-            result = finish_adjustments(result, effects);
+                remjet_seed(read_linear(pixel,decode_lut,effects),effects.exposure_gain),effects.remjet_look);
             for (int c = 0; c < 3; ++c) {
                 if (!std::isfinite(result[c])) throw std::runtime_error("Non-finite mobile film output");
                 pixel[c] = uint8_t(std::lround(std::clamp(result[c], 0.f, 1.f) * 255));

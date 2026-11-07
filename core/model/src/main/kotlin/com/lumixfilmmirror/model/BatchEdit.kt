@@ -79,4 +79,9 @@ data class FilmBatch(
         val parameters = photos.single { it.id == referenceId }.parameters
         return copy(photos = photos.map { it.copy(parameters = parameters) })
     }
+
+    /** Seed the chosen stock once without linking later edits or replacing independent drafts/seeds. */
+    fun seedPreset(presetId:String,ids:Set<PhotoId>?=null):FilmBatch = copy(photos=photos.map { photo ->
+        if(ids==null || photo.id in ids)photo.copy(parameters=photo.parameters.withPreset(presetId)) else photo
+    })
 }

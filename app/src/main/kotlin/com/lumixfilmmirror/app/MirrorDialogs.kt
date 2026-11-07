@@ -5,6 +5,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -102,6 +104,35 @@ internal fun MirrorTextAction(label: String, onClick: () -> Unit, modifier: Modi
     Box(modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp)).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
         .padding(horizontal = 16.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = tones.amber.copy(if (enabled) 1f else .45f))
+    }
+}
+
+/** Fixed safe-area surface; only its bounded content scrolls, never a draggable sheet anchor. */
+@Composable
+internal fun MirrorEditingSheet(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val tones = LocalFilmMaterials.current
+    val reduced = LocalMirrorReducedMotion.current
+    var visible by remember { mutableStateOf(false) }
+    var closing by remember { mutableStateOf(false) }
+    val dismiss by rememberUpdatedState(onDismiss)
+    LaunchedEffect(Unit) { visible = true }
+    LaunchedEffect(closing) { if(closing) { visible=false;delay(if(reduced)0 else 180);dismiss() } }
+    val close = { closing=true }
+    Dialog(onDismissRequest=close,properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=false)) {
+        Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(top=12.dp),contentAlignment=Alignment.BottomCenter) {
+            AnimatedVisibility(visible,enter=fadeIn(tween(if(reduced)0 else 180))+slideInVertically(tween(if(reduced)0 else 220)){it/12},
+                exit=fadeOut(tween(if(reduced)0 else 150))+slideOutVertically(tween(if(reduced)0 else 180)){it/12}) {
+                Surface(Modifier.fillMaxWidth().fillMaxHeight(.98f),color=tones.paper,shape=RoundedCornerShape(topStart=28.dp,topEnd=28.dp)) {
+                    Column(Modifier.fillMaxSize().padding(horizontal=20.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically) {
+                            Text(title,Modifier.weight(1f),fontFamily=MirrorFonts.ChineseEditorial,fontSize=24.sp)
+                            MirrorTextAction("完成",close)
+                        }
+                        Box(Modifier.weight(1f).fillMaxWidth()) { Column(Modifier.fillMaxSize(),content=content) }
+                    }
+                }
+            }
+        }
     }
 }
 

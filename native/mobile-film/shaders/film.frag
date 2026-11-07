@@ -12,7 +12,7 @@ uniform sampler3D uDevelopment;
 uniform sampler3D uScan;
 uniform vec3 uResponseLow, uResponseHigh, uDevelopmentLow, uDevelopmentHigh, uScanLow, uScanHigh;
 uniform ivec2 uOrigin, uImageSize, uSourceSize;
-uniform float uSoftness, uExposureGain, uPixelArea, uParticleArea, uDisplayExposureGain;
+uniform float uSoftness, uExposureGain, uPixelArea, uParticleArea, uInputExposure;
 uniform float uGrainSpacing, uGrainStrength, uContrast;
 uniform float uBrightness, uHighlights, uShadows, uSaturation, uVibrance, uTemperature;
 uniform float uRemjetAmount;
@@ -55,28 +55,27 @@ vec3 field(sampler2D data, ivec2 globalPixel) {
 float decode(float v) { return v <= .04045 ? v / 12.92 : pow((v + .055) / 1.055, 2.4); }
 float encode(float v) { return v <= .0031308 ? v * 12.92 : 1.055 * pow(v, 1.0 / 2.4) - .055; }
 float ease(float t) { t=clamp(t,0.0,1.0); return t*t*(3.0-2.0*t); }
-vec3 finishAdjustments(vec3 rgb) {
-    if(uDisplayExposureGain!=1.0) {
-        vec3 source=clamp(rgb,0.0,1.0);
-        vec3 exposed=clamp(vec3(decode(source.r),decode(source.g),decode(source.b))*uDisplayExposureGain,0.0,1.0);
-        rgb=vec3(encode(exposed.r),encode(exposed.g),encode(exposed.b));
-    }
-    if (uContrast == 0.0 && uBrightness == 0.0 && uHighlights == 0.0 && uShadows == 0.0 &&
+vec3 adjustSource(vec3 rgb) {
+    if (uInputExposure == 0.0 && uContrast == 0.0 && uBrightness == 0.0 && uHighlights == 0.0 && uShadows == 0.0 &&
         uSaturation == 0.0 && uVibrance == 0.0 && uTemperature == 0.0) return rgb;
     vec3 base = clamp(rgb, 0.0, 1.0);
-    vec3 linear = vec3(decode(base.r), decode(base.g), decode(base.b));
-    float y = dot(linear, vec3(.2126,.7152,.0722));
-    if (y <= 1e-6 || y >= 1.0-1e-6) return rgb;
+    vec3 linear = vec3(decode(base.r),decode(base.g),decode(base.b))*exp2(uInputExposure);
+    rgb = vec3(encode(linear.r),encode(linear.g),encode(linear.b));
+    if (uContrast == 0.0 && uBrightness == 0.0 && uHighlights == 0.0 && uShadows == 0.0 &&
+        uSaturation == 0.0 && uVibrance == 0.0 && uTemperature == 0.0) return rgb;
+    float sourceY = dot(linear, vec3(.2126,.7152,.0722));
+    if (sourceY <= 1e-6) return vec3(0.0);
+    float y = clamp(sourceY,1e-6,1.0-1e-6);
     if (uTemperature != 0.0) {
         linear.rb *= vec2(exp2(uTemperature*.4),exp2(-uTemperature*.4));
-        linear *= y/max(dot(linear,vec3(.2126,.7152,.0722)),1e-6);
+        linear *= sourceY/max(dot(linear,vec3(.2126,.7152,.0722)),1e-6);
     }
     float stops = log2(y/.18);
     float shift = uBrightness*1.5 + 2.0*(uHighlights*ease(stops/3.0) + uShadows*ease(-stops/4.0));
     float pivotOdds = .18/.82;
     float odds = pow((y/(1.0-y))/pivotOdds, exp2(uContrast))*pivotOdds*exp2(shift);
     float outputY = odds/(1.0+odds);
-    linear *= outputY/y;
+    linear *= outputY/sourceY;
     float peak = max(linear.r,max(linear.g,linear.b));
     float trough = min(linear.r,min(linear.g,linear.b));
     float colourfulness = clamp((peak-trough)/max(peak,1e-6),0.0,1.0);
@@ -119,7 +118,8 @@ void failure(float alpha) { outColour = vec4(1.0, 0.0, 1.0, alpha == 0.0 ? 1.0 :
 void main() {
     ivec2 localPixel = ivec2(gl_FragCoord.xy), globalPixel = uOrigin + localPixel;
     vec4 inputPixel = texelFetch(uInput, localPixel, 0);
-    vec3 encoded = inputPixel.rgb;
+    vec3 sourceEncoded = uCompleteResponse ? inputPixel.rgb : adjustSource(inputPixel.rgb);
+    vec3 encoded = sourceEncoded;
     if (uSoftness > 0.0) {
         vec3 linear = vec3(decode(encoded.r), decode(encoded.g), decode(encoded.b));
         linear = clamp(linear * (1.0-uSoftness) + field(uLens, globalPixel), 0.0, 1.0);
@@ -148,13 +148,12 @@ void main() {
     vec3 rgb = cube(uScan, density, uScanLow, uScanHigh);
     if (invalid(rgb)) { failure(inputPixel.a); return; }
     if(uRemjetAmount>0.0) {
-        vec3 source=vec3(decode(inputPixel.r),decode(inputPixel.g),decode(inputPixel.b));
+        vec3 source=vec3(decode(sourceEncoded.r),decode(sourceEncoded.g),decode(sourceEncoded.b));
         float rim=max(0.0,dot(field(uRemjet,globalPixel),vec3(.25,.65,.10))-remjetSeed(source))*uRemjetAmount;
         vec3 base=clamp(rgb,0.0,1.0);
         vec3 linear=vec3(decode(base.r),decode(base.g),decode(base.b))+vec3(.65,.014,.001)*rim;
         rgb=vec3(encode(linear.r),encode(linear.g),encode(linear.b));
     }
-    rgb = finishAdjustments(rgb);
     if (invalid(rgb)) { failure(inputPixel.a); return; }
     outColour = vec4(clamp(rgb, 0.0, 1.0), inputPixel.a);
 }

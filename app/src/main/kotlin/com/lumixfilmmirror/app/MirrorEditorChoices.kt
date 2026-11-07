@@ -47,12 +47,13 @@ internal fun FilmPreset.editorName(): String = when(id) {
 internal fun EditorTextTab(label: String, selected: Boolean, onClick: () -> Unit,
     modifier: Modifier = Modifier, enabled: Boolean = true) {
     val tones=LocalFilmMaterials.current
-    Column(modifier.height(40.dp).selectable(selected,enabled=enabled,role=Role.Tab,onClick=onClick)
-        .padding(horizontal=10.dp),horizontalAlignment=Alignment.CenterHorizontally,
+    Column(modifier.heightIn(min=44.dp).clip(RoundedCornerShape(18.dp))
+        .background(if(selected)tones.ink else androidx.compose.ui.graphics.Color.Transparent)
+        .selectable(selected,enabled=enabled,role=Role.Tab,onClick=onClick)
+        .padding(horizontal=12.dp,vertical=10.dp),horizontalAlignment=Alignment.CenterHorizontally,
         verticalArrangement=Arrangement.Center) {
-        Text(label,maxLines=1,softWrap=false,fontSize=12.sp,color=if(selected)tones.ink else tones.secondaryInk)
-        Spacer(Modifier.height(5.dp))
-        Box(Modifier.size(if(selected)18.dp else 0.dp,2.dp).background(tones.amber,RoundedCornerShape(1.dp)))
+        Text(label,maxLines=1,softWrap=false,fontSize=12.sp,lineHeight=18.sp,
+            overflow=TextOverflow.Ellipsis,color=if(selected)tones.paperHighlight else tones.secondaryInk)
     }
 }
 
@@ -61,14 +62,14 @@ private fun EditorSample(label:String, fullName:String, selected:Boolean, enable
     content:@Composable BoxScope.()->Unit) {
     val tones=LocalFilmMaterials.current
     val shape=RoundedCornerShape(12.dp)
-    Column(Modifier.width(78.dp).height(104.dp).semantics { contentDescription=fullName }
+    Column(Modifier.width(78.dp).semantics { contentDescription=fullName }
         .selectable(selected,enabled=enabled,role=Role.RadioButton,onClick=onClick),
         horizontalAlignment=Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().height(84.dp).clip(shape).background(tones.paper)
             .border(if(selected)2.dp else 1.dp,if(selected)tones.amber else tones.rim.copy(.35f),shape)
             .padding(4.dp),contentAlignment=Alignment.Center,content=content)
-        Text(label,Modifier.fillMaxWidth().padding(top=6.dp),maxLines=1,softWrap=false,
-            overflow=TextOverflow.Ellipsis,fontSize=11.sp,textAlign=androidx.compose.ui.text.style.TextAlign.Center,
+        Text(label,Modifier.fillMaxWidth().padding(top=6.dp,bottom=4.dp),maxLines=1,softWrap=false,
+            overflow=TextOverflow.Ellipsis,fontSize=11.sp,lineHeight=16.sp,textAlign=androidx.compose.ui.text.style.TextAlign.Center,
             color=if(selected)tones.ink else tones.secondaryInk)
     }
 }
@@ -115,7 +116,7 @@ internal fun MirrorEditorLuts(state:WorkspaceState,workspace:WorkspaceViewModel,
         workspace.updateLut(if(second)recipe.copy(second=slot.copy(id=id))else recipe.copy(first=slot.copy(id=id)))
     }
     Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.fillMaxWidth().height(32.dp).padding(horizontal=10.dp),verticalAlignment=Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min=48.dp).padding(horizontal=10.dp),verticalAlignment=Alignment.CenterVertically) {
             EditorTextTab("LUT 1",!second,{second=false})
             EditorTextTab("LUT 2",second,{second=true})
             Spacer(Modifier.weight(1f));MirrorTextAction("色彩库 ↗",{onLibrary(second)},enabled=!state.busy)

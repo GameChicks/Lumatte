@@ -148,7 +148,8 @@ private fun syncFilmBatch(existing: FilmBatch?, photos: List<SourceImage>): Film
     val present = photos.map { it.id }.toSet()
     val entries = existing?.photos.orEmpty().filter { it.id in present }.toMutableList()
     val ids = entries.map { it.id }.toSet()
-    photos.filter { it.id !in ids }.forEach { entries += BatchPhoto(it.id, FilmParameters(), it.id.value.hashCode().toLong()) }
+    val initialPreset = existing?.photos?.firstOrNull { it.id == existing.referenceId }?.parameters?.presetId ?: "kodak_gold_200"
+    photos.filter { it.id !in ids }.forEach { entries += BatchPhoto(it.id, FilmParameters(presetId = initialPreset), it.id.value.hashCode().toLong()) }
     val reference=existing?.referenceId?.takeIf { it in present } ?: photos.first().id
     if(existing != null && existing.referenceId !in present && existing.mode==FilmBatchMode.FIRST_PHOTO) {
         val inherited=existing.effectiveParameters(existing.referenceId)
@@ -499,7 +500,15 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         saveEdit(snapshot.treatment, batch.updateParameters(id, parameters))
     }
 
-    /** Preview-local selection preserves finishing settings and follows the batch reference mode. */
+    /** Catalogue/import seeds the group once; preview changes remain per photo. */
+    fun selectBatchFilm(presetId: String, photoIds: Set<PhotoId>? = null) {
+        val snapshot = mutable.value
+        val batch = snapshot.filmBatch ?: return
+        if (snapshot.busy || snapshot.filmPresets.none { it.id == presetId }) return
+        saveEdit(PhotoTreatment.FILM, batch.seedPreset(presetId,photoIds))
+    }
+
+    /** Preview-local selection preserves source adjustments and follows the explicit batch mode. */
     fun selectPreviewFilm(presetId: String) {
         val snapshot = mutable.value
         val batch = snapshot.filmBatch ?: return
@@ -705,7 +714,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun importImages(uris: List<Uri>, newBatch: Boolean = false, requestId: String = UUID.randomUUID().toString()): Boolean {
+    fun importImages(uris: List<Uri>, newBatch: Boolean = false, requestId: String = UUID.randomUUID().toString(),
+        rawMode: com.lumixfilmmirror.media.RawImportMode = com.lumixfilmmirror.media.RawImportMode.EMBEDDED_JPEG): Boolean {
         if (mutable.value.busy || camera.cameraState.value.busy || uris.isEmpty()) return false
         val currentBatch = mutable.value.processingBatch?.id?.takeUnless { newBatch }
         mutable.update { it.copy(importing = true, photoImportResult = null, failures = emptyList(), notice = null) }
@@ -720,7 +730,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                     try {
                         val id = PhotoId(UUID.randomUUID().toString())
                         store.reserveLocalPhoto(batchId, id)
-                        val photo = importer.importImage(uri, photoId = id)
+                        val photo = importer.importImage(uri, photoId = id,rawMode=rawMode)
                         withContext(NonCancellable) { store.save(photo); imported += photo.id }
                     } catch (error: CancellationException) { throw error }
                     catch (error: Exception) {

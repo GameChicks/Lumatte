@@ -18,6 +18,7 @@ import com.lumixfilmmirror.model.PhotoProcessingStage
 import com.lumixfilmmirror.model.FrameOptions
 import com.lumixfilmmirror.model.FramePreset
 import com.lumixfilmmirror.model.FrameLayouts
+import com.lumixfilmmirror.model.FrameLayout
 import com.lumixfilmmirror.media.frame.FrameRenderer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -105,10 +106,12 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
                         film?.let {
                             filmStarted = true
                             actualFilmBackend = renderFilm(source, size, it, pixels) { fresh -> pixels = fresh }
-                            if (actualFilmBackend == FilmExecutionBackend.CPU) fallbackReason = filmEngine.gpuFallbackReason
+                            if (actualFilmBackend == FilmExecutionBackend.CPU) fallbackReason =
+                                if(source.rawWorkingFile!=null)"RAW10 native precision path"else filmEngine.gpuFallbackReason
                         }
                         val renderContext = coroutineContext
                         lut?.render(pixels, source) { renderContext.ensureActive() }
+                        if(film==null && lut==null)renderRawOriginal(pixels,source){renderContext.ensureActive()}
                         timing.mark("effect_render")
                         if (frame.preset != FramePreset.NONE || frame.dateBack) {
                             onStage(PhotoProcessingStage.FRAMING)
@@ -199,6 +202,7 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         try {
             film?.let { renderFilm(source, renderSize, it, pixels) { fresh -> pixels = fresh } }
             lut?.render(pixels, source, checkActive)
+            if(film==null && lut==null)renderRawOriginal(pixels,source,checkActive)
             checkActive()
             if(renderSize != size) {
                 val scaled=BitmapOrientation.previewDownsample(pixels,size,checkActive)
@@ -213,18 +217,28 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
         transparentBackground: Boolean = false, checkActive: () -> Unit) =
         frames.render(pixels, source, options, layout, stock, frameNumber, transparentBackground, checkActive)
 
+    internal fun captionInkBounds(source: SourceImage, options: FrameOptions, stock: FilmPreset?,
+        layout: FrameLayout, checkActive: () -> Unit) = frames.captionInkBounds(source, options, stock, layout, checkActive)
+
     /** GPU may have committed earlier tiles. CPU must start from the private immutable JPEG. */
     private suspend fun renderFilm(source: SourceImage, size: PixelSize, plan: FilmRenderPlan,
         initial: Bitmap, onReset: (Bitmap) -> Unit): FilmExecutionBackend {
-        try { return filmEngine.render(initial, plan, source.size) }
+        try { return filmEngine.render(initial, plan, source.size,source) }
         catch (error: MobileFilmGpuFailure) {
             coroutineContext.ensureActive()
             filmEngine.disableGpu()
             initial.recycle()
             val fresh = decode(source, size)
             onReset(fresh) // Transfer cleanup ownership before the next cancellable operation.
-            return filmEngine.renderCpu(fresh, plan, source.size)
+            return filmEngine.renderCpu(fresh, plan, source.size,source)
         }
+    }
+
+    private suspend fun renderRawOriginal(bitmap:Bitmap,source:SourceImage,checkActive:()->Unit) {
+        if(source.rawWorkingFile==null)return
+        check(NativeLutBridge.available){"10bit RAW 处理组件不可用"}
+        NativeLutRenderer.render(bitmap,source,null,0f,null,0f,0f,false,com.lumixfilmmirror.model.PhotoAdjustments())
+        checkActive()
     }
 
     private fun decode(source: SourceImage, size: PixelSize): Bitmap {
@@ -246,7 +260,12 @@ class JpegOutputWriter internal constructor(context: Context, models: MobileFilm
     }
 
     private fun writeExif(source: SourceImage, file: File, size: PixelSize) {
-        val input = ExifInterface(source.jpeg)
+        val raw=File(source.jpeg.parentFile,"original.raw")
+        // LibRaw supports formats that Android's metadata reader may not understand.
+        // Missing RAW EXIF must not discard a successfully developed image.
+        val input = if(source.origin is com.lumixfilmmirror.model.InputOrigin.RawDecoded && raw.isFile)
+            runCatching { ExifInterface(raw) }.getOrElse { ExifInterface(source.jpeg) }
+        else ExifInterface(source.jpeg)
         val output = ExifInterface(file)
         val tags = listOf(ExifInterface.TAG_MAKE, ExifInterface.TAG_MODEL, ExifInterface.TAG_LENS_MODEL,
             ExifInterface.TAG_DATETIME_ORIGINAL, ExifInterface.TAG_OFFSET_TIME_ORIGINAL,
