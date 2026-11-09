@@ -122,7 +122,11 @@ void main() {
     vec3 encoded = sourceEncoded;
     if (uSoftness > 0.0) {
         vec3 linear = vec3(decode(encoded.r), decode(encoded.g), decode(encoded.b));
-        linear = clamp(linear * (1.0-uSoftness) + field(uLens, globalPixel), 0.0, 1.0);
+        float light=max(0.0,dot(linear,vec3(.2126,.7152,.0722)));
+        float t=clamp((light-.12)/.68,0.0,1.0);
+        float knee=t*t*(3.0-2.0*t);
+        vec3 seed=max(vec3(0.0),linear+.12*knee*(light-linear))*(.04+.96*knee);
+        linear = clamp(linear-uSoftness*seed+field(uLens, globalPixel), 0.0, 1.0);
         encoded = vec3(encode(linear.r), encode(linear.g), encode(linear.b));
     }
     vec3 raw = uCompleteResponse ? field(uHalo, globalPixel) : cube(uResponse, encoded, uResponseLow, uResponseHigh);

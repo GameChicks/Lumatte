@@ -1,9 +1,14 @@
 package com.lumixfilmmirror.app
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -25,6 +30,13 @@ import kotlin.math.roundToInt
 private enum class FilmAdjustment(val title: String) {
     EXPOSURE("曝光"), BRIGHTNESS("亮度"), CONTRAST("对比度"), HIGHLIGHTS("高光"),
     SHADOWS("阴影"), SATURATION("饱和度"), VIBRANCE("自然饱和度"), TEMPERATURE("色温");
+
+    val icon: Int get() = when(this) {
+        EXPOSURE -> R.drawable.ic_adjust_exposure; BRIGHTNESS -> R.drawable.ic_adjust_brightness
+        CONTRAST -> R.drawable.ic_adjust_contrast; HIGHLIGHTS -> R.drawable.ic_adjust_highlights
+        SHADOWS -> R.drawable.ic_adjust_shadows; SATURATION -> R.drawable.ic_adjust_saturation
+        VIBRANCE -> R.drawable.ic_adjust_vibrance; TEMPERATURE -> R.drawable.ic_adjust_temperature
+    }
 
     fun value(p: FilmParameters): Float = when (this) {
         EXPOSURE -> p.exposureEv; BRIGHTNESS -> p.brightness; CONTRAST -> p.contrast
@@ -55,10 +67,24 @@ internal fun MirrorFilmFineTuning(parameters: FilmParameters, enabled: Boolean, 
         Column(Modifier.fillMaxWidth().padding(horizontal=20.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
             MirrorParameterSlider(current.title,current.label(parameters),current.value(parameters),
                 if(current==FilmAdjustment.EXPOSURE)-3f..3f else -1f..1f,enabled,
-                steps=if(current==FilmAdjustment.EXPOSURE)59 else 199){onChange(current.change(parameters,it))}
-            LazyRow(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                steps=if(current==FilmAdjustment.EXPOSURE)59 else 199,centered=true){onChange(current.change(parameters,it))}
+            LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp),contentPadding=PaddingValues(vertical=6.dp)) {
                 items(FilmAdjustment.entries,key={it.name}) { item ->
-                    EditorTextTab(item.title,item==current,{tool=item.name},enabled=enabled)
+                    val selected=item==current
+                    val shape=RoundedCornerShape(18.dp)
+                    Column(Modifier.width(72.dp).height(92.dp).shadow(if(selected)5.dp else 0.dp,shape)
+                        .clip(shape).background(tones.paper)
+                        .border(if(selected)2.dp else 1.dp,if(selected)tones.amber else tones.rim.copy(.4f),shape)
+                        .selectable(selected,enabled=enabled,role=Role.Tab,onClick={tool=item.name}),
+                        horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween) {
+                        Icon(painterResource(item.icon),null,Modifier.padding(top=14.dp).size(23.dp),
+                            tint=tones.ink.copy(if(enabled)1f else .4f))
+                        Box(Modifier.fillMaxWidth().background(if(selected)tones.amber else tones.paper).padding(horizontal=3.dp,vertical=11.dp),
+                            contentAlignment=Alignment.Center) {
+                            Text(item.title,fontSize=11.sp,maxLines=1,overflow=TextOverflow.Ellipsis,
+                                color=if(selected)tones.paperHighlight else tones.secondaryInk)
+                        }
+                    }
                 }
             }
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {

@@ -9,12 +9,12 @@ data class FilmSpatialOptions(val halationAppearance: FilmHalationAppearance = F
 data class FilmSpatialEffectsInfo(
     val version: String = VERSION,
     val halationModel: String = "ordinary-stock-and-spektralab-base-reflection",
-    val diffusionModel: String = "absorbing-three-scale-black-mist",
+    val diffusionModel: String = "highlight-knee-three-scale-black-mist",
     val analysisLongEdge: Int = 512,
     /** Zero means the complete current render grid; no fixed CineStill analysis cap. */
     val cineStillAnalysisLongEdge: Int = 0,
     val calibration: String = "project-approximation",
     val defaultHalationAppearance: FilmHalationAppearance = FilmHalationAppearance.STOCK_RETURN,
 ) {
-    companion object { const val VERSION = "lfm-optical-spatial-v5-spektralab-source-adjustments" }
+    companion object { const val VERSION = "lfm-optical-spatial-v6-highlight-diffusion" }
 }

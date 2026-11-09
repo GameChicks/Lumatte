@@ -23,6 +23,14 @@
 
 [下载 1.0.0 APK](https://github.com/GameChicks/Lumatte/releases/download/v1.0.0/Lumatte-1.0.0-build19-debug.apk) · [所有 Release](https://github.com/GameChicks/Lumatte/releases) · [版本记录](https://github.com/GameChicks/Lumatte/releases) · [构建说明](BUILDING.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
 
+## 后续源码修正（尚未打包）
+
+- 修正“原片”编辑路径显示微调数值却跳过实际处理的问题；曝光仍为原图输入端的线性光 2^EV 增益。重新渲染期间明确显示预览更新状态，避免把旧照片当作当前数值的结果。
+- 从编辑页返回 Film / LUT 主界面时结束当前待处理列表，资产库原片与导出记录保留；进入色彩库选 LUT 的临时跳转继续保留编辑列表。
+- 调节项改为八个原创矢量图标卡片，滑杆显示中性零点；取消编辑照片两侧额外的页面内边距。窄长照片继续保留比例，不拉伸或裁掉原片。
+- 构图面板固定上方成片预览，仅下方参数滚动，纸面取色时持续可见。
+- 黑柔改为线性光高光软阈值、多尺度散射与少量高光去色，保留现有颗粒和普通光晕参数。[设计与参考](research/diffusion/README.md)。本轮通过原生库与 Kotlin 源码编译，未进行数值、图像或真机测试，也未生成新安装包；不将旧 build22 的检查结果用于这些新修改。
+
 ## 1.0.1 体验版修正（versionCode 22）
 
 - 恢复主页大相机卡片的透明文字按钮。主标签各自处理顶部安全区，切页保持固定容器并只作水平位移；操作提示改为统一圆角和轻量文字操作。

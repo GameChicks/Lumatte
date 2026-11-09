@@ -75,7 +75,7 @@ internal fun MirrorEditor(state: WorkspaceState, workspace: WorkspaceViewModel, 
         }
         if(state.current==null) EmptyImport("一张照片，一种新的可能。", "支持 JPEG；RAW 可选快速读取或原始解码。", onImport)
         else {
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 SwipePhotoPreview(state, workspace, compactHeight = (maxHeight - if(state.photos.size>1) 68.dp else 0.dp).coerceAtLeast(64.dp))
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -173,6 +173,7 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
     val filmOutputSize=if(recipe is PhotoRecipe.Film)state.output.contentSize(source.size) else null
     val previewKey = listOf("editor", source.id, recipe, if (frame) options else null, if (frame) frameNumber else null, filmOutputSize)
     var bitmap by remember(source.id, frame) { mutableStateOf(workspace.displayPreviews.peek(previewKey)?.image) }
+    var displayedKey by remember(source.id, frame) { mutableStateOf<Any?>(if(bitmap != null) previewKey else null) }
     var problem by remember(source.id, frame) { mutableStateOf<String?>(null) }
     var loading by remember(source.id, frame) { mutableStateOf(true) }
     var retry by rememberSaveable(source.id.value, frame) { mutableIntStateOf(0) }
@@ -180,7 +181,6 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
         if (frame) state.output.format else null, filmOutputSize, state.luts, retry) {
         loading = workspace.displayPreviews.peek(previewKey) == null; problem = null
         try {
-            if (loading) delay(160)
             val frozenRecipe = recipe ?: error("照片配方不可用")
             val result = workspace.displayPreviews.load(previewKey, keepLoading = false) {
                 val catalogue = ProcessingCatalogue(state.luts, state.filmPresets, emptyList())
@@ -188,7 +188,7 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
                     frameNumber = frameNumber, matchFilmOutput = true)
                     else workspace.processor.preview(source, frozenRecipe, catalogue, longEdge = 960, filmOutputSize = filmOutputSize))
             }.image
-            bitmap = result; onReady?.invoke(result)
+            bitmap = result; displayedKey = previewKey; onReady?.invoke(result)
         } catch (error: CancellationException) { throw error }
         catch (error: Exception) { bitmap = null; problem = error.message ?: "预览暂不可用" }
         catch (_: OutOfMemoryError) { bitmap = null; problem = "预览内存不足，可稍后重试" }
@@ -232,6 +232,9 @@ internal fun EditedPreview(state: WorkspaceState, workspace: WorkspaceViewModel,
         if(held)Text("原图",Modifier.align(Alignment.TopStart).padding(8.dp).background(Color.Black.copy(.55f),RoundedCornerShape(10.dp))
             .padding(horizontal=10.dp,vertical=5.dp),color=Color.White,fontSize=11.sp)
         if (loading && !held) CircularProgressIndicator(Modifier.size(26.dp), strokeWidth = 2.dp)
+        if (!held && displayedKey != previewKey && problem == null) Text("正在更新预览…",
+            Modifier.align(Alignment.BottomCenter).padding(10.dp).background(Color.Black.copy(.65f),RoundedCornerShape(12.dp))
+                .padding(horizontal=12.dp,vertical=6.dp), color=Color.White,fontSize=11.sp)
         if (problem != null && !held) Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(problem.orEmpty(), color = MaterialTheme.colorScheme.error)
             MirrorTextAction("重新加载预览", { retry++ })
@@ -372,7 +375,7 @@ internal fun OutputControls(state: WorkspaceState, workspace: WorkspaceViewModel
 @Composable
 private fun ParameterSlider(title: String, valueLabel: String, value: Float, range: ClosedFloatingPointRange<Float>,
     enabled: Boolean, steps: Int = 0, onValue: (Float) -> Unit) {
-    MirrorParameterSlider(title, valueLabel, value, range, enabled, steps, onValue)
+    MirrorParameterSlider(title, valueLabel, value, range, enabled, steps, onValue = onValue)
 }
 
 @Composable
@@ -493,13 +496,19 @@ internal fun MirrorFrames(state: WorkspaceState, workspace: WorkspaceViewModel, 
         if(framePanel=="text")"文字与字体"else"构图与信息",onDismiss={framePanel=null}) {
             if (framePanel == "text") MirrorFrameTextEditor(state, workspace, onFont = { target ->
                 fontTarget = target; fontPicker.launch(arrayOf("*/*"))
-            }) else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp),
+            }) else {
+                // Preview belongs to the fixed header, not the scrolling controls: colour changes stay visible.
+                BoxWithConstraints(Modifier.fillMaxWidth().fillMaxHeight(.30f),contentAlignment=Alignment.Center) {
+                    EditedPreview(state,workspace,frame=true,compactHeight=maxHeight)
+                }
+                Spacer(Modifier.height(12.dp))
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)) {
-                item { EditedPreview(state,workspace,frame=true,compactHeight=200.dp) }
                 item { MirrorFrameDetails(state, workspace, textControls = false,
                     onFont = { target -> fontTarget = target; fontPicker.launch(arrayOf("*/*")) },
                     onArt = { art.launch(arrayOf("image/*")) }) }
                 item { if (state.photos.size > 1) PhotoStrip(state, workspace) else PhotoManagementActions(state, workspace) }
+            }
             }
     }
 }

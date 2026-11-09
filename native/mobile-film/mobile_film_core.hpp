@@ -323,9 +323,39 @@ struct Spatial {
     const Field& halo_field()const{return prepared_response?*prepared_response:halation;}
     std::array<Colour, 3> return_matrix{};
 };
+// Soft LDR highlight extraction: JPEG has no scene values above 1. Extract before area sampling
+// so small bright sources survive the bounded analysis grid. This is diffusion, not red halation.
+inline Colour diffusion_seed(const Colour& linear) {
+    const float light=std::max(0.f,luminance(linear));
+    const float t=std::clamp((light-.12f)/.68f,0.f,1.f);
+    const float knee=t*t*(3-2*t);
+    const float gate=.04f+.96f*knee;
+    Colour seed{};
+    for(int c=0;c<3;++c)seed[c]=std::max(0.f,linear[c]+.12f*knee*(light-linear[c]))*gate;
+    return seed;
+}
 inline Colour lens_colour(Colour linear, const Colour& glow, float softness) {
-    for (int c = 0; c < 3; ++c) linear[c] = std::clamp(linear[c] * (1 - softness) + glow[c], 0.f, 1.f);
+    const Colour intercepted=diffusion_seed(linear);
+    for (int c = 0; c < 3; ++c) linear[c] = std::clamp(linear[c] - softness*intercepted[c] + glow[c], 0.f, 1.f);
     return linear;
+}
+inline void prepare_lens(const Field& seed,float grade,Spatial& spatial,const Check& check) {
+    // Grades control intercepted energy. The PSF size is resolution independent on the 512 grid.
+    const double scale=std::min(1.,512./std::max(seed.width,seed.height));
+    Field compact;
+    if(scale<1.)compact=reduce_field(seed,std::max(1u,uint32_t(std::ceil(seed.width*scale))),
+        std::max(1u,uint32_t(std::ceil(seed.height*scale))),check);
+    const Field& sampled=compact.width?compact:seed;
+    spatial.softness=.42f*std::pow(grade/.5f,.75f);
+    spatial.lens=Field(sampled.width,sampled.height);
+    for(const auto [sigma,weight]:std::array<std::array<float,2>,3>{{{.75f,.20f},{3.5f,.35f},{10.f,.45f}}}) {
+        const float radius=sigma*std::max(sampled.width,sampled.height)/512.f;
+        const Field blurred=scatter_gaussian(sampled,{radius,radius,radius},check);
+        for(size_t i=0;i<blurred.values.size();++i) {
+            if((i&16383u)==0)check();
+            spatial.lens.values[i]+=spatial.softness*.96f*weight*blurred.values[i];
+        }
+    }
 }
 inline Colour film_response(const Model& model, Colour linear) {
     for (float& c : linear) c = std::clamp(encode(c), 0.f, 1.f);
@@ -477,7 +507,7 @@ inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const 
                 const uint8_t* pixel=image.pixels+size_t(y)*image.stride+size_t(x)*4;
                 if(effects.diffusion>0 || remjet) {
                     const Colour rgb=read_linear(pixel,decode_lut,effects);
-                    if(effects.diffusion>0)for(int c=0;c<3;++c)sum[c]+=rgb[c];
+                    if(effects.diffusion>0) {const Colour seed=diffusion_seed(rgb);for(int c=0;c<3;++c)sum[c]+=seed[c];}
                     if(remjet)seed_sum+=remjet_seed(rgb,effects.exposure_gain);
                 }
                 if(effects.halation && effects.diffusion==0) {
@@ -494,12 +524,7 @@ inline Spatial prepare_fotu_spatial(const Image& image,const Model& model,const 
         }
     });
     if(effects.diffusion>0) {
-        spatial.softness=effects.diffusion*.45f;
-        spatial.lens=Field(w,h);
-        for(const auto [sigma,weight]:std::array<std::array<float,2>,3>{{{.75f,.20f},{3.5f,.35f},{10.f,.45f}}}) {
-            const Field blurred=scatter_gaussian(light,{sigma,sigma,sigma},check);
-            for(size_t i=0;i<blurred.values.size();++i)spatial.lens.values[i]+=spatial.softness*.55f*weight*blurred.values[i];
-        }
+        prepare_lens(light,effects.diffusion,spatial,check);
         if(effects.halation)parallel_rows(h,uint64_t(image.width)*image.height/h,check,[&](uint32_t gy) {
             const uint32_t y0=uint32_t(uint64_t(gy)*image.height/h),y1=uint32_t(uint64_t(gy+1)*image.height/h);
             for(uint32_t gx=0;gx<w;++gx) {
@@ -564,11 +589,13 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
     // One full-image pass shared by lens diffusion and film return. No absolute highlight cutoff.
     // Linear area means preserve the energy of small lights before the compact response lookup.
     Field light(w, h);
+    Field mist;
+    if(effects.diffusion>0)mist=Field(w,h);
     parallel_rows(h, uint64_t(image.width) * image.height / h, check, [&](uint32_t gy) {
         const uint32_t y0 = uint32_t(uint64_t(gy) * image.height / h), y1 = uint32_t(uint64_t(gy + 1) * image.height / h);
         for (uint32_t gx = 0; gx < w; ++gx) {
             const uint32_t x0 = uint32_t(uint64_t(gx) * image.width / w), x1 = uint32_t(uint64_t(gx + 1) * image.width / w);
-            double sum[3]{};
+            double sum[3]{},mist_sum[3]{};
             for (uint32_t y = y0; y < y1; ++y) {
                 check();
                 const uint8_t* row = image.pixels + size_t(y) * image.stride;
@@ -576,26 +603,16 @@ inline Spatial prepare_spatial(const Image& image, const Model& model, const Eff
                     if ((x & 1023u) == 0) check();
                     const Colour rgb = read_linear(row + size_t(x) * 4, decode_lut,effects);
                     for (int c = 0; c < 3; ++c) sum[c] += rgb[c];
+                    if(effects.diffusion>0) {const Colour seed=diffusion_seed(rgb);for(int c=0;c<3;++c)mist_sum[c]+=seed[c];}
                 }
             }
             const double count = double(x1 - x0) * (y1 - y0);
             for (int c = 0; c < 3; ++c) light.values[(size_t(gy) * w + gx) * 3 + c] = float(sum[c] / count);
+            if(effects.diffusion>0)for(int c=0;c<3;++c)mist.values[(size_t(gy)*w+gx)*3+c]=float(mist_sum[c]/count);
         }
     });
     if (effects.diffusion > 0) {
-        // Illustrative black-mist response: sharp, scattered and absorbed shares are separate.
-        // Grades change loading, not blur radius; these are not measurements of a branded filter.
-        const float intercepted = effects.diffusion * .45f;
-        const float scattered = intercepted * .55f;
-        spatial.softness = intercepted;
-        spatial.lens = Field(w, h);
-        for (const auto [sigma, weight] : std::array<std::array<float, 2>, 3>{{{.75f, .20f}, {3.5f, .35f}, {10.f, .45f}}}) {
-            const Field blurred = scatter_gaussian(light, {sigma, sigma, sigma}, check);
-            for (size_t i = 0; i < blurred.values.size(); ++i) {
-                if ((i & 16383u) == 0) check();
-                spatial.lens.values[i] += scattered * weight * blurred.values[i];
-            }
-        }
+        prepare_lens(mist,effects.diffusion,spatial,check);
     }
     if (!active_halation) return spatial;
     Field response(w, h);

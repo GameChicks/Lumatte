@@ -45,7 +45,7 @@ internal fun MirrorControlSection(title: String, caption: String? = null,
 /** One gesture handler: vertical movement stays with the surrounding list. */
 @Composable
 internal fun MirrorParameterSlider(title: String, valueLabel: String, value: Float,
-    range: ClosedFloatingPointRange<Float>, enabled: Boolean, steps: Int = 0, onValue: (Float) -> Unit) {
+    range: ClosedFloatingPointRange<Float>, enabled: Boolean, steps: Int = 0, centered: Boolean = false, onValue: (Float) -> Unit) {
     val tones = LocalFilmMaterials.current
     val deliver by rememberUpdatedState(onValue)
     val safe = (value.takeIf { it.isFinite() } ?: range.start).coerceIn(range)
@@ -105,7 +105,10 @@ internal fun MirrorParameterSlider(title: String, valueLabel: String, value: Flo
             val thumb = Offset(inset + (size.width - inset * 2) * fraction, y)
             val opacity = if (enabled) 1f else .4f
             drawLine(tones.rim.copy(.65f * opacity), start, end, 3.dp.toPx(), StrokeCap.Round)
-            if (fraction > 0f) drawLine(tones.amber.copy(opacity), start, thumb, 3.dp.toPx(), StrokeCap.Round)
+            val origin = if(centered && range.start < 0 && range.endInclusive > 0)
+                Offset(inset+(size.width-inset*2)*(-range.start/span),y) else start
+            if(centered)drawLine(tones.secondaryInk.copy(.6f*opacity),Offset(origin.x,y-5.dp.toPx()),Offset(origin.x,y+5.dp.toPx()),1.dp.toPx())
+            if (fraction > 0f || centered) drawLine(tones.amber.copy(opacity), origin, thumb, 3.dp.toPx(), StrokeCap.Round)
             if (dragging) drawCircle(Brush.radialGradient(listOf(tones.amber.copy(.22f), Color.Transparent),
                 center = thumb, radius = 19.dp.toPx()), 19.dp.toPx(), thumb)
             drawCircle(tones.ink.copy(opacity), 9.dp.toPx(), thumb)

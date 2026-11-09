@@ -162,6 +162,7 @@ private fun syncFilmBatch(existing: FilmBatch?, photos: List<SourceImage>): Film
 class WorkspaceViewModel(application: Application) : AndroidViewModel(application) {
     internal val displayPreviews = MirrorPreviewCache(viewModelScope)
     private val editingSessionBatches = (application as FilmMirrorApplication).editingSessionBatches
+    private var editorClosed = false
     val processor = (application as FilmMirrorApplication).processor
     val writer get() = processor.writer
     /** Frontend-facing browser. Construction has no network side effects. */
@@ -318,8 +319,8 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                             treatment = edit?.first ?: it.treatment, film = edit?.second ?: it.film)
                     }
                     mutable.update { previous ->
-                        val id = previous.processingBatchId ?: available.firstOrNull { it.photos.isNotEmpty() }?.id
-                            ?: available.firstOrNull()?.id
+                        val id = previous.processingBatchId ?: if(editorClosed) null else
+                            (available.firstOrNull { it.photos.isNotEmpty() }?.id ?: available.firstOrNull()?.id)
                         previous.showBatch(available, id).copy(
                             notice = if (missing > 0) "$missing 张导入副本缺失，原有记录保留" else previous.notice)
                     }
@@ -394,7 +395,10 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun photoRecipe(snapshot: WorkspaceState, id: PhotoId, original: Boolean = false): PhotoRecipe {
         require(snapshot.photos.any { it.id == id }) { "照片不在当前批次中" }
-        if (original || snapshot.treatment == PhotoTreatment.ORIGINAL) return PhotoRecipe.Original
+        if (original) return PhotoRecipe.Original
+        val adjustments = snapshot.filmBatch?.effectiveParameters(id)?.adjustments() ?: PhotoAdjustments()
+        if (snapshot.treatment == PhotoTreatment.ORIGINAL) return if (adjustments == PhotoAdjustments()) PhotoRecipe.Original
+            else PhotoRecipe.Lut(LutRecipe(grainEnabled = false, ditheringEnabled = false, adjustments = adjustments))
         return if (snapshot.treatment == PhotoTreatment.LUT) PhotoRecipe.Lut(snapshot.lutRecipe.copy(adjustments =
             snapshot.filmBatch?.effectiveParameters(id)?.adjustments() ?: PhotoAdjustments()))
         else {
@@ -747,6 +751,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun showCreatedBatch(batch: ProcessingBatch) {
+        editorClosed = false
         editingSessionBatches.add(batch.id)
         mutable.update { previous -> previous.showBatch(
             (listOf(batch) + previous.processingBatches).distinctBy { it.id }, batch.id)
@@ -788,6 +793,7 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
     fun selectProcessingBatch(id: String) {
         if (mutable.value.busy || camera.cameraState.value.busy || mutable.value.processingBatches.none { it.id == id }) return
         if (id == mutable.value.processingBatchId) return
+        editorClosed = false
         mutable.update { it.showBatch(it.processingBatches, id)
             .copy(notice = null) }
         persistPreferences()
@@ -827,6 +833,32 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
                 if(oldDraft==null)editDrafts.remove(batchId) else editDrafts[batchId]=oldDraft
                 notice(error.message ?: "照片未移除，请重试")
             } finally { mutable.update { it.copy(batchBusy=false) } }
+        }
+    }
+
+    /** Leaving the editor ends its pending list; imported originals remain in the asset library. */
+    fun leavePhotoEditor(onLeft: () -> Unit) {
+        val snapshot = mutable.value
+        if (snapshot.busy || camera.cameraState.value.busy) { notice("当前任务结束后可退出编辑"); return }
+        val batchId = snapshot.processingBatchId
+        if (batchId == null || snapshot.photos.isEmpty()) { onLeft(); return }
+        mutable.update { it.copy(batchBusy = true) }
+        viewModelScope.launch {
+            try {
+                editSaveJobs.remove(batchId)?.let { it.cancel(); it.join() }
+                lutSaveJobs.remove(batchId)?.let { it.cancel(); it.join() }
+                frameSaveJobs.remove(batchId)?.let { it.cancel(); it.join() }
+                store.removeProcessingPhotos(batchId, snapshot.photos.map { it.id }.toSet(), snapshot.treatment, null)
+                editorClosed = true
+                editingSessionBatches.remove(batchId)
+                editDrafts.remove(batchId); lutDrafts.remove(batchId); frameDrafts.remove(batchId)
+                mutable.update { current -> current.showBatch(current.processingBatches.filterNot { it.id == batchId }, null)
+                    .copy(notice = null, photoImportResult = null) }
+                persistPreferences()
+                onLeft()
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { notice(error.message ?: "未能结束编辑，请重试") }
+            finally { mutable.update { it.copy(batchBusy = false) } }
         }
     }
     fun output(settings: JpegOutput) {

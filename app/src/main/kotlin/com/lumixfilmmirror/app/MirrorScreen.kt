@@ -211,7 +211,8 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
     val reduced = personal.reducedMotion || systemMotionReduced()
     val navigation = pane == null && !fullscreen && WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current) == 0
     BackHandler(pane != null) {
-        pane = when (pane) { "export" -> "editor"; "reveal" -> "editor"; else -> null }
+        if (pane == "editor") workspace.leavePhotoEditor { pane = null }
+        else pane = when (pane) { "export" -> "editor"; "reveal" -> "editor"; else -> null }
     }
     val feedbackContext=androidx.compose.ui.platform.LocalContext.current
     val feedbackPlayer=remember(feedbackContext.applicationContext) { MirrorFeedbackPlayer(feedbackContext.applicationContext) }
@@ -250,7 +251,7 @@ internal fun MirrorScreen(workspace: WorkspaceViewModel,widgetRequest: WidgetLau
                             if (transfers.isNotEmpty()) TransferQueuePanel(transfers, state, workspace, startTransfer)
                         }
                     }
-                    "editor" -> MirrorEditor(state, workspace, onBack = { pane = null },
+                    "editor" -> MirrorEditor(state, workspace, onBack = { workspace.leavePhotoEditor { pane = null } },
                         onImport = { importPhotos(state.treatment) }, onChooseLut = { second -> editingLutSecond = second; tab = 2; pane = null },
                         onNext = {
                             val id = state.processingBatchId
