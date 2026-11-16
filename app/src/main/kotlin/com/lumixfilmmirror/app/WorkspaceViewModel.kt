@@ -44,8 +44,11 @@ import com.lumixfilmmirror.storage.ExportRun
 import com.lumixfilmmirror.storage.ExportItemState
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -260,34 +263,62 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         mutable.update { it.copy(recovering = true, storageFailure = null) }
         restoreJob = viewModelScope.launch {
             try {
-                val problems = store.initialize(importer, recoverTransfers = !camera.isTransferring, recoverPhotos = false)
-                val settings = store.readPreferences()
-                exportQueue.initialize()
-                val exportRuns = exportQueue.runs.first()
-                val library = processor.loadCatalogue()
-                val filmPresets = library.films
-                val batches = availableBatches(store.processingBatches.first()).first
-                val cleanup = writer.cleanCache()
-                val folderExports = writer.inspectFolderExports()
-                val cleanupProblems = (cleanup.problems + cleanup.remaining.problems).distinct()
-                val cleanupNotice = if (cleanup.temporaryFilesRemoved + cleanup.pendingImagesRemoved > 0)
-                    "已整理上次导出的 ${cleanup.temporaryFilesRemoved} 个中间文件、${cleanup.pendingImagesRemoved} 个未发布图片" else null
-                mutable.update { previous ->
-                    val batchId = exportExecution.value.run?.batchId?.takeIf { exportExecution.value.active }
-                        ?: previous.activeTransferBatch
-                        ?: settings.processingBatchId?.takeIf { id -> batches.any { it.id == id } }
-                        ?: batches.firstOrNull { batch -> batch.photos.any { it.id.value == settings.selectedId } }?.id
-                        ?: batches.firstOrNull { it.photos.isNotEmpty() }?.id ?: batches.firstOrNull()?.id
-                    previous.copy(output = settings.output, selected = settings.selectedId?.let(::PhotoId), luts = library.luts, filmPresets = filmPresets,
-                    exportRuns = exportRuns,
-                    destination = settings.folderUri?.let { uri -> ExportDestination.Folder(Uri.parse(uri)) } ?: ExportDestination.Gallery,
-                    exportCache = cleanup.remaining.copy(problems = cleanupProblems),
-                    folderExports = folderExports,
-                    notice = (problems + library.problems + listOfNotNull(cleanupNotice)).takeIf { it.isNotEmpty() }?.joinToString("\n"))
-                        .showBatch(batches, batchId)
+                coroutineScope {
+                    val recovery = async(Dispatchers.IO) {
+                        store.initialize(importer, recoverTransfers = !camera.isTransferring, recoverPhotos = false)
+                    }
+                    val settings = async(Dispatchers.IO) { store.readPreferences() }
+                    val exports = async(Dispatchers.IO) { exportQueue.initialize(); exportQueue.runs.first() }
+                    val lutLibrary = async(Dispatchers.IO) { processor.loadLutCatalogue() }
+                    val films = async(Dispatchers.IO) { processor.loadFilmCatalogue() }
+                    val batches = async(Dispatchers.IO) { availableBatches(store.processingBatches.first()) }
+
+                    // Film artwork can begin loading as soon as its small metadata catalogue is ready.
+                    val filmPresets = films.await()
+                    mutable.update { it.copy(filmPresets = filmPresets) }
+
+                    val problems = recovery.await()
+                    val preferences = settings.await()
+                    val exportRuns = exports.await()
+                    val library = lutLibrary.await()
+                    val (availableBatches, missing) = batches.await()
+                    mutable.update { previous ->
+                        val batchId = exportExecution.value.run?.batchId?.takeIf { exportExecution.value.active }
+                            ?: previous.activeTransferBatch
+                            ?: preferences.processingBatchId?.takeIf { id -> availableBatches.any { it.id == id } }
+                            ?: availableBatches.firstOrNull { batch -> batch.photos.any { it.id.value == preferences.selectedId } }?.id
+                            ?: availableBatches.firstOrNull { it.photos.isNotEmpty() }?.id ?: availableBatches.firstOrNull()?.id
+                        previous.copy(output = preferences.output, selected = preferences.selectedId?.let(::PhotoId),
+                            luts = library.assets, filmPresets = filmPresets, exportRuns = exportRuns,
+                            destination = preferences.folderUri?.let { uri -> ExportDestination.Folder(Uri.parse(uri)) }
+                                ?: ExportDestination.Gallery,
+                            notice = (problems + library.problems + listOfNotNull(
+                                if (missing > 0) "$missing 张导入副本缺失，原有记录保留" else null))
+                                .takeIf { it.isNotEmpty() }?.joinToString("\n"))
+                            .showBatch(availableBatches, batchId)
+                    }
                 }
                 observingStorage = true
                 observeStorage()
+                // These recovery scans are not needed to render the first screen. The writer's
+                // shared mutex keeps cleanup behind any export the user starts after opening.
+                viewModelScope.launch {
+                    delay(350)
+                    try {
+                        val cleanup = writer.cleanCache()
+                        val folderExports = writer.inspectFolderExports()
+                        val cleanupProblems = (cleanup.problems + cleanup.remaining.problems).distinct()
+                        val cleanupNotice = if (cleanup.temporaryFilesRemoved + cleanup.pendingImagesRemoved > 0)
+                            "已整理上次导出的 ${cleanup.temporaryFilesRemoved} 个中间文件、${cleanup.pendingImagesRemoved} 个未发布图片"
+                        else null
+                        mutable.update { previous ->
+                            val notices = (listOfNotNull(previous.notice, cleanupNotice) + cleanupProblems).distinct()
+                            previous.copy(exportCache = cleanup.remaining.copy(problems = cleanupProblems),
+                                folderExports = folderExports, notice = notices.takeIf { it.isNotEmpty() }?.joinToString("\n"))
+                        }
+                    } catch (error: CancellationException) { throw error }
+                    catch (error: Exception) { mutable.update { it.copy(notice = error.message ?: "导出缓存状态读取失败") } }
+                }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) {
                 mutable.update { it.copy(storageFailure = error.message ?: "工作台无法恢复，请重试") }
@@ -299,14 +330,16 @@ class WorkspaceViewModel(application: Application) : AndroidViewModel(applicatio
         storageObservers.forEach { it.cancel() }
         storageObservers.clear()
         storageObservers += viewModelScope.launch {
-            try { store.photos.collect { photos ->
+            try { store.libraryPhotos.collect { photos ->
                 val available = store.available(photos).first
-                val days = photos.mapNotNull { photo ->
-                    runCatching { java.time.LocalDate.parse(photo.metadata.capturedAt.take(10).replace(':', '-')).toString() }.getOrNull()
-                }.groupingBy { it }.eachCount()
-                mutable.update { it.copy(captureDays = days, libraryPhotos = available) }
+                mutable.update { it.copy(libraryPhotos = available) }
             } } catch (e: CancellationException) { throw e }
             catch (_: Exception) { /* Editing remains available if historical usage cannot be read. */ }
+        }
+        storageObservers += viewModelScope.launch {
+            try { store.captureDays.collect { days -> mutable.update { it.copy(captureDays = days) } } }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { /* Calendar counts stay available when their optional history query succeeds. */ }
         }
         storageObservers += viewModelScope.launch {
             try {

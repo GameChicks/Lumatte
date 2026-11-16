@@ -6,6 +6,7 @@ import android.provider.OpenableColumns
 import android.util.AtomicFile
 import com.lumixfilmmirror.model.LutRecipe
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -48,8 +49,7 @@ class LutLibrary(context: Context) {
         for (entry in bundled) {
             coroutineContext.ensureActive()
             try {
-                val text = context.assets.open("luts/${entry.name}.cube").bufferedReader(Charsets.UTF_8).use { it.readText() }
-                val table = CubeLut.parse(text, entry.name) { parsingContext.ensureActive() }.named(entry.name)
+                val table = loadBundled(entry, parsingContext).named(entry.name)
                 assets += LutAsset("bundled-${entry.id}", entry.name, true, table, entry.style)
             } catch (error: java.io.IOException) { problems += "${entry.name}：内置 LUT 读取失败" }
             catch (error: IllegalArgumentException) { problems += "${entry.name}：内置 LUT 数据无效" }
@@ -66,6 +66,46 @@ class LutLibrary(context: Context) {
             }
         val downloaded = official.load()
         LutLibrarySnapshot(assets + downloaded.assets, problems + downloaded.problems)
+    }
+
+    /** Cache parsed APK LUTs between process starts; the content hash invalidates changed inputs. */
+    private suspend fun loadBundled(entry: Bundled, active: kotlin.coroutines.CoroutineContext): CubeLut {
+        val bytes = context.assets.open("luts/${entry.name}.cube").use { it.readBytes() }
+        active.ensureActive()
+        val hashBytes = MessageDigest.getInstance("SHA-256").digest(bytes)
+        val hex = CharArray(hashBytes.size * 2)
+        val digits = "0123456789abcdef"
+        hashBytes.forEachIndexed { index, byte ->
+            val value = byte.toInt() and 0xff
+            hex[index * 2] = digits[value ushr 4]
+            hex[index * 2 + 1] = digits[value and 0x0f]
+        }
+        val cacheRoot = File(context.cacheDir, "lumatte/bundled-luts-v1")
+        val cacheFile = File(cacheRoot, "${entry.id}-${String(hex)}.lfmlut")
+        if (cacheFile.isFile) {
+            try {
+                return DataInputStream(AtomicFile(cacheFile).openRead().buffered()).use { input -> CubeLut.read(input) }
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { cacheFile.delete() }
+        }
+        val table = CubeLut.parse(bytes.toString(Charsets.UTF_8), entry.name) { active.ensureActive() }
+        if (cacheRoot.isDirectory || cacheRoot.mkdirs()) {
+            val atomic = AtomicFile(cacheFile)
+            val output = try { atomic.startWrite() } catch (_: Exception) { return table }
+            try {
+                val encoded = DataOutputStream(output.buffered(64 * 1024))
+                table.write(encoded)
+                encoded.flush()
+                active.ensureActive()
+                atomic.finishWrite(output)
+            } catch (error: CancellationException) {
+                atomic.failWrite(output)
+                throw error
+            } catch (_: Exception) {
+                atomic.failWrite(output)
+            }
+        }
+        return table
     }
 
     internal suspend fun importOfficial(detail: LumixLabLutDetail, cube: ByteArray): LutAsset = official.save(detail, cube)

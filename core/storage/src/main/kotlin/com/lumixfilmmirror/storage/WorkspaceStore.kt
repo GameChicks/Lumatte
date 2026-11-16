@@ -31,7 +31,12 @@ class WorkspaceStore(context: Context) {
     private val context = context.applicationContext
     private val dao = WorkspaceDatabase.get(this.context).workspace()
     private val preferences = this.context.workspacePreferences
-    val photos = dao.photos().map { rows -> rows.map(::source) }.flowOn(Dispatchers.IO)
+    val libraryPhotos = dao.libraryPhotos().map { rows -> rows.map(::source) }.flowOn(Dispatchers.IO)
+    val captureDays = dao.photoCaptureDates().map { dates ->
+        dates.mapNotNull { capturedAt ->
+            runCatching { java.time.LocalDate.parse(capturedAt.take(10).replace(':', '-')).toString() }.getOrNull()
+        }.groupingBy { it }.eachCount()
+    }.flowOn(Dispatchers.Default)
     val processingBatches = dao.processingBatches().map { groups -> groups.map { group ->
         ProcessingBatch(group.batch.id, group.batch.title, group.batch.createdAt,
             group.entries.filterNot { it.entry.removed }.sortedWith(compareBy({ it.entry.ordinal }, { it.entry.photoId }))

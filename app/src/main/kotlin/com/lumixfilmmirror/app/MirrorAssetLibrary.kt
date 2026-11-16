@@ -34,7 +34,7 @@ internal fun MirrorAssetLibrary(state: WorkspaceState, workspace: WorkspaceViewM
     val tones = LocalFilmMaterials.current
     var search by rememberSaveable { mutableStateOf("") }
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
-    val photos = remember(state.libraryPhotos, search) { state.libraryPhotos.asReversed().filter {
+    val photos = remember(state.libraryPhotos, search) { state.libraryPhotos.filter {
         search.isBlank() || it.name.contains(search, ignoreCase = true)
     } }
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -42,7 +42,7 @@ internal fun MirrorAssetLibrary(state: WorkspaceState, workspace: WorkspaceViewM
             RoundAction("返回主页", DotGlyph.LEFT, onClick = onBack)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text("资产库", style = MaterialTheme.typography.headlineMedium)
-                Text("${state.libraryPhotos.size} 张已导入照片", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
+                Text("已导入 ${state.libraryPhotos.size} 张 · 最多保留 100 张", style = MaterialTheme.typography.bodySmall, color = tones.secondaryInk)
             }
             RoundAction("导入照片", DotGlyph.PLUS, enabled = !state.busy, onClick = onImport)
         }

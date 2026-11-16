@@ -106,7 +106,7 @@ internal fun MirrorHome(state: WorkspaceState, camera: CameraWorkspaceState, per
                             Modifier.weight(1f), actionCardHeight, DotGlyph.BLUETOOTH, "BLUETOOTH\nCONNECT", { onCamera(null) })
                         HomeCard.IMPORT -> ActionAtmosphere("手机\n相册", "导入手机照片", listOf(Color(0xFF285D34), Color(0xFF89BB64), Color(0xFFF0DF93)),
                             Modifier.weight(1f), actionCardHeight, DotGlyph.ALBUM, "IMPORT\nPHOTOS", onAlbum)
-                        else -> ActionAtmosphere("资产\n图库", "已导入 ${state.libraryPhotos.size} 张", listOf(Color(0xFF91B6C9),Color(0xFF577395),Color(0xFF9A80A6)),
+                        else -> ActionAtmosphere("资产\n图库", "最近 ${state.libraryPhotos.size} 张", listOf(Color(0xFF91B6C9),Color(0xFF577395),Color(0xFF9A80A6)),
                             Modifier.weight(1f), actionCardHeight, DotGlyph.ALBUM, "PHOTO\nLIBRARY", onLibrary)
                     } }
                     if (row.size == 1) Spacer(Modifier.weight(1f))

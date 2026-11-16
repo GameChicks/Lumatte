@@ -16,6 +16,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Semaphore
@@ -47,9 +49,15 @@ class PhotoProcessor(context: Context) {
     private var trimJob: Job? = null
     val writer = JpegOutputWriter(context, mobileFilmModels)
 
-    suspend fun loadCatalogue(): ProcessingCatalogue {
-        val library = luts.load()
-        return ProcessingCatalogue(library.assets, films.load(), library.problems)
+    suspend fun loadFilmCatalogue(): List<FilmPreset> = films.load()
+
+    suspend fun loadLutCatalogue(): LutLibrarySnapshot = luts.load()
+
+    suspend fun loadCatalogue(): ProcessingCatalogue = coroutineScope {
+        val luts = async(Dispatchers.IO) { this@PhotoProcessor.luts.load() }
+        val films = async(Dispatchers.IO) { this@PhotoProcessor.films.load() }
+        val library = luts.await()
+        ProcessingCatalogue(library.assets, films.await(), library.problems)
     }
 
     suspend fun importLut(uri: Uri): LutAsset = luts.import(uri)

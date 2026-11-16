@@ -111,6 +111,10 @@ internal abstract class WorkspaceDao {
     }
     @Query("SELECT * FROM photos ORDER BY ordinal")
     abstract fun photos(): Flow<List<PhotoRow>>
+    @Query("SELECT * FROM photos ORDER BY ordinal DESC LIMIT 100")
+    abstract fun libraryPhotos(): Flow<List<PhotoRow>>
+    @Query("SELECT capturedAt FROM photos WHERE capturedAt != ''")
+    abstract fun photoCaptureDates(): Flow<List<String>>
     @Query("SELECT * FROM photos WHERE id = :id")
     abstract suspend fun photo(id: String): PhotoRow?
     @Query("SELECT COALESCE(MAX(ordinal), 0) + 1 FROM photos")
